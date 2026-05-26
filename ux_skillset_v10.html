@@ -493,7 +493,7 @@
       skills.forEach(skill => {
         const chip = document.createElement("div");
         chip.className = "skill-chip";
-        chip.draggable = !!(isUser() || isAdmin());
+        chip.draggable = true;
         chip.dataset.skillId = skill.id;
         const fav = state.favorites.includes(skill.id);
         chip.innerHTML = `
@@ -623,7 +623,9 @@
             zone.classList.add("drag-over");
           });
         });
-        zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
+        zone.addEventListener("dragleave", (e) => {
+          if (!zone.contains(e.relatedTarget)) zone.classList.remove("drag-over");
+        });
         zone.addEventListener("drop", (e) => {
           e.preventDefault();
           zone.classList.remove("drag-over");

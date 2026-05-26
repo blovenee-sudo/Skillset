@@ -102,6 +102,45 @@ node scripts/apply-env.mjs
 
 ---
 
+## 업데이트 배포 방법
+
+앱을 수정하고 팀원에게 배포할 때의 절차입니다.
+
+### 관리자 (배포하는 사람)
+
+1. 코드 수정
+2. `sw.js` 첫 줄 캐시 버전 번호를 올린다
+
+   ```js
+   // 수정 전
+   const CACHE = 'skillset-v1';
+   // 수정 후 (숫자를 1씩 올림)
+   const CACHE = 'skillset-v2';
+   ```
+
+3. Git 커밋 & 푸시
+
+   ```bash
+   git add .
+   git commit -m "fix: 수정 내용 요약"
+   git push origin main
+   ```
+
+4. 팀원에게 업데이트 공지 (버전 번호 포함 권장)
+
+### 팀원 (업데이트 받는 사람)
+
+```bash
+git pull          # 최신 파일 받기
+```
+
+이후 `run.command` (Mac) 또는 `run.bat` (Windows) 재실행 → PWA 앱에서 `Cmd+R` / `F5` 새로고침
+
+> **왜 버전을 올려야 하나요?**  
+> Service Worker가 파일을 캐시해두기 때문에, 버전을 올리지 않으면 브라우저가 최대 24시간 동안 이전 버전을 계속 보여줄 수 있습니다. 버전을 바꾸면 브라우저가 즉시 새 캐시를 적용합니다.
+
+---
+
 ## 스킬 관리
 
 ### 스킬 추가 · 수정 (관리자)

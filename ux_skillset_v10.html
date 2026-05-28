@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>UX AI 스킬셋</title>
+  <title>AX 스킬셋</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f1218">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="스킬셋">
+  <meta name="apple-mobile-web-app-title" content="AX 스킬셋">
   <link rel="apple-touch-icon" href="icon.svg">
   <style>
     :root {
@@ -29,7 +29,12 @@
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; font-family: var(--font); background: var(--bg); color: var(--text); }
     button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
-    input, textarea { font-family: inherit; color: var(--text); }
+    input, textarea, select { font-family: inherit; color: var(--text); }
+    select {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px; width: 100%; font-size: 13px; margin-bottom: 12px; cursor: pointer;
+    }
+    select:focus { outline: none; border-color: var(--accent); }
 
     .app-header {
       display: flex; align-items: center; justify-content: space-between;
@@ -37,15 +42,6 @@
       background: var(--surface); flex-shrink: 0;
     }
     .app-header h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.02em; }
-    .er-badge {
-      display: flex; align-items: center; gap: 10px; font-size: 13px;
-    }
-    .er-pill {
-      background: var(--surface2); border: 1px solid var(--border);
-      padding: 6px 12px; border-radius: 999px; color: var(--muted);
-    }
-    .er-pill strong { color: var(--success); }
-    .er-pill.done { border-color: var(--success); background: rgba(62, 207, 142, 0.12); }
     .header-actions { display: flex; align-items: center; gap: 8px; }
     .btn-sm {
       padding: 6px 12px; border-radius: 8px; font-size: 12px;
@@ -63,9 +59,7 @@
       width: 300px; min-width: 260px; border-right: 1px solid var(--border);
       display: flex; flex-direction: column; background: var(--surface);
     }
-    .tabs {
-      display: flex; border-bottom: 1px solid var(--border);
-    }
+    .tabs { display: flex; border-bottom: 1px solid var(--border); }
     .tabs button {
       flex: 1; padding: 10px 6px; font-size: 12px; color: var(--muted);
       border-bottom: 2px solid transparent; margin-bottom: -1px;
@@ -93,6 +87,22 @@
     .skill-meta .slash { font-size: 11px; color: var(--accent); font-family: ui-monospace, monospace; }
     .skill-meta .title { font-size: 13px; font-weight: 600; margin-top: 2px; }
     .skill-meta .desc { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.35; }
+
+    /* Group headers in sidebar */
+    .group-header { margin: 8px 0 2px; }
+    .group-toggle {
+      display: flex; align-items: center; gap: 6px; width: 100%;
+      padding: 5px 6px; border-radius: 6px; text-align: left;
+      color: var(--muted); font-size: 11px; font-weight: 600;
+      letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .group-toggle:hover { background: var(--surface2); color: var(--text); }
+    .group-arrow { font-size: 9px; width: 10px; }
+    .group-name { flex: 1; }
+    .group-count {
+      background: var(--border); border-radius: 999px;
+      padding: 1px 7px; font-size: 10px; font-weight: 400;
+    }
 
     .content {
       flex: 1; display: flex; flex-direction: column; min-width: 0;
@@ -152,17 +162,12 @@
     .detail-head h3 { margin: 0; font-size: 16px; flex: 1; }
     .detail-body { flex: 1; overflow-y: auto; padding: 14px 18px 20px; }
     .detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-    .usage-btn {
+    .copy-btn {
       padding: 8px 14px; border-radius: 8px; font-size: 13px;
       background: linear-gradient(135deg, var(--accent), var(--accent2));
       color: #fff; font-weight: 600;
     }
-    .usage-btn:hover { filter: brightness(1.06); }
-    .copy-btn {
-      padding: 8px 14px; border-radius: 8px; font-size: 13px;
-      border: 1px solid var(--border); background: var(--surface2);
-    }
-    .copy-btn:hover { border-color: var(--accent); }
+    .copy-btn:hover { filter: brightness(1.06); }
     textarea.prompt-area {
       width: 100%; min-height: 160px; padding: 12px; border-radius: 8px;
       border: 1px solid var(--border); background: var(--bg); font-size: 13px; line-height: 1.5; resize: vertical;
@@ -190,21 +195,33 @@
       width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border);
       background: var(--bg); margin-bottom: 12px;
     }
+    .modal input:focus { outline: none; border-color: var(--accent); }
     .modal .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+
+    /* Manage modal */
+    .manage-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; border-bottom: 1px solid var(--border); gap: 12px;
+    }
+    .manage-row:last-child { border-bottom: none; }
+    .manage-label { font-size: 13px; }
+    .manage-hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .manage-group-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; }
+    .manage-group-item input {
+      flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--bg); font-size: 12px; margin-bottom: 0; width: auto;
+    }
 
     .empty-state { color: var(--muted); font-size: 13px; text-align: center; padding: 40px 20px; }
   </style>
 </head>
 <body>
   <header class="app-header">
-    <h1>UX AI 스킬셋</h1>
-    <div class="er-badge">
-      <span class="er-pill" id="erPill">사례 <strong id="usageCount">0</strong>/10건</span>
-      <span class="er-pill" id="envBadge" style="max-width:42vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title=""></span>
-    </div>
+    <h1>AX 스킬셋</h1>
     <div class="header-actions">
       <button type="button" class="btn-sm" id="btnRefreshSkills" style="display:none" title="skills/index.json 에서 기본 스킬 새로고침">↻ 스킬 업데이트</button>
-      <button type="button" class="btn-sm" id="btnLogin">세션</button>
+      <button type="button" class="btn-sm" id="btnManage">관리</button>
+      <button type="button" class="btn-sm" id="btnLogin">로그인</button>
       <button type="button" class="btn-primary" id="btnNewProject">+ 프로젝트</button>
     </div>
   </header>
@@ -225,7 +242,7 @@
     <section class="content">
       <div class="toolbar">
         <span style="font-size:13px;color:var(--muted)">스킬을 드래그하여 프로젝트 카드에 놓으세요. 동일 스킬을 여러 프로젝트에 둘 수 있습니다. 기획 산출은 복사 시 <strong>마크다운</strong> 공통 규칙이 자동 첨부됩니다.</span>
-        <span class="role" id="roleLabel">비로그인 · 조회·복사만</span>
+        <span class="role" id="roleLabel"></span>
       </div>
       <div class="projects-grid" id="projectsGrid"></div>
     </section>
@@ -247,30 +264,31 @@
       <textarea class="prompt-area" id="detailPrompt" spellcheck="false"></textarea>
       <div class="detail-actions">
         <button type="button" class="copy-btn" id="btnCopy">프롬프트 복사</button>
-        <button type="button" class="usage-btn" id="btnUsage">사용 +0</button>
-        <button type="button" class="btn-sm" id="btnEditSkill" style="display:none">스킬 편집</button>
-        <button type="button" class="btn-sm" id="btnDelSkill" style="display:none;border-color:#7f1d1d;color:#fca5a5">스킬 삭제</button>
+        <button type="button" class="btn-sm" id="btnEditSkill">스킬 편집</button>
+        <button type="button" class="btn-sm" id="btnDelSkill" style="border-color:#7f1d1d;color:#fca5a5">스킬 삭제</button>
       </div>
     </div>
   </div>
 
+  <!-- 로그인 modal -->
   <div class="modal-backdrop" id="modalSession">
     <div class="modal">
-      <h4>세션</h4>
+      <h4>로그인</h4>
       <p style="font-size:12px;color:var(--muted);margin:0 0 12px">
-        비로그인: 조회·복사만. 이름 입력 후 로그인: 스킬 추가·본인 스킬 편집. 관리자 PIN: 전체 편집·삭제.
+        표시 이름 입력 시 스킬에 작성자가 기록됩니다. 관리자 PIN 입력 시 스킬 업데이트 기능이 활성화됩니다.
       </p>
-      <label>표시 이름 (일반 사용자)</label>
+      <label>표시 이름 (선택)</label>
       <input type="text" id="inputDisplayName" placeholder="예: 김보니" />
       <label>관리자 PIN (선택)</label>
       <input type="password" id="inputAdminPin" placeholder="PIN이 있으면 관리자 권한" autocomplete="off" />
       <div class="row">
-        <button type="button" class="btn-sm" id="btnGuest">비로그인으로</button>
+        <button type="button" class="btn-sm" id="btnGuest">취소</button>
         <button type="button" class="btn-primary" id="btnSaveSession">적용</button>
       </div>
     </div>
   </div>
 
+  <!-- 스킬 modal -->
   <div class="modal-backdrop" id="modalSkill">
     <div class="modal">
       <h4 id="skillModalTitle">스킬</h4>
@@ -280,6 +298,10 @@
       <input type="text" id="skSlash" />
       <label>한 줄 설명</label>
       <input type="text" id="skDesc" />
+      <label>그룹 (선택)</label>
+      <select id="skGroup">
+        <option value="">그룹 없음</option>
+      </select>
       <label>프롬프트 본문</label>
       <textarea class="prompt-area" id="skPrompt" style="min-height:120px"></textarea>
       <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
@@ -287,6 +309,45 @@
         <span style="flex:1"></span>
         <button type="button" class="btn-sm" id="btnSkillCancel">취소</button>
         <button type="button" class="btn-primary" id="btnSkillSave">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 관리 modal -->
+  <div class="modal-backdrop" id="modalManage">
+    <div class="modal" style="max-width:440px">
+      <h4>관리</h4>
+      <div>
+        <div class="manage-row">
+          <div>
+            <div class="manage-label">사용 건수</div>
+            <div class="manage-hint">프롬프트 복사 누적 횟수</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <strong id="manageCaseCount">0건</strong>
+            <button type="button" class="btn-sm" id="btnResetUsage">초기화</button>
+          </div>
+        </div>
+        <div class="manage-row" style="flex-direction:column;align-items:stretch">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div>
+              <div class="manage-label">그룹 관리</div>
+              <div class="manage-hint">스킬을 그룹으로 분류합니다</div>
+            </div>
+            <button type="button" class="btn-sm" id="btnAddGroup">+ 그룹 추가</button>
+          </div>
+          <div id="manageGroupList"></div>
+        </div>
+        <div class="manage-row">
+          <div>
+            <div class="manage-label" style="color:#fca5a5">기기 데이터 전체 삭제</div>
+            <div class="manage-hint">스킬, 프로젝트, 설정 모두 초기화</div>
+          </div>
+          <button type="button" class="btn-sm" id="btnClearAll" style="border-color:#7f1d1d;color:#fca5a5;flex-shrink:0">전체 삭제</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <button type="button" class="btn-sm" id="btnCloseManage">닫기</button>
       </div>
     </div>
   </div>
@@ -301,21 +362,24 @@
         ? window.__UX_SKILLSET_ENV__
         : {};
 
-    /** 우선순위: .env 경유 ADMIN_PIN → 코드 기본값 (로컬에 env-config.js 없을 때) */
+    /** 우선순위: .env 경유 ADMIN_PIN → 코드 기본값 */
     const ADMIN_PIN =
       (APP_ENV.ADMIN_PIN && String(APP_ENV.ADMIN_PIN).trim()) || "1234";
 
     const STORAGE_KEY = "ux_skillset_v10";
 
-    /** 복사 시 LLM에 함께 넘기는 공통 지침: 기획 산출물은 마크다운 기본 */
+    /** 복사 시 LLM에 함께 넘기는 공통 지침 */
     const MARKDOWN_OUTPUT_BLOCK =
-      "\n\n---\n[공통 출력 규칙 — UX AI 스킬셋]\n" +
+      "\n\n---\n[공통 출력 규칙 — AX 스킬셋]\n" +
       "- 본 답변의 **기획·정리 산출물**은 기본적으로 **마크다운(GFM)** 형식으로 작성한다.\n" +
       "- `#`~`###` 제목, 불릿/번호 목록, 표, ` ``` ` 코드펜스(Mermaid 포함)를 적극 활용한다.\n" +
       "- 한 파일로보낼 수 있게 구조화한다.\n";
 
     function hasMarkdownDirective(text) {
-      return typeof text === "string" && text.includes("[공통 출력 규칙 — UX AI 스킬셋]");
+      return typeof text === "string" && (
+        text.includes("[공통 출력 규칙 — AX 스킬셋]") ||
+        text.includes("[공통 출력 규칙 — UX AI 스킬셋]")
+      );
     }
 
     function buildClipboardPrompt(body) {
@@ -324,44 +388,24 @@
       return t + MARKDOWN_OUTPUT_BLOCK;
     }
 
-    function maskSecret(v) {
-      if (v == null || v === "") return "";
-      const s = String(v);
-      if (s.length <= 4) return "****";
-      return s.slice(0, 2) + "…" + s.slice(-2);
-    }
-
-    function renderEnvBadge() {
-      const keys = Object.keys(APP_ENV).filter((k) => APP_ENV[k] != null && String(APP_ENV[k]).trim() !== "");
-      const el = document.getElementById("envBadge");
-      if (!el) return;
-      if (!keys.length) {
-        el.textContent = "설정: .env 미적용 (node scripts/apply-env.mjs)";
-        el.title = "env-config.js 없음 또는 비어 있음. .env.example → .env 후 apply-env 실행.";
-        return;
-      }
-      el.textContent = `설정: ${keys.length}개 키 (${keys.map((k) => k + "=" + maskSecret(APP_ENV[k])).join(", ")})`;
-      el.title = "window.__UX_SKILLSET_ENV__ — API Key 등은 레포에 커밋하지 말 것";
-    }
-
     const DEFAULT_SKILLS = [
-      { id: "s0", name: "피그마 초안 자동 생성", slash: "/figma-draft", desc: "CaMP 설계킷 기반 화면 초안", authorId: null, usage: 0,
+      { id: "s0", name: "피그마 초안 자동 생성", slash: "/figma-draft", desc: "CaMP 설계킷 기반 화면 초안", authorId: null, usage: 0, group: null,
         prompt: `당신은 UX 디자이너입니다. CaMP 설계킷(또는 제공하는 컴포넌트 라이브러리)을 기준으로 아래 요구사항에 맞는 피그마 화면 초안 구조를 제안하세요.\n\n- 화면명 / 목적\n- 섹션별 와이어 수준 레이아웃(텍스트로 영역 설명)\n- 사용할 컴포넌트 후보와 상태(empty, loading, error)\n- 인터랙션 메모\n\n요구사항:\n` },
-      { id: "s1", name: "스펙 분석 · 문의 목록", slash: "/spec-analysis", desc: "스펙 파악 + 애매한 항목 추출", authorId: null, usage: 0,
+      { id: "s1", name: "스펙 분석 · 문의 목록", slash: "/spec-analysis", desc: "스펙 파악 + 애매한 항목 추출", authorId: null, usage: 0, group: null,
         prompt: `다음 제품/기능 스펙을 읽고 정리하세요.\n\n1) 핵심 사용자 시나리오 요약\n2) 명확히 정의된 요구사항 목록\n3) 애매하거나 누락 가능성이 있는 항목 → PM/개발에 질문할 문의 목록(우선순위 포함)\n4) UX 리스크(인지부하, 오류 가능성 등)\n\n스펙:\n` },
-      { id: "s2", name: "벤치마킹 · 인사이트", slash: "/benchmarking", desc: "유사 서비스 사례 수집", authorId: null, usage: 0,
+      { id: "s2", name: "벤치마킹 · 인사이트", slash: "/benchmarking", desc: "유사 서비스 사례 수집", authorId: null, usage: 0, group: null,
         prompt: `우리가 만들려는 서비스/기능과 유사한 글로벌·국내 사례를 벤치마킹하세요.\n\n- 서비스명, URL(알면), 관련 화면\n- 잘한 점 / 아쉬운 점\n- 우리 제품에 가져올 인사이트 3가지\n\n대상:\n` },
-      { id: "s3", name: "As-is / To-be 정리", slash: "/asis-tobe", desc: "설득 자료용 비교표", authorId: null, usage: 0,
+      { id: "s3", name: "As-is / To-be 정리", slash: "/asis-tobe", desc: "설득 자료용 비교표", authorId: null, usage: 0, group: null,
         prompt: `현재(As-is)와 개선 후(To-be)를 비교하는 표와 한 페이지 요약 슬라이드용 불릿을 만드세요.\n\n표 열: 영역 | As-is | To-be | 기대효과 | 이해관계자 메시지\n\n맥락:\n` },
-      { id: "s4", name: "플로우차트 · 프로세스 맵", slash: "/flowchart", desc: "Mermaid 다이어그램 자동 생성", authorId: null, usage: 0,
+      { id: "s4", name: "플로우차트 · 프로세스 맵", slash: "/flowchart", desc: "Mermaid 다이어그램 자동 생성", authorId: null, usage: 0, group: null,
         prompt: `아래 프로세스를 Mermaid flowchart 문법으로 표현하세요. 분기·예외·되돌아가기를 포함하고, 코드블록으로만 출력하세요.\n\n프로세스 설명:\n` },
-      { id: "s5", name: "기능 정의서 · 엣지케이스", slash: "/feature-spec", desc: "세부 기능 + 예외 처리 정리", authorId: null, usage: 0,
+      { id: "s5", name: "기능 정의서 · 엣지케이스", slash: "/feature-spec", desc: "세부 기능 + 예외 처리 정리", authorId: null, usage: 0, group: null,
         prompt: `기능 정의서 형식으로 정리하세요.\n\n- 기능 ID, 이름, 목적\n- 입력/출력, 상태 전이\n- 정상 플로우\n- 엣지케이스(네트워크 오류, 권한, 빈 데이터, 중복 등)와 처리 방침\n- 비기능(접근성, 성능) 메모\n\n대상 기능:\n` },
-      { id: "s6", name: "휴리스틱 평가 1차 탐지", slash: "/heuristic", desc: "닐슨 10원칙 기반 화면 점검", authorId: null, usage: 0,
+      { id: "s6", name: "휴리스틱 평가 1차 탐지", slash: "/heuristic", desc: "닐슨 10원칙 기반 화면 점검", authorId: null, usage: 0, group: null,
         prompt: `닐슨 휴리스틱 10원칙 기준으로 화면을 1차 점검하세요. 각 원칙별로 관찰된 문제, 심각도(낮/중/높), 개선 제안을 표로 정리하세요. 스크린샷이나 화면 설명이 있으면 함께 고려합니다.\n\n화면:\n` },
-      { id: "s7", name: "회의록 · 액션아이템", slash: "/meeting-notes", desc: "미팅 후 정리 자동화", authorId: null, usage: 0,
+      { id: "s7", name: "회의록 · 액션아이템", slash: "/meeting-notes", desc: "미팅 후 정리 자동화", authorId: null, usage: 0, group: null,
         prompt: `회의 메모/전사본을 아래 형식으로 정리하세요.\n\n- 결정사항\n- 액션아이템(담당, 기한, 완료조건)\n- 열린 이슈 / 다음 논의 안건\n\n원문:\n` },
-      { id: "s8", name: "리뷰 코멘트 수정 목록", slash: "/review-comments", desc: "피그마 리뷰 코멘트 우선순위화", authorId: null, usage: 0,
+      { id: "s8", name: "리뷰 코멘트 수정 목록", slash: "/review-comments", desc: "피그마 리뷰 코멘트 우선순위화", authorId: null, usage: 0, group: null,
         prompt: `피그마(또는 디자인 리뷰) 코멘트 목록을 우선순위와 수정 난이도로 분류하고, 수정안 초안을 제안하세요. 표: 우선순위 | 코멘트 요약 | 화면/컴포넌트 | 제안 수정안\n\n코멘트:\n` },
     ];
 
@@ -379,6 +423,7 @@
             favorites: [],
             session: { mode: "guest", displayName: "", admin: false },
             caseCount: 0,
+            groups: [],
           };
         }
         const d = JSON.parse(raw);
@@ -387,7 +432,11 @@
         if (!Array.isArray(d.favorites)) d.favorites = [];
         if (!d.session) d.session = { mode: "guest", displayName: "", admin: false };
         if (typeof d.caseCount !== "number") d.caseCount = 0;
-        d.skills.forEach(s => { if (typeof s.usage !== "number") s.usage = 0; });
+        if (!Array.isArray(d.groups)) d.groups = [];
+        d.skills.forEach(s => {
+          if (typeof s.usage !== "number") s.usage = 0;
+          if (!("group" in s)) s.group = null;
+        });
         return d;
       } catch {
         return loadState.fallback();
@@ -399,6 +448,7 @@
       favorites: [],
       session: { mode: "guest", displayName: "", admin: false },
       caseCount: 0,
+      groups: [],
     });
 
     function saveState() {
@@ -410,24 +460,17 @@
     let selectedSkillId = null;
     let editingSkillId = null;
     let dragSkillId = null;
+    const collapsedGroups = new Set();
 
     const $ = (id) => document.getElementById(id);
 
     function roleLabel() {
-      if (state.session.admin) return "관리자 · 전체 편집·삭제";
-      if (state.session.mode === "user") return `일반 · ${state.session.displayName || "사용자"}`;
-      return "비로그인 · 조회·복사만";
-    }
-
-    function canAddEditSkill(skill) {
-      if (state.session.admin) return true;
-      if (state.session.mode !== "user") return false;
-      if (!skill.authorId) return false;
-      return skill.authorId === state.session.userId;
+      if (state.session.admin) return `관리자 · ${state.session.displayName || "관리자"}`;
+      if (state.session.mode === "user") return state.session.displayName || "사용자";
+      return "";
     }
 
     function isAdmin() { return !!state.session.admin; }
-    function isUser() { return state.session.mode === "user"; }
 
     function normalizeSlash(s) {
       s = (s || "").trim();
@@ -435,11 +478,10 @@
       return s.replace(/\s+/g, "-").toLowerCase();
     }
 
-    function renderER() {
-      const n = state.caseCount;
-      $("usageCount").textContent = String(n);
-      const pill = $("erPill");
-      pill.classList.toggle("done", n >= 10);
+    function escapeHtml(t) {
+      const d = document.createElement("div");
+      d.textContent = t || "";
+      return d.innerHTML;
     }
 
     function filteredSkills() {
@@ -466,9 +508,44 @@
       return list;
     }
 
+    function appendSkillChip(container, skill) {
+      const chip = document.createElement("div");
+      chip.className = "skill-chip";
+      chip.draggable = true;
+      chip.dataset.skillId = skill.id;
+      const fav = state.favorites.includes(skill.id);
+      chip.innerHTML = `
+        <button type="button" class="star ${fav ? "on" : ""}" data-star title="즐겨찾기">★</button>
+        <div class="skill-meta">
+          <div class="slash">${escapeHtml(skill.slash)}</div>
+          <div class="title">${escapeHtml(skill.name)}</div>
+          <div class="desc">${escapeHtml(skill.desc || "")}</div>
+        </div>`;
+      chip.querySelector(".star").addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleFav(skill.id);
+      });
+      chip.addEventListener("click", (e) => {
+        if (e.target.closest(".star")) return;
+        openDetail(skill.id);
+      });
+      chip.addEventListener("dragstart", (e) => {
+        dragSkillId = skill.id;
+        chip.classList.add("dragging");
+        e.dataTransfer.setData("text/skill-id", skill.id);
+        e.dataTransfer.effectAllowed = "copy";
+      });
+      chip.addEventListener("dragend", () => {
+        chip.classList.remove("dragging");
+        dragSkillId = null;
+      });
+      container.appendChild(chip);
+    }
+
     function renderSidebar() {
       const el = $("sidebarList");
       el.innerHTML = "";
+
       if (sidebarTab === "projects") {
         state.projects.forEach(p => {
           const row = document.createElement("button");
@@ -485,45 +562,62 @@
         if (!state.projects.length) el.innerHTML = `<div class="empty-state">프로젝트가 없습니다.</div>`;
         return;
       }
+
       const skills = filteredSkills();
-      if (!skills.length) {
-        el.innerHTML = `<div class="empty-state">해당 없음</div>`;
-        return;
+      const q = ($("sidebarSearch").value || "").trim();
+      const hasGroups = state.groups.length > 0;
+
+      if (sidebarTab === "skills" && !q && hasGroups) {
+        // Grouped display
+        state.groups.forEach(g => {
+          const gSkills = skills.filter(s => s.group === g.id);
+          if (!gSkills.length) return;
+          const key = g.id;
+          const isCollapsed = collapsedGroups.has(key);
+          const hdr = document.createElement("div");
+          hdr.className = "group-header";
+          hdr.innerHTML = `<button type="button" class="group-toggle">
+            <span class="group-arrow">${isCollapsed ? "▶" : "▼"}</span>
+            <span class="group-name">${escapeHtml(g.name)}</span>
+            <span class="group-count">${gSkills.length}</span>
+          </button>`;
+          hdr.querySelector(".group-toggle").addEventListener("click", () => {
+            if (collapsedGroups.has(key)) collapsedGroups.delete(key);
+            else collapsedGroups.add(key);
+            renderSidebar();
+          });
+          el.appendChild(hdr);
+          if (!isCollapsed) gSkills.forEach(sk => appendSkillChip(el, sk));
+        });
+
+        const ungrouped = skills.filter(s => !s.group);
+        if (ungrouped.length) {
+          const key = "__ungrouped__";
+          const isCollapsed = collapsedGroups.has(key);
+          const hdr = document.createElement("div");
+          hdr.className = "group-header";
+          hdr.innerHTML = `<button type="button" class="group-toggle">
+            <span class="group-arrow">${isCollapsed ? "▶" : "▼"}</span>
+            <span class="group-name">그룹 없음</span>
+            <span class="group-count">${ungrouped.length}</span>
+          </button>`;
+          hdr.querySelector(".group-toggle").addEventListener("click", () => {
+            if (collapsedGroups.has(key)) collapsedGroups.delete(key);
+            else collapsedGroups.add(key);
+            renderSidebar();
+          });
+          el.appendChild(hdr);
+          if (!isCollapsed) ungrouped.forEach(sk => appendSkillChip(el, sk));
+        }
+      } else {
+        if (!skills.length) {
+          el.innerHTML = `<div class="empty-state">해당 없음</div>`;
+        } else {
+          skills.forEach(sk => appendSkillChip(el, sk));
+        }
       }
-      skills.forEach(skill => {
-        const chip = document.createElement("div");
-        chip.className = "skill-chip";
-        chip.draggable = true;
-        chip.dataset.skillId = skill.id;
-        const fav = state.favorites.includes(skill.id);
-        chip.innerHTML = `
-          <button type="button" class="star ${fav ? "on" : ""}" data-star title="즐겨찾기">★</button>
-          <div class="skill-meta">
-            <div class="slash">${escapeHtml(skill.slash)}</div>
-            <div class="title">${escapeHtml(skill.name)}</div>
-            <div class="desc">${escapeHtml(skill.desc || "")}</div>
-          </div>`;
-        chip.querySelector(".star").addEventListener("click", (e) => {
-          e.stopPropagation();
-          toggleFav(skill.id);
-        });
-        chip.addEventListener("click", (e) => {
-          if ((e.target).closest(".star")) return;
-          openDetail(skill.id);
-        });
-        chip.addEventListener("dragstart", (e) => {
-          dragSkillId = skill.id;
-          chip.classList.add("dragging");
-          e.dataTransfer.setData("text/skill-id", skill.id);
-          e.dataTransfer.effectAllowed = "copy";
-        });
-        chip.addEventListener("dragend", () => {
-          chip.classList.remove("dragging");
-          dragSkillId = null;
-        });
-        el.appendChild(chip);
-      });
-      if ((isUser() || isAdmin()) && sidebarTab === "skills") {
+
+      if (sidebarTab === "skills") {
         const add = document.createElement("button");
         add.type = "button";
         add.className = "btn-primary";
@@ -533,12 +627,6 @@
         add.addEventListener("click", () => openSkillModal(null));
         el.appendChild(add);
       }
-    }
-
-    function escapeHtml(t) {
-      const d = document.createElement("div");
-      d.textContent = t;
-      return d.innerHTML;
     }
 
     function toggleFav(id) {
@@ -556,34 +644,33 @@
         const card = document.createElement("div");
         card.className = "project-card";
         card.dataset.projectId = p.id;
+
         const head = document.createElement("div");
         head.className = "project-head";
-        head.innerHTML = `<h2 contenteditable="${isAdmin() || isUser() ? "true" : "false"}" data-rename="${p.id}">${escapeHtml(p.name)}</h2>
+        head.innerHTML = `<h2 contenteditable="true" data-rename="${p.id}">${escapeHtml(p.name)}</h2>
           <span class="mini">${p.instances.length}개</span>`;
-        if (isAdmin() || isUser()) {
-          const del = document.createElement("button");
-          del.type = "button";
-          del.className = "btn-sm";
-          del.textContent = "삭제";
-          del.addEventListener("click", () => {
-            if (!confirm("프로젝트를 삭제할까요?")) return;
-            state.projects = state.projects.filter(x => x.id !== p.id);
-            saveState();
-            renderProjects();
-            renderSidebar();
-          });
-          head.appendChild(del);
-        }
+
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "btn-sm";
+        del.textContent = "삭제";
+        del.addEventListener("click", () => {
+          if (!confirm("프로젝트를 삭제할까요?")) return;
+          state.projects = state.projects.filter(x => x.id !== p.id);
+          saveState();
+          renderProjects();
+          renderSidebar();
+        });
+        head.appendChild(del);
+
         const h2 = head.querySelector("h2");
-        if (h2.isContentEditable) {
-          h2.addEventListener("blur", () => {
-            const nv = h2.textContent.trim() || p.name;
-            p.name = nv;
-            h2.textContent = nv;
-            saveState();
-            renderSidebar();
-          });
-        }
+        h2.addEventListener("blur", () => {
+          const nv = h2.textContent.trim() || p.name;
+          p.name = nv;
+          h2.textContent = nv;
+          saveState();
+          renderSidebar();
+        });
 
         const zone = document.createElement("div");
         zone.className = "drop-zone";
@@ -601,19 +688,17 @@
           pill.className = "instance-pill";
           pill.innerHTML = `<span>${escapeHtml(sk.name)}</span>`;
           pill.addEventListener("click", () => openDetail(sk.id));
-          if (isAdmin() || isUser()) {
-            const rm = document.createElement("span");
-            rm.className = "rm";
-            rm.textContent = "×";
-            rm.title = "프로젝트에서 제거";
-            rm.addEventListener("click", (e) => {
-              e.stopPropagation();
-              p.instances = p.instances.filter(x => x.instanceId !== inst.instanceId);
-              saveState();
-              renderProjects();
-            });
-            pill.appendChild(rm);
-          }
+          const rm = document.createElement("span");
+          rm.className = "rm";
+          rm.textContent = "×";
+          rm.title = "프로젝트에서 제거";
+          rm.addEventListener("click", (e) => {
+            e.stopPropagation();
+            p.instances = p.instances.filter(x => x.instanceId !== inst.instanceId);
+            saveState();
+            renderProjects();
+          });
+          pill.appendChild(rm);
           zone.appendChild(pill);
         });
 
@@ -629,10 +714,6 @@
         zone.addEventListener("drop", (e) => {
           e.preventDefault();
           zone.classList.remove("drag-over");
-          if (!isUser() && !isAdmin()) {
-            toast("프로젝트에 배치하려면 세션에서 로그인하세요.");
-            return;
-          }
           const sid = e.dataTransfer.getData("text/skill-id") || dragSkillId;
           if (!sid) return;
           const proj = state.projects.find(x => x.id === p.id);
@@ -648,12 +729,6 @@
       });
     }
 
-    function canDeleteSkill(sk) {
-      if (state.session.admin) return true;
-      if (state.session.mode !== "user" || !sk.authorId) return false;
-      return sk.authorId === state.session.userId;
-    }
-
     function openDetail(skillId) {
       const sk = state.skills.find(s => s.id === skillId);
       if (!sk) return;
@@ -663,30 +738,15 @@
       $("detailTitle").textContent = sk.name;
       $("detailDesc").textContent = sk.desc || "";
       $("detailPrompt").value = sk.prompt || "";
-      const u = typeof sk.usage === "number" ? sk.usage : 0;
-      $("btnUsage").textContent = `사용 +${u}`;
-      const canEdit = canEditPrompt(sk);
-      $("btnEditSkill").style.display = canEdit ? "inline-block" : "none";
-      $("btnDelSkill").style.display = canDeleteSkill(sk) ? "inline-block" : "none";
+      $("detailPrompt").readOnly = false;
       $("detailPanel").classList.add("open");
       $("detailBackdrop").classList.add("open");
-      $("detailPrompt").readOnly = !canEdit;
-      if (canEdit) {
-        $("detailPrompt").addEventListener("input", onPromptInput);
-      }
-    }
-
-    function canEditPrompt(sk) {
-      if (state.session.admin) return true;
-      if (state.session.mode !== "user") return false;
-      if (!sk.authorId) return false;
-      return sk.authorId === state.session.userId;
+      $("detailPrompt").addEventListener("input", onPromptInput);
     }
 
     function onPromptInput() {
       const sk = state.skills.find(s => s.id === selectedSkillId);
-      if (sk) sk.prompt = $("detailPrompt").value;
-      saveState();
+      if (sk) { sk.prompt = $("detailPrompt").value; saveState(); }
     }
 
     function closeDetail() {
@@ -704,9 +764,62 @@
       $("skSlash").value = sk ? sk.slash : "/";
       $("skDesc").value = sk ? (sk.desc || "") : "";
       $("skPrompt").value = sk ? (sk.prompt || "") : "";
-      const showDel = sk && canDeleteSkill(sk);
-      $("btnSkillDelete").style.display = showDel ? "inline-block" : "none";
+      const sel = $("skGroup");
+      sel.innerHTML = '<option value="">그룹 없음</option>';
+      state.groups.forEach(g => {
+        const opt = document.createElement("option");
+        opt.value = g.id;
+        opt.textContent = g.name;
+        if (sk && sk.group === g.id) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      $("btnSkillDelete").style.display = sk ? "inline-block" : "none";
       $("modalSkill").classList.add("open");
+    }
+
+    function openManage() {
+      $("manageCaseCount").textContent = `${state.caseCount}건`;
+      renderManageGroups();
+      $("modalManage").classList.add("open");
+    }
+
+    function renderManageGroups() {
+      const list = $("manageGroupList");
+      list.innerHTML = "";
+      if (!state.groups.length) {
+        list.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:4px 0">그룹이 없습니다. + 그룹 추가를 눌러 만드세요.</div>`;
+        return;
+      }
+      state.groups.forEach(g => {
+        const item = document.createElement("div");
+        item.className = "manage-group-item";
+        const inp = document.createElement("input");
+        inp.type = "text";
+        inp.value = g.name;
+        inp.addEventListener("blur", () => {
+          const nv = inp.value.trim();
+          if (!nv) { inp.value = g.name; return; }
+          g.name = nv;
+          saveState();
+          renderSidebar();
+        });
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "btn-sm";
+        delBtn.textContent = "삭제";
+        delBtn.style.cssText = "border-color:#7f1d1d;color:#fca5a5;flex-shrink:0";
+        delBtn.addEventListener("click", () => {
+          if (!confirm(`그룹 "${g.name}"을(를) 삭제할까요? 스킬의 그룹 배치는 해제됩니다.`)) return;
+          state.skills.forEach(s => { if (s.group === g.id) s.group = null; });
+          state.groups = state.groups.filter(x => x.id !== g.id);
+          saveState();
+          renderManageGroups();
+          renderSidebar();
+        });
+        item.appendChild(inp);
+        item.appendChild(delBtn);
+        list.appendChild(item);
+      });
     }
 
     function toast(msg) {
@@ -719,8 +832,6 @@
 
     function init() {
       $("roleLabel").textContent = roleLabel();
-      renderEnvBadge();
-      renderER();
       renderSidebar();
       renderProjects();
 
@@ -741,28 +852,38 @@
         const t = buildClipboardPrompt($("detailPrompt").value);
         try {
           await navigator.clipboard.writeText(t);
+          if (selectedSkillId) {
+            const sk = state.skills.find(s => s.id === selectedSkillId);
+            if (sk) {
+              sk.usage = (typeof sk.usage === "number" ? sk.usage : 0) + 1;
+              state.caseCount = (state.caseCount || 0) + 1;
+              saveState();
+            }
+          }
           toast("복사됨 (마크다운 공통 규칙 포함)");
         } catch {
           toast("복사 실패 — 브라우저 권한 확인");
         }
       });
 
-      $("btnUsage").addEventListener("click", () => {
+      $("btnEditSkill").addEventListener("click", () => {
+        if (selectedSkillId) openSkillModal(selectedSkillId);
+      });
+      $("btnDelSkill").addEventListener("click", () => {
         const sk = state.skills.find(s => s.id === selectedSkillId);
         if (!sk) return;
-        sk.usage = (typeof sk.usage === "number" ? sk.usage : 0) + 1;
-        state.caseCount = (state.caseCount || 0) + 1;
+        if (!confirm(`스킬 "${sk.name}"을(를) 삭제할까요?`)) return;
+        state.skills = state.skills.filter(s => s.id !== sk.id);
+        state.favorites = state.favorites.filter(fid => fid !== sk.id);
+        state.projects.forEach(p => { p.instances = p.instances.filter(inst => inst.skillId !== sk.id); });
         saveState();
-        $("btnUsage").textContent = `사용 +${sk.usage}`;
-        renderER();
-        toast("사용 기록 반영");
+        closeDetail();
+        renderSidebar();
+        renderProjects();
+        toast("삭제됨");
       });
 
       $("btnNewProject").addEventListener("click", () => {
-        if (!isUser() && !isAdmin()) {
-          toast("프로젝트 추가는 로그인 또는 관리자만 가능합니다.");
-          return;
-        }
         const name = prompt("프로젝트 이름", "새 프로젝트");
         if (!name) return;
         state.projects.push({ id: uid(), name: name.trim(), instances: [] });
@@ -777,14 +898,7 @@
         $("modalSession").classList.add("open");
       });
       $("btnGuest").addEventListener("click", () => {
-        state.session = { mode: "guest", displayName: "", admin: false, userId: null };
-        saveState();
         $("modalSession").classList.remove("open");
-        $("roleLabel").textContent = roleLabel();
-        updateAdminUI();
-        renderSidebar();
-        renderProjects();
-        closeDetail();
       });
       $("btnSaveSession").addEventListener("click", () => {
         const pin = $("inputAdminPin").value;
@@ -807,33 +921,13 @@
       });
 
       $("btnSkillCancel").addEventListener("click", () => $("modalSkill").classList.remove("open"));
-      $("btnEditSkill").addEventListener("click", () => {
-        if (selectedSkillId) openSkillModal(selectedSkillId);
-      });
-      $("btnDelSkill").addEventListener("click", () => {
-        const sk = state.skills.find(s => s.id === selectedSkillId);
-        if (!sk || !canDeleteSkill(sk)) return;
-        if (!confirm(`스킬 "${sk.name}"을(를) 삭제할까요?`)) return;
-        state.skills = state.skills.filter(s => s.id !== sk.id);
-        state.favorites = state.favorites.filter(fid => fid !== sk.id);
-        state.projects.forEach(p => {
-          p.instances = p.instances.filter(inst => inst.skillId !== sk.id);
-        });
-        saveState();
-        closeDetail();
-        renderSidebar();
-        renderProjects();
-        toast("삭제됨");
-      });
       $("btnSkillDelete").addEventListener("click", () => {
         const sk = state.skills.find(s => s.id === editingSkillId);
-        if (!sk || !canDeleteSkill(sk)) return;
+        if (!sk) return;
         if (!confirm(`스킬 "${sk.name}"을(를) 완전 삭제할까요?`)) return;
         state.skills = state.skills.filter(s => s.id !== sk.id);
         state.favorites = state.favorites.filter(fid => fid !== sk.id);
-        state.projects.forEach(p => {
-          p.instances = p.instances.filter(inst => inst.skillId !== sk.id);
-        });
+        state.projects.forEach(p => { p.instances = p.instances.filter(inst => inst.skillId !== sk.id); });
         saveState();
         $("modalSkill").classList.remove("open");
         closeDetail();
@@ -846,30 +940,17 @@
         const slash = normalizeSlash($("skSlash").value);
         const desc = $("skDesc").value.trim();
         const prompt = $("skPrompt").value;
+        const group = $("skGroup").value || null;
         if (!name) return toast("스킬명을 입력하세요");
         if (editingSkillId) {
           const sk = state.skills.find(s => s.id === editingSkillId);
           if (!sk) return;
-          if (!state.session.admin && (sk.authorId !== state.session.userId || !sk.authorId)) {
-            toast("권한 없음");
-            return;
-          }
-          sk.name = name;
-          sk.slash = slash;
-          sk.desc = desc;
-          sk.prompt = prompt;
+          sk.name = name; sk.slash = slash; sk.desc = desc; sk.prompt = prompt; sk.group = group;
         } else {
-          if (!isUser() && !isAdmin()) return;
-          const newSk = {
-            id: uid(),
-            name,
-            slash,
-            desc,
-            prompt,
-            authorId: state.session.userId,
-            usage: 0,
-          };
-          state.skills.unshift(newSk);
+          state.skills.unshift({
+            id: uid(), name, slash, desc, prompt, group,
+            authorId: state.session.userId || null, usage: 0,
+          });
         }
         saveState();
         $("modalSkill").classList.remove("open");
@@ -877,11 +958,37 @@
         toast("저장됨");
       });
 
+      $("btnManage").addEventListener("click", openManage);
+      $("btnCloseManage").addEventListener("click", () => $("modalManage").classList.remove("open"));
+      $("btnResetUsage").addEventListener("click", () => {
+        if (!confirm("사용 건수를 초기화할까요?")) return;
+        state.caseCount = 0;
+        state.skills.forEach(s => s.usage = 0);
+        saveState();
+        $("manageCaseCount").textContent = "0건";
+        toast("사용 건수 초기화됨");
+      });
+      $("btnClearAll").addEventListener("click", () => {
+        if (!confirm("모든 데이터를 삭제하고 초기 상태로 돌아갑니다. 계속할까요?")) return;
+        localStorage.removeItem(STORAGE_KEY);
+        location.reload();
+      });
+      $("btnAddGroup").addEventListener("click", () => {
+        const name = prompt("그룹 이름");
+        if (!name || !name.trim()) return;
+        state.groups.push({ id: uid(), name: name.trim() });
+        saveState();
+        renderManageGroups();
+        renderSidebar();
+        toast("그룹 추가됨");
+      });
+
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
           closeDetail();
           $("modalSession").classList.remove("open");
           $("modalSkill").classList.remove("open");
+          $("modalManage").classList.remove("open");
         }
       });
     }
@@ -900,7 +1007,7 @@
         if (!res.ok) return null;
         const data = await res.json();
         if (!Array.isArray(data) || !data.length) return null;
-        return data.map(s => ({ usage: 0, ...s }));
+        return data.map(s => ({ usage: 0, group: null, ...s }));
       } catch {
         return null;
       }

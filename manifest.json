@@ -1,6 +1,6 @@
 {
-  "name": "UX AI 스킬셋",
-  "short_name": "스킬셋",
+  "name": "AX 스킬셋",
+  "short_name": "AX 스킬셋",
   "description": "UX 기획자를 위한 AI 프롬프트 관리 도구",
   "start_url": "./ux_skillset_v10.html",
   "scope": "./",

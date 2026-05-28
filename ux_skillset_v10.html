@@ -139,6 +139,17 @@
       color: var(--muted); flex-shrink: 0;
     }
     .group-del-btn:hover { color: #f87171; background: rgba(248,113,113,.1); }
+    /* 그룹 드래그 & 드롭 */
+    .group-header.drop-target .group-toggle {
+      background: rgba(91,141,239,.15);
+      outline: 2px dashed var(--accent); outline-offset: -2px; border-radius: 6px;
+    }
+    .group-header.dragging-group { opacity: 0.4; }
+    .group-drag-handle {
+      color: var(--border); padding: 0 3px; font-size: 13px;
+      cursor: grab; flex-shrink: 0; user-select: none;
+    }
+    .group-drag-handle:hover { color: var(--muted); }
     .group-add-trigger {
       display: block; width: 100%; text-align: center;
       font-size: 11px; color: var(--muted); padding: 4px 0 8px;
@@ -538,6 +549,7 @@
     let selectedSkillId = null;
     let editingSkillId = null;
     let dragSkillId = null;
+    let dragGroupId = null;
     const collapsedGroups = new Set();
 
     const $ = (id) => document.getElementById(id);
@@ -631,6 +643,111 @@
       container.appendChild(chip);
     }
 
+    /**
+     * 그룹 헤더 엘리먼트를 생성합니다.
+     * @param {string}      key       collapsedGroups 키 (groupId 또는 "__ungrouped__")
+     * @param {string|null} groupId   null = 그룹 없음 섹션
+     * @param {string}      name      표시 이름
+     * @param {number}      count     소속 스킬 수
+     */
+    function buildGroupHeader(key, groupId, name, count) {
+      const isCollapsed = collapsedGroups.has(key);
+      const hdr = document.createElement("div");
+      hdr.className = "group-header";
+
+      // ── 그룹 자체 드래그 (순서 변경, named group만) ──
+      if (groupId) {
+        hdr.draggable = true;
+        hdr.addEventListener("dragstart", (e) => {
+          dragGroupId = groupId;
+          e.dataTransfer.setData("text/group-id", groupId);
+          e.dataTransfer.effectAllowed = "move";
+          // 다음 프레임에 적용해야 드래그 이미지가 정상 캡처됨
+          requestAnimationFrame(() => hdr.classList.add("dragging-group"));
+        });
+        hdr.addEventListener("dragend", () => {
+          hdr.classList.remove("dragging-group");
+          dragGroupId = null;
+        });
+      }
+
+      // ── 드롭 대상 (스킬 → 그룹 배정 / 그룹 → 그룹 순서 변경) ──
+      hdr.addEventListener("dragover", (e) => { e.preventDefault(); hdr.classList.add("drop-target"); });
+      hdr.addEventListener("dragenter", (e) => { e.preventDefault(); hdr.classList.add("drop-target"); });
+      hdr.addEventListener("dragleave", (e) => {
+        if (!hdr.contains(e.relatedTarget)) hdr.classList.remove("drop-target");
+      });
+      hdr.addEventListener("drop", (e) => {
+        e.preventDefault();
+        hdr.classList.remove("drop-target");
+        const skillId = e.dataTransfer.getData("text/skill-id") || dragSkillId;
+        const grpId   = e.dataTransfer.getData("text/group-id") || dragGroupId;
+
+        if (skillId) {
+          // 스킬을 이 그룹으로 배정 (groupId === null 이면 그룹 해제)
+          const sk = state.skills.find(s => s.id === skillId);
+          if (sk && sk.group !== groupId) {
+            sk.group = groupId;
+            saveState(); renderSidebar();
+            toast(`"${sk.name}" → ${groupId ? `"${name}"` : "그룹 없음"}`);
+          }
+        } else if (grpId && groupId && grpId !== groupId) {
+          // 그룹 순서 변경
+          const fromIdx = state.groups.findIndex(x => x.id === grpId);
+          const toIdx   = state.groups.findIndex(x => x.id === groupId);
+          if (fromIdx !== -1 && toIdx !== -1) {
+            const [moved] = state.groups.splice(fromIdx, 1);
+            state.groups.splice(toIdx, 0, moved);
+            saveState(); renderSidebar();
+          }
+        }
+      });
+
+      // ── 접기/펼치기 토글 ──
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "group-toggle";
+      toggle.draggable = false;
+      toggle.innerHTML = `<span class="group-arrow">${isCollapsed ? "▶" : "▼"}</span>
+        <span class="group-name">${escapeHtml(name)}</span>
+        <span class="group-count">${count}</span>`;
+      toggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (collapsedGroups.has(key)) collapsedGroups.delete(key);
+        else collapsedGroups.add(key);
+        renderSidebar();
+      });
+      hdr.appendChild(toggle);
+
+      // ── 드래그 핸들 + 삭제 버튼 (named group & 로그인 시) ──
+      if (groupId && isLoggedIn()) {
+        const handle = document.createElement("span");
+        handle.className = "group-drag-handle";
+        handle.title = "드래그하여 순서 변경";
+        handle.textContent = "⠿";
+        handle.draggable = false; // 핸들 텍스트 자체는 비드래그
+        hdr.appendChild(handle);
+
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "group-del-btn";
+        delBtn.title = "그룹 삭제";
+        delBtn.textContent = "×";
+        delBtn.draggable = false;
+        delBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (!confirm(`그룹 "${name}"을(를) 삭제할까요? 스킬의 그룹 배치가 해제됩니다.`)) return;
+          state.skills.forEach(s => { if (s.group === groupId) s.group = null; });
+          state.groups = state.groups.filter(x => x.id !== groupId);
+          saveState(); renderSidebar();
+          toast(`"${name}" 그룹 삭제됨`);
+        });
+        hdr.appendChild(delBtn);
+      }
+
+      return hdr;
+    }
+
     function renderSidebar() {
       const el = $("sidebarList");
       el.innerHTML = "";
@@ -675,74 +792,19 @@
       }
 
       if (sidebarTab === "skills" && !q && hasGroups) {
-        // ── 그룹별 아코디언 ──
+        // ── 그룹별 아코디언 (드래그로 스킬 배정 + 그룹 순서 변경) ──
         state.groups.forEach(g => {
           const gSkills = skills.filter(s => s.group === g.id);
-          if (!gSkills.length) {
-            // 빈 그룹도 헤더는 표시
-          }
-          const key = g.id;
-          const isCollapsed = collapsedGroups.has(key);
-          const hdr = document.createElement("div");
-          hdr.className = "group-header";
-
-          const toggle = document.createElement("button");
-          toggle.type = "button";
-          toggle.className = "group-toggle";
-          toggle.innerHTML = `<span class="group-arrow">${isCollapsed ? "▶" : "▼"}</span>
-            <span class="group-name">${escapeHtml(g.name)}</span>
-            <span class="group-count">${gSkills.length}</span>`;
-          toggle.addEventListener("click", () => {
-            if (collapsedGroups.has(key)) collapsedGroups.delete(key);
-            else collapsedGroups.add(key);
-            renderSidebar();
-          });
-          hdr.appendChild(toggle);
-
-          if (isLoggedIn()) {
-            const delBtn = document.createElement("button");
-            delBtn.type = "button";
-            delBtn.className = "group-del-btn";
-            delBtn.title = "그룹 삭제";
-            delBtn.textContent = "×";
-            delBtn.addEventListener("click", (e) => {
-              e.stopPropagation();
-              if (!confirm(`그룹 "${g.name}"을(를) 삭제할까요? 스킬의 그룹 배치가 해제됩니다.`)) return;
-              state.skills.forEach(s => { if (s.group === g.id) s.group = null; });
-              state.groups = state.groups.filter(x => x.id !== g.id);
-              saveState();
-              renderSidebar();
-              toast(`"${g.name}" 그룹 삭제됨`);
-            });
-            hdr.appendChild(delBtn);
-          }
-
+          const hdr = buildGroupHeader(g.id, g.id, g.name, gSkills.length);
           el.appendChild(hdr);
-          if (!isCollapsed) gSkills.forEach(sk => appendSkillChip(el, sk));
+          if (!collapsedGroups.has(g.id)) gSkills.forEach(sk => appendSkillChip(el, sk));
         });
 
-        // 그룹 없는 스킬
+        // 그룹 없음 섹션 — 항상 표시 (스킬을 그룹에서 빼내는 드롭 타겟 역할도 함)
         const ungrouped = skills.filter(s => !s.group);
-        if (ungrouped.length) {
-          const key = "__ungrouped__";
-          const isCollapsed = collapsedGroups.has(key);
-          const hdr = document.createElement("div");
-          hdr.className = "group-header";
-          const toggle = document.createElement("button");
-          toggle.type = "button";
-          toggle.className = "group-toggle";
-          toggle.innerHTML = `<span class="group-arrow">${isCollapsed ? "▶" : "▼"}</span>
-            <span class="group-name">그룹 없음</span>
-            <span class="group-count">${ungrouped.length}</span>`;
-          toggle.addEventListener("click", () => {
-            if (collapsedGroups.has(key)) collapsedGroups.delete(key);
-            else collapsedGroups.add(key);
-            renderSidebar();
-          });
-          hdr.appendChild(toggle);
-          el.appendChild(hdr);
-          if (!isCollapsed) ungrouped.forEach(sk => appendSkillChip(el, sk));
-        }
+        const hdrUng = buildGroupHeader("__ungrouped__", null, "그룹 없음", ungrouped.length);
+        el.appendChild(hdrUng);
+        if (!collapsedGroups.has("__ungrouped__")) ungrouped.forEach(sk => appendSkillChip(el, sk));
       } else {
         if (!skills.length) {
           el.innerHTML = `<div class="empty-state">해당 없음</div>`;

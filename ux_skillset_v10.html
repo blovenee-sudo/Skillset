@@ -36,6 +36,7 @@
     }
     select:focus { outline: none; border-color: var(--accent); }
 
+    /* ── GNB ── */
     .app-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 10px 16px; border-bottom: 1px solid var(--border);
@@ -54,7 +55,10 @@
     }
     .btn-primary:hover { filter: brightness(1.08); }
 
+    /* ── Layout ── */
     .main { display: flex; flex: 1; min-height: 0; height: calc(100vh - 48px); }
+
+    /* ── Sidebar ── */
     .sidebar {
       width: 300px; min-width: 260px; border-right: 1px solid var(--border);
       display: flex; flex-direction: column; background: var(--surface);
@@ -65,19 +69,33 @@
       border-bottom: 2px solid transparent; margin-bottom: -1px;
     }
     .tabs button.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
-    .search-wrap { padding: 10px 12px; }
+    .search-wrap { padding: 10px 12px 6px; }
     .search-wrap input {
       width: 100%; padding: 8px 10px; border-radius: 8px;
       border: 1px solid var(--border); background: var(--bg); font-size: 13px;
     }
     .search-wrap input:focus { outline: none; border-color: var(--accent); }
+
+    /* group-add form between search and scroll */
+    .group-add-form {
+      display: none; padding: 6px 10px 8px; gap: 6px; align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .group-add-form.open { display: flex; }
+    .group-add-form input {
+      flex: 1; padding: 6px 10px; border-radius: 6px;
+      border: 1px solid var(--border); background: var(--bg); font-size: 12px;
+    }
+    .group-add-form input:focus { outline: none; border-color: var(--accent); }
+
     .sidebar-scroll { flex: 1; overflow-y: auto; padding: 8px 10px 80px; }
 
+    /* ── Skill chips ── */
     .skill-chip {
       display: flex; align-items: flex-start; gap: 8px; padding: 10px;
       border-radius: var(--radius); border: 1px solid var(--border);
       background: var(--surface2); margin-bottom: 8px; cursor: grab;
-      transition: border-color .15s, transform .1s;
+      transition: border-color .15s;
     }
     .skill-chip:hover { border-color: var(--muted); }
     .skill-chip.dragging { opacity: 0.5; }
@@ -87,23 +105,47 @@
     .skill-meta .slash { font-size: 11px; color: var(--accent); font-family: ui-monospace, monospace; }
     .skill-meta .title { font-size: 13px; font-weight: 600; margin-top: 2px; }
     .skill-meta .desc { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.35; }
+    .skill-foot {
+      display: flex; align-items: center; gap: 5px; margin-top: 6px; flex-wrap: wrap;
+    }
+    .author-tag {
+      font-size: 10px; color: var(--muted); background: var(--bg);
+      border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px;
+    }
+    .usage-tag {
+      font-size: 10px; color: var(--accent); background: rgba(91,141,239,.12);
+      border-radius: 999px; padding: 1px 7px;
+    }
 
-    /* Group headers in sidebar */
-    .group-header { margin: 8px 0 2px; }
+    /* ── Group headers ── */
+    .group-header {
+      display: flex; align-items: center; margin: 8px 0 2px; gap: 2px;
+    }
     .group-toggle {
-      display: flex; align-items: center; gap: 6px; width: 100%;
+      flex: 1; display: flex; align-items: center; gap: 6px;
       padding: 5px 6px; border-radius: 6px; text-align: left;
       color: var(--muted); font-size: 11px; font-weight: 600;
       letter-spacing: 0.05em; text-transform: uppercase;
     }
     .group-toggle:hover { background: var(--surface2); color: var(--text); }
-    .group-arrow { font-size: 9px; width: 10px; }
+    .group-arrow { font-size: 9px; width: 10px; flex-shrink: 0; }
     .group-name { flex: 1; }
     .group-count {
       background: var(--border); border-radius: 999px;
       padding: 1px 7px; font-size: 10px; font-weight: 400;
     }
+    .group-del-btn {
+      padding: 3px 7px; border-radius: 6px; font-size: 12px;
+      color: var(--muted); flex-shrink: 0;
+    }
+    .group-del-btn:hover { color: #f87171; background: rgba(248,113,113,.1); }
+    .group-add-trigger {
+      display: block; width: 100%; text-align: center;
+      font-size: 11px; color: var(--muted); padding: 4px 0 8px;
+    }
+    .group-add-trigger:hover { color: var(--accent); }
 
+    /* ── Main content ── */
     .content {
       flex: 1; display: flex; flex-direction: column; min-width: 0;
       padding: 14px; overflow-y: auto; padding-bottom: 120px;
@@ -112,6 +154,7 @@
     .toolbar .role { font-size: 12px; color: var(--muted); margin-left: auto; }
     .projects-grid { display: flex; flex-direction: column; gap: 14px; }
 
+    /* ── Project cards ── */
     .project-card {
       border: 1px solid var(--border); border-radius: 12px; background: var(--surface2);
       overflow: hidden;
@@ -137,7 +180,7 @@
     .instance-pill .rm { color: var(--muted); padding: 0 2px; cursor: pointer; }
     .instance-pill .rm:hover { color: #f87171; }
 
-    /* Bottom detail panel */
+    /* ── Bottom detail panel ── */
     .detail-backdrop {
       position: fixed; inset: 0; background: rgba(0,0,0,.45);
       opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 40;
@@ -172,14 +215,17 @@
       width: 100%; min-height: 160px; padding: 12px; border-radius: 8px;
       border: 1px solid var(--border); background: var(--bg); font-size: 13px; line-height: 1.5; resize: vertical;
     }
+
+    /* ── Toast ── */
     .toast {
       position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
       background: var(--surface2); border: 1px solid var(--border); padding: 10px 18px;
       border-radius: 999px; font-size: 13px; z-index: 100; opacity: 0; transition: .25s;
+      white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis;
     }
     .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
-    /* Modal */
+    /* ── Modal ── */
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 80;
       display: none; align-items: center; justify-content: center; padding: 20px;
@@ -191,14 +237,15 @@
     }
     .modal h4 { margin: 0 0 12px; font-size: 15px; }
     .modal label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-    .modal input {
+    .modal input[type="text"],
+    .modal input[type="password"] {
       width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border);
       background: var(--bg); margin-bottom: 12px;
     }
     .modal input:focus { outline: none; border-color: var(--accent); }
     .modal .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 
-    /* Manage modal */
+    /* ── Manage modal ── */
     .manage-row {
       display: flex; align-items: center; justify-content: space-between;
       padding: 12px 0; border-bottom: 1px solid var(--border); gap: 12px;
@@ -236,36 +283,43 @@
       <div class="search-wrap">
         <input type="search" id="sidebarSearch" placeholder="검색…" autocomplete="off" />
       </div>
+      <!-- 인라인 그룹 추가 폼 (로그인 시 노출) -->
+      <div class="group-add-form" id="groupAddForm">
+        <input type="text" id="groupAddInput" placeholder="새 그룹 이름…" />
+        <button type="button" class="btn-sm" id="btnGroupAddConfirm">추가</button>
+        <button type="button" class="btn-sm" id="btnGroupAddCancel">×</button>
+      </div>
       <div class="sidebar-scroll" id="sidebarList"></div>
     </aside>
 
     <section class="content">
       <div class="toolbar">
-        <span style="font-size:13px;color:var(--muted)">스킬을 드래그하여 프로젝트 카드에 놓으세요. 동일 스킬을 여러 프로젝트에 둘 수 있습니다. 기획 산출은 복사 시 <strong>마크다운</strong> 공통 규칙이 자동 첨부됩니다.</span>
+        <span style="font-size:13px;color:var(--muted)">스킬을 드래그하여 프로젝트 카드에 놓으세요. 동일 스킬을 여러 프로젝트에 둘 수 있습니다.</span>
         <span class="role" id="roleLabel"></span>
       </div>
       <div class="projects-grid" id="projectsGrid"></div>
     </section>
   </div>
 
+  <!-- detail panel -->
   <div class="detail-backdrop" id="detailBackdrop"></div>
   <div class="detail-panel" id="detailPanel">
     <div class="detail-handle"></div>
     <div class="detail-head">
-      <div>
-        <div class="slash" id="detailSlash"></div>
-        <h3 id="detailTitle"></h3>
+      <div style="flex:1;min-width:0">
+        <div class="slash" id="detailSlash" style="font-size:11px;color:var(--accent);font-family:ui-monospace,monospace"></div>
+        <h3 id="detailTitle" style="margin:2px 0 0"></h3>
+        <div id="detailAuthor" style="font-size:11px;color:var(--muted);margin-top:3px"></div>
       </div>
       <button type="button" class="btn-sm" id="btnCloseDetail">닫기</button>
     </div>
     <div class="detail-body">
-      <p style="margin:0 0 8px;font-size:12px;color:var(--muted)" id="detailDesc"></p>
-      <p style="margin:0 0 6px;font-size:11px;color:var(--muted)">「프롬프트 복사」 시 아래에 없어도 <strong>마크다운 공통 출력 규칙</strong>이 클립보드에 자동으로 덧붙습니다.</p>
+      <p style="margin:0 0 6px;font-size:11px;color:var(--muted)">「프롬프트 복사」 시 <strong>마크다운 공통 출력 규칙</strong>이 클립보드에 자동으로 덧붙습니다.</p>
       <textarea class="prompt-area" id="detailPrompt" spellcheck="false"></textarea>
       <div class="detail-actions">
         <button type="button" class="copy-btn" id="btnCopy">프롬프트 복사</button>
-        <button type="button" class="btn-sm" id="btnEditSkill">스킬 편집</button>
-        <button type="button" class="btn-sm" id="btnDelSkill" style="border-color:#7f1d1d;color:#fca5a5">스킬 삭제</button>
+        <button type="button" class="btn-sm" id="btnEditSkill" style="display:none">스킬 편집</button>
+        <button type="button" class="btn-sm" id="btnDelSkill" style="display:none;border-color:#7f1d1d;color:#fca5a5">스킬 삭제</button>
       </div>
     </div>
   </div>
@@ -274,16 +328,21 @@
   <div class="modal-backdrop" id="modalSession">
     <div class="modal">
       <h4>로그인</h4>
-      <p style="font-size:12px;color:var(--muted);margin:0 0 12px">
-        표시 이름 입력 시 스킬에 작성자가 기록됩니다. 관리자 PIN 입력 시 스킬 업데이트 기능이 활성화됩니다.
+      <p style="font-size:12px;color:var(--muted);margin:0 0 14px;line-height:1.6">
+        이름 입력 시 스킬 생성·편집·삭제가 가능합니다.<br>
+        관리자 PIN을 함께 입력하면 스킬 업데이트 기능이 활성화됩니다.<br>
+        <span style="color:var(--muted);font-size:11px">💾 스킬과 프로젝트는 <strong style="color:var(--text)">이 기기에만</strong> 저장됩니다.</span>
       </p>
-      <label>표시 이름 (선택)</label>
+      <label>이름 <span style="color:#f87171">*</span></label>
       <input type="text" id="inputDisplayName" placeholder="예: 김보니" />
       <label>관리자 PIN (선택)</label>
-      <input type="password" id="inputAdminPin" placeholder="PIN이 있으면 관리자 권한" autocomplete="off" />
-      <div class="row">
-        <button type="button" class="btn-sm" id="btnGuest">취소</button>
-        <button type="button" class="btn-primary" id="btnSaveSession">적용</button>
+      <input type="password" id="inputAdminPin" placeholder="PIN이 있으면 스킬 업데이트 활성화" autocomplete="off" />
+      <div class="row" style="justify-content:space-between">
+        <button type="button" class="btn-sm" id="btnLogout" style="display:none;color:#fca5a5;border-color:#7f1d1d">로그아웃</button>
+        <div style="display:flex;gap:8px">
+          <button type="button" class="btn-sm" id="btnCancelSession">취소</button>
+          <button type="button" class="btn-primary" id="btnSaveSession">로그인</button>
+        </div>
       </div>
     </div>
   </div>
@@ -332,9 +391,13 @@
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
             <div>
               <div class="manage-label">그룹 관리</div>
-              <div class="manage-hint">스킬을 그룹으로 분류합니다</div>
+              <div class="manage-hint">그룹 이름 변경 · 삭제</div>
             </div>
-            <button type="button" class="btn-sm" id="btnAddGroup">+ 그룹 추가</button>
+          </div>
+          <!-- 인라인 그룹 추가 -->
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <input type="text" id="newGroupName" placeholder="새 그룹 이름" style="flex:1;padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);font-size:12px;margin:0;width:auto" />
+            <button type="button" class="btn-sm" id="btnAddGroup">추가</button>
           </div>
           <div id="manageGroupList"></div>
         </div>
@@ -359,16 +422,13 @@
   <script>
     const APP_ENV =
       typeof window.__UX_SKILLSET_ENV__ === "object" && window.__UX_SKILLSET_ENV__ !== null
-        ? window.__UX_SKILLSET_ENV__
-        : {};
+        ? window.__UX_SKILLSET_ENV__ : {};
 
-    /** 우선순위: .env 경유 ADMIN_PIN → 코드 기본값 */
     const ADMIN_PIN =
       (APP_ENV.ADMIN_PIN && String(APP_ENV.ADMIN_PIN).trim()) || "1234";
 
     const STORAGE_KEY = "ux_skillset_v10";
 
-    /** 복사 시 LLM에 함께 넘기는 공통 지침 */
     const MARKDOWN_OUTPUT_BLOCK =
       "\n\n---\n[공통 출력 규칙 — AX 스킬셋]\n" +
       "- 본 답변의 **기획·정리 산출물**은 기본적으로 **마크다운(GFM)** 형식으로 작성한다.\n" +
@@ -384,28 +444,45 @@
 
     function buildClipboardPrompt(body) {
       const t = body || "";
-      if (hasMarkdownDirective(t)) return t;
-      return t + MARKDOWN_OUTPUT_BLOCK;
+      return hasMarkdownDirective(t) ? t : t + MARKDOWN_OUTPUT_BLOCK;
+    }
+
+    /** 클립보드 복사 — navigator.clipboard 없을 때 execCommand fallback */
+    async function copyToClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try { await navigator.clipboard.writeText(text); return true; } catch {}
+      }
+      // execCommand fallback (file://, HTTP, older browsers)
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand("copy"); } catch {}
+      document.body.removeChild(ta);
+      return ok;
     }
 
     const DEFAULT_SKILLS = [
-      { id: "s0", name: "피그마 초안 자동 생성", slash: "/figma-draft", desc: "CaMP 설계킷 기반 화면 초안", authorId: null, usage: 0, group: null,
+      { id: "s0", name: "피그마 초안 자동 생성", slash: "/figma-draft", desc: "CaMP 설계킷 기반 화면 초안", authorId: null, authorName: "", usage: 0, group: null,
         prompt: `당신은 UX 디자이너입니다. CaMP 설계킷(또는 제공하는 컴포넌트 라이브러리)을 기준으로 아래 요구사항에 맞는 피그마 화면 초안 구조를 제안하세요.\n\n- 화면명 / 목적\n- 섹션별 와이어 수준 레이아웃(텍스트로 영역 설명)\n- 사용할 컴포넌트 후보와 상태(empty, loading, error)\n- 인터랙션 메모\n\n요구사항:\n` },
-      { id: "s1", name: "스펙 분석 · 문의 목록", slash: "/spec-analysis", desc: "스펙 파악 + 애매한 항목 추출", authorId: null, usage: 0, group: null,
+      { id: "s1", name: "스펙 분석 · 문의 목록", slash: "/spec-analysis", desc: "스펙 파악 + 애매한 항목 추출", authorId: null, authorName: "", usage: 0, group: null,
         prompt: `다음 제품/기능 스펙을 읽고 정리하세요.\n\n1) 핵심 사용자 시나리오 요약\n2) 명확히 정의된 요구사항 목록\n3) 애매하거나 누락 가능성이 있는 항목 → PM/개발에 질문할 문의 목록(우선순위 포함)\n4) UX 리스크(인지부하, 오류 가능성 등)\n\n스펙:\n` },
-      { id: "s2", name: "벤치마킹 · 인사이트", slash: "/benchmarking", desc: "유사 서비스 사례 수집", authorId: null, usage: 0, group: null,
+      { id: "s2", name: "벤치마킹 · 인사이트", slash: "/benchmarking", desc: "유사 서비스 사례 수집", authorId: null, authorName: "", usage: 0, group: null,
         prompt: `우리가 만들려는 서비스/기능과 유사한 글로벌·국내 사례를 벤치마킹하세요.\n\n- 서비스명, URL(알면), 관련 화면\n- 잘한 점 / 아쉬운 점\n- 우리 제품에 가져올 인사이트 3가지\n\n대상:\n` },
-      { id: "s3", name: "As-is / To-be 정리", slash: "/asis-tobe", desc: "설득 자료용 비교표", authorId: null, usage: 0, group: null,
+      { id: "s3", name: "As-is / To-be 정리", slash: "/asis-tobe", desc: "설득 자료용 비교표", authorId: null, authorName: "", usage: 0, group: null,
         prompt: `현재(As-is)와 개선 후(To-be)를 비교하는 표와 한 페이지 요약 슬라이드용 불릿을 만드세요.\n\n표 열: 영역 | As-is | To-be | 기대효과 | 이해관계자 메시지\n\n맥락:\n` },
-      { id: "s4", name: "플로우차트 · 프로세스 맵", slash: "/flowchart", desc: "Mermaid 다이어그램 자동 생성", authorId: null, usage: 0, group: null,
+      { id: "s4", name: "플로우차트 · 프로세스 맵", slash: "/flowchart", desc: "Mermaid 다이어그램 자동 생성", authorId: null, authorName: "", usage: 0, group: null,
         prompt: `아래 프로세스를 Mermaid flowchart 문법으로 표현하세요. 분기·예외·되돌아가기를 포함하고, 코드블록으로만 출력하세요.\n\n프로세스 설명:\n` },
-      { id: "s5", name: "기능 정의서 · 엣지케이스", slash: "/feature-spec", desc: "세부 기능 + 예외 처리 정리", authorId: null, usage: 0, group: null,
+      { id: "s5", name: "기능 정의서 · 엣지케이스", slash: "/feature-spec", desc: "세부 기능 + 예외 처리 정리", authorId: null, authorName: "", usage: 0, group: null,
         prompt: `기능 정의서 형식으로 정리하세요.\n\n- 기능 ID, 이름, 목적\n- 입력/출력, 상태 전이\n- 정상 플로우\n- 엣지케이스(네트워크 오류, 권한, 빈 데이터, 중복 등)와 처리 방침\n- 비기능(접근성, 성능) 메모\n\n대상 기능:\n` },
-      { id: "s6", name: "휴리스틱 평가 1차 탐지", slash: "/heuristic", desc: "닐슨 10원칙 기반 화면 점검", authorId: null, usage: 0, group: null,
+      { id: "s6", name: "휴리스틱 평가 1차 탐지", slash: "/heuristic", desc: "닐슨 10원칙 기반 화면 점검", authorId: null, authorName: "", usage: 0, group: null,
         prompt: `닐슨 휴리스틱 10원칙 기준으로 화면을 1차 점검하세요. 각 원칙별로 관찰된 문제, 심각도(낮/중/높), 개선 제안을 표로 정리하세요. 스크린샷이나 화면 설명이 있으면 함께 고려합니다.\n\n화면:\n` },
-      { id: "s7", name: "회의록 · 액션아이템", slash: "/meeting-notes", desc: "미팅 후 정리 자동화", authorId: null, usage: 0, group: null,
+      { id: "s7", name: "회의록 · 액션아이템", slash: "/meeting-notes", desc: "미팅 후 정리 자동화", authorId: null, authorName: "", usage: 0, group: null,
         prompt: `회의 메모/전사본을 아래 형식으로 정리하세요.\n\n- 결정사항\n- 액션아이템(담당, 기한, 완료조건)\n- 열린 이슈 / 다음 논의 안건\n\n원문:\n` },
-      { id: "s8", name: "리뷰 코멘트 수정 목록", slash: "/review-comments", desc: "피그마 리뷰 코멘트 우선순위화", authorId: null, usage: 0, group: null,
+      { id: "s8", name: "리뷰 코멘트 수정 목록", slash: "/review-comments", desc: "피그마 리뷰 코멘트 우선순위화", authorId: null, authorName: "", usage: 0, group: null,
         prompt: `피그마(또는 디자인 리뷰) 코멘트 목록을 우선순위와 수정 난이도로 분류하고, 수정안 초안을 제안하세요. 표: 우선순위 | 코멘트 요약 | 화면/컴포넌트 | 제안 수정안\n\n코멘트:\n` },
     ];
 
@@ -436,6 +513,7 @@
         d.skills.forEach(s => {
           if (typeof s.usage !== "number") s.usage = 0;
           if (!("group" in s)) s.group = null;
+          if (!("authorName" in s)) s.authorName = "";
         });
         return d;
       } catch {
@@ -464,13 +542,15 @@
 
     const $ = (id) => document.getElementById(id);
 
-    function roleLabel() {
-      if (state.session.admin) return `관리자 · ${state.session.displayName || "관리자"}`;
-      if (state.session.mode === "user") return state.session.displayName || "사용자";
-      return "";
-    }
-
+    /** 로그인 여부 — 이름이 있는 세션 = 로그인 상태 */
+    function isLoggedIn() { return state.session.mode === "user"; }
     function isAdmin() { return !!state.session.admin; }
+
+    function roleLabelText() {
+      if (state.session.admin) return `${state.session.displayName || "관리자"} (관리자)`;
+      if (state.session.mode === "user") return state.session.displayName || "사용자";
+      return "비로그인 · 복사만 가능";
+    }
 
     function normalizeSlash(s) {
       s = (s || "").trim();
@@ -501,8 +581,7 @@
         list.sort((a, b) => {
           const fa = state.favorites.includes(a.id) ? 1 : 0;
           const fb = state.favorites.includes(b.id) ? 1 : 0;
-          if (fb !== fa) return fb - fa;
-          return 0;
+          return fb - fa;
         });
       }
       return list;
@@ -514,13 +593,23 @@
       chip.draggable = true;
       chip.dataset.skillId = skill.id;
       const fav = state.favorites.includes(skill.id);
+
+      // footer: author + usage count
+      let footHtml = "";
+      if (skill.authorName) footHtml += `<span class="author-tag">${escapeHtml(skill.authorName)}</span>`;
+      if (typeof skill.usage === "number" && skill.usage > 0) {
+        footHtml += `<span class="usage-tag">${skill.usage}회 사용</span>`;
+      }
+
       chip.innerHTML = `
         <button type="button" class="star ${fav ? "on" : ""}" data-star title="즐겨찾기">★</button>
         <div class="skill-meta">
           <div class="slash">${escapeHtml(skill.slash)}</div>
           <div class="title">${escapeHtml(skill.name)}</div>
           <div class="desc">${escapeHtml(skill.desc || "")}</div>
+          ${footHtml ? `<div class="skill-foot">${footHtml}</div>` : ""}
         </div>`;
+
       chip.querySelector(".star").addEventListener("click", (e) => {
         e.stopPropagation();
         toggleFav(skill.id);
@@ -546,6 +635,9 @@
       const el = $("sidebarList");
       el.innerHTML = "";
 
+      // 그룹 추가 폼 버튼 표시 여부 (로그인 + 스킬 탭)
+      $("groupAddForm").classList.remove("open");
+
       if (sidebarTab === "projects") {
         state.projects.forEach(p => {
           const row = document.createElement("button");
@@ -567,45 +659,87 @@
       const q = ($("sidebarSearch").value || "").trim();
       const hasGroups = state.groups.length > 0;
 
+      // 로그인 시 사이드바 그룹 추가 트리거
+      if (sidebarTab === "skills" && isLoggedIn()) {
+        const trig = document.createElement("button");
+        trig.type = "button";
+        trig.className = "group-add-trigger";
+        trig.textContent = "+ 그룹 추가";
+        trig.addEventListener("click", () => {
+          $("groupAddForm").classList.toggle("open");
+          if ($("groupAddForm").classList.contains("open")) {
+            $("groupAddInput").focus();
+          }
+        });
+        el.appendChild(trig);
+      }
+
       if (sidebarTab === "skills" && !q && hasGroups) {
-        // Grouped display
+        // ── 그룹별 아코디언 ──
         state.groups.forEach(g => {
           const gSkills = skills.filter(s => s.group === g.id);
-          if (!gSkills.length) return;
+          if (!gSkills.length) {
+            // 빈 그룹도 헤더는 표시
+          }
           const key = g.id;
           const isCollapsed = collapsedGroups.has(key);
           const hdr = document.createElement("div");
           hdr.className = "group-header";
-          hdr.innerHTML = `<button type="button" class="group-toggle">
-            <span class="group-arrow">${isCollapsed ? "▶" : "▼"}</span>
+
+          const toggle = document.createElement("button");
+          toggle.type = "button";
+          toggle.className = "group-toggle";
+          toggle.innerHTML = `<span class="group-arrow">${isCollapsed ? "▶" : "▼"}</span>
             <span class="group-name">${escapeHtml(g.name)}</span>
-            <span class="group-count">${gSkills.length}</span>
-          </button>`;
-          hdr.querySelector(".group-toggle").addEventListener("click", () => {
+            <span class="group-count">${gSkills.length}</span>`;
+          toggle.addEventListener("click", () => {
             if (collapsedGroups.has(key)) collapsedGroups.delete(key);
             else collapsedGroups.add(key);
             renderSidebar();
           });
+          hdr.appendChild(toggle);
+
+          if (isLoggedIn()) {
+            const delBtn = document.createElement("button");
+            delBtn.type = "button";
+            delBtn.className = "group-del-btn";
+            delBtn.title = "그룹 삭제";
+            delBtn.textContent = "×";
+            delBtn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              if (!confirm(`그룹 "${g.name}"을(를) 삭제할까요? 스킬의 그룹 배치가 해제됩니다.`)) return;
+              state.skills.forEach(s => { if (s.group === g.id) s.group = null; });
+              state.groups = state.groups.filter(x => x.id !== g.id);
+              saveState();
+              renderSidebar();
+              toast(`"${g.name}" 그룹 삭제됨`);
+            });
+            hdr.appendChild(delBtn);
+          }
+
           el.appendChild(hdr);
           if (!isCollapsed) gSkills.forEach(sk => appendSkillChip(el, sk));
         });
 
+        // 그룹 없는 스킬
         const ungrouped = skills.filter(s => !s.group);
         if (ungrouped.length) {
           const key = "__ungrouped__";
           const isCollapsed = collapsedGroups.has(key);
           const hdr = document.createElement("div");
           hdr.className = "group-header";
-          hdr.innerHTML = `<button type="button" class="group-toggle">
-            <span class="group-arrow">${isCollapsed ? "▶" : "▼"}</span>
+          const toggle = document.createElement("button");
+          toggle.type = "button";
+          toggle.className = "group-toggle";
+          toggle.innerHTML = `<span class="group-arrow">${isCollapsed ? "▶" : "▼"}</span>
             <span class="group-name">그룹 없음</span>
-            <span class="group-count">${ungrouped.length}</span>
-          </button>`;
-          hdr.querySelector(".group-toggle").addEventListener("click", () => {
+            <span class="group-count">${ungrouped.length}</span>`;
+          toggle.addEventListener("click", () => {
             if (collapsedGroups.has(key)) collapsedGroups.delete(key);
             else collapsedGroups.add(key);
             renderSidebar();
           });
+          hdr.appendChild(toggle);
           el.appendChild(hdr);
           if (!isCollapsed) ungrouped.forEach(sk => appendSkillChip(el, sk));
         }
@@ -617,12 +751,12 @@
         }
       }
 
-      if (sidebarTab === "skills") {
+      // 로그인 시에만 스킬 추가 버튼 노출
+      if (sidebarTab === "skills" && isLoggedIn()) {
         const add = document.createElement("button");
         add.type = "button";
         add.className = "btn-primary";
-        add.style.width = "100%";
-        add.style.marginTop = "8px";
+        add.style.cssText = "width:100%;margin-top:12px";
         add.textContent = "+ 새 스킬 추가";
         add.addEventListener("click", () => openSkillModal(null));
         el.appendChild(add);
@@ -657,19 +791,14 @@
         del.addEventListener("click", () => {
           if (!confirm("프로젝트를 삭제할까요?")) return;
           state.projects = state.projects.filter(x => x.id !== p.id);
-          saveState();
-          renderProjects();
-          renderSidebar();
+          saveState(); renderProjects(); renderSidebar();
         });
         head.appendChild(del);
 
-        const h2 = head.querySelector("h2");
-        h2.addEventListener("blur", () => {
-          const nv = h2.textContent.trim() || p.name;
-          p.name = nv;
-          h2.textContent = nv;
-          saveState();
-          renderSidebar();
+        head.querySelector("h2").addEventListener("blur", (e) => {
+          const nv = e.target.textContent.trim() || p.name;
+          p.name = nv; e.target.textContent = nv;
+          saveState(); renderSidebar();
         });
 
         const zone = document.createElement("div");
@@ -689,25 +818,19 @@
           pill.innerHTML = `<span>${escapeHtml(sk.name)}</span>`;
           pill.addEventListener("click", () => openDetail(sk.id));
           const rm = document.createElement("span");
-          rm.className = "rm";
-          rm.textContent = "×";
-          rm.title = "프로젝트에서 제거";
+          rm.className = "rm"; rm.textContent = "×"; rm.title = "프로젝트에서 제거";
           rm.addEventListener("click", (e) => {
             e.stopPropagation();
             p.instances = p.instances.filter(x => x.instanceId !== inst.instanceId);
-            saveState();
-            renderProjects();
+            saveState(); renderProjects();
           });
           pill.appendChild(rm);
           zone.appendChild(pill);
         });
 
-        ["dragenter", "dragover"].forEach(ev => {
-          zone.addEventListener(ev, (e) => {
-            e.preventDefault();
-            zone.classList.add("drag-over");
-          });
-        });
+        ["dragenter", "dragover"].forEach(ev =>
+          zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add("drag-over"); })
+        );
         zone.addEventListener("dragleave", (e) => {
           if (!zone.contains(e.relatedTarget)) zone.classList.remove("drag-over");
         });
@@ -719,8 +842,7 @@
           const proj = state.projects.find(x => x.id === p.id);
           if (!proj) return;
           proj.instances.push({ instanceId: uid(), skillId: sid });
-          saveState();
-          renderProjects();
+          saveState(); renderProjects();
         });
 
         card.appendChild(head);
@@ -736,12 +858,17 @@
       selectedSkillId = skillId;
       $("detailSlash").textContent = sk.slash;
       $("detailTitle").textContent = sk.name;
-      $("detailDesc").textContent = sk.desc || "";
+      $("detailAuthor").textContent = sk.authorName ? `작성자: ${sk.authorName}` : "";
       $("detailPrompt").value = sk.prompt || "";
-      $("detailPrompt").readOnly = false;
+      $("detailPrompt").readOnly = !isLoggedIn();
+
+      // 편집/삭제 버튼: 로그인 시에만 노출
+      $("btnEditSkill").style.display = isLoggedIn() ? "inline-block" : "none";
+      $("btnDelSkill").style.display = isLoggedIn() ? "inline-block" : "none";
+
       $("detailPanel").classList.add("open");
       $("detailBackdrop").classList.add("open");
-      $("detailPrompt").addEventListener("input", onPromptInput);
+      if (isLoggedIn()) $("detailPrompt").addEventListener("input", onPromptInput);
     }
 
     function onPromptInput() {
@@ -779,6 +906,7 @@
 
     function openManage() {
       $("manageCaseCount").textContent = `${state.caseCount}건`;
+      $("newGroupName").value = "";
       renderManageGroups();
       $("modalManage").classList.add("open");
     }
@@ -787,39 +915,40 @@
       const list = $("manageGroupList");
       list.innerHTML = "";
       if (!state.groups.length) {
-        list.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:4px 0">그룹이 없습니다. + 그룹 추가를 눌러 만드세요.</div>`;
+        list.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:4px 0">그룹이 없습니다. 위에서 추가하거나 사이드바 「+ 그룹 추가」를 사용하세요.</div>`;
         return;
       }
       state.groups.forEach(g => {
         const item = document.createElement("div");
         item.className = "manage-group-item";
         const inp = document.createElement("input");
-        inp.type = "text";
-        inp.value = g.name;
+        inp.type = "text"; inp.value = g.name;
         inp.addEventListener("blur", () => {
           const nv = inp.value.trim();
           if (!nv) { inp.value = g.name; return; }
-          g.name = nv;
-          saveState();
-          renderSidebar();
+          g.name = nv; saveState(); renderSidebar();
         });
         const delBtn = document.createElement("button");
-        delBtn.type = "button";
-        delBtn.className = "btn-sm";
-        delBtn.textContent = "삭제";
+        delBtn.type = "button"; delBtn.className = "btn-sm"; delBtn.textContent = "삭제";
         delBtn.style.cssText = "border-color:#7f1d1d;color:#fca5a5;flex-shrink:0";
         delBtn.addEventListener("click", () => {
-          if (!confirm(`그룹 "${g.name}"을(를) 삭제할까요? 스킬의 그룹 배치는 해제됩니다.`)) return;
+          if (!confirm(`그룹 "${g.name}"을(를) 삭제할까요?`)) return;
           state.skills.forEach(s => { if (s.group === g.id) s.group = null; });
           state.groups = state.groups.filter(x => x.id !== g.id);
-          saveState();
-          renderManageGroups();
-          renderSidebar();
+          saveState(); renderManageGroups(); renderSidebar();
         });
-        item.appendChild(inp);
-        item.appendChild(delBtn);
+        item.appendChild(inp); item.appendChild(delBtn);
         list.appendChild(item);
       });
+    }
+
+    function addGroupAction(name) {
+      if (!name || !name.trim()) return false;
+      state.groups.push({ id: uid(), name: name.trim() });
+      saveState(); renderSidebar();
+      if ($("modalManage").classList.contains("open")) renderManageGroups();
+      toast(`"${name.trim()}" 그룹 추가됨`);
+      return true;
     }
 
     function toast(msg) {
@@ -827,115 +956,170 @@
       t.textContent = msg;
       t.classList.add("show");
       clearTimeout(toast._tm);
-      toast._tm = setTimeout(() => t.classList.remove("show"), 2200);
+      toast._tm = setTimeout(() => t.classList.remove("show"), 2500);
+    }
+
+    function updateLoginBtn() {
+      const btn = $("btnLogin");
+      if (isLoggedIn()) {
+        btn.textContent = state.session.displayName || "나";
+        btn.title = "로그인 설정 변경";
+      } else {
+        btn.textContent = "로그인";
+        btn.title = "";
+      }
     }
 
     function init() {
-      $("roleLabel").textContent = roleLabel();
+      $("roleLabel").textContent = roleLabelText();
+      updateLoginBtn();
       renderSidebar();
       renderProjects();
 
+      // ── Sidebar tabs ──
       document.querySelectorAll("#sidebarTabs button").forEach(btn => {
         btn.addEventListener("click", () => {
           sidebarTab = btn.dataset.tab;
           document.querySelectorAll("#sidebarTabs button").forEach(b => b.classList.toggle("active", b === btn));
           $("sidebarSearch").value = "";
+          $("groupAddForm").classList.remove("open");
           renderSidebar();
         });
       });
       $("sidebarSearch").addEventListener("input", () => renderSidebar());
 
+      // ── Sidebar group add ──
+      $("btnGroupAddConfirm").addEventListener("click", () => {
+        const name = $("groupAddInput").value.trim();
+        if (addGroupAction(name)) {
+          $("groupAddInput").value = "";
+          $("groupAddForm").classList.remove("open");
+        } else {
+          toast("그룹 이름을 입력하세요");
+        }
+      });
+      $("groupAddInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") $("btnGroupAddConfirm").click();
+        if (e.key === "Escape") $("groupAddForm").classList.remove("open");
+      });
+      $("btnGroupAddCancel").addEventListener("click", () => {
+        $("groupAddInput").value = "";
+        $("groupAddForm").classList.remove("open");
+      });
+
+      // ── Detail panel ──
       $("btnCloseDetail").addEventListener("click", closeDetail);
       $("detailBackdrop").addEventListener("click", closeDetail);
 
       $("btnCopy").addEventListener("click", async () => {
         const t = buildClipboardPrompt($("detailPrompt").value);
-        try {
-          await navigator.clipboard.writeText(t);
+        const ok = await copyToClipboard(t);
+        if (ok) {
           if (selectedSkillId) {
             const sk = state.skills.find(s => s.id === selectedSkillId);
             if (sk) {
-              sk.usage = (typeof sk.usage === "number" ? sk.usage : 0) + 1;
+              sk.usage = (sk.usage || 0) + 1;
               state.caseCount = (state.caseCount || 0) + 1;
               saveState();
+              renderSidebar(); // 사용횟수 즉시 반영
             }
           }
-          toast("복사됨 (마크다운 공통 규칙 포함)");
-        } catch {
-          toast("복사 실패 — 브라우저 권한 확인");
+          toast("복사됨 ✓ (마크다운 공통 규칙 포함)");
+        } else {
+          toast("복사 실패 — 브라우저 권한을 확인하세요");
         }
       });
 
       $("btnEditSkill").addEventListener("click", () => {
-        if (selectedSkillId) openSkillModal(selectedSkillId);
+        if (selectedSkillId && isLoggedIn()) openSkillModal(selectedSkillId);
       });
       $("btnDelSkill").addEventListener("click", () => {
+        if (!isLoggedIn()) return;
         const sk = state.skills.find(s => s.id === selectedSkillId);
-        if (!sk) return;
-        if (!confirm(`스킬 "${sk.name}"을(를) 삭제할까요?`)) return;
+        if (!sk || !confirm(`스킬 "${sk.name}"을(를) 삭제할까요?`)) return;
         state.skills = state.skills.filter(s => s.id !== sk.id);
         state.favorites = state.favorites.filter(fid => fid !== sk.id);
-        state.projects.forEach(p => { p.instances = p.instances.filter(inst => inst.skillId !== sk.id); });
-        saveState();
-        closeDetail();
-        renderSidebar();
-        renderProjects();
-        toast("삭제됨");
+        state.projects.forEach(p => { p.instances = p.instances.filter(i => i.skillId !== sk.id); });
+        saveState(); closeDetail(); renderSidebar(); renderProjects(); toast("삭제됨");
       });
 
+      // ── New project ──
       $("btnNewProject").addEventListener("click", () => {
         const name = prompt("프로젝트 이름", "새 프로젝트");
         if (!name) return;
         state.projects.push({ id: uid(), name: name.trim(), instances: [] });
-        saveState();
-        renderProjects();
-        renderSidebar();
+        saveState(); renderProjects(); renderSidebar();
       });
 
+      // ── Login modal ──
       $("btnLogin").addEventListener("click", () => {
         $("inputDisplayName").value = state.session.displayName || "";
         $("inputAdminPin").value = "";
+        $("btnLogout").style.display = isLoggedIn() ? "inline-block" : "none";
         $("modalSession").classList.add("open");
       });
-      $("btnGuest").addEventListener("click", () => {
+      $("btnCancelSession").addEventListener("click", () => $("modalSession").classList.remove("open"));
+      $("btnLogout").addEventListener("click", () => {
+        state.session = { mode: "guest", displayName: "", admin: false, userId: null };
+        saveState();
         $("modalSession").classList.remove("open");
+        $("roleLabel").textContent = roleLabelText();
+        updateLoginBtn();
+        updateAdminUI();
+        renderSidebar();
+        renderProjects();
+        closeDetail();
+        toast("로그아웃됨");
       });
       $("btnSaveSession").addEventListener("click", () => {
         const pin = $("inputAdminPin").value;
         const name = $("inputDisplayName").value.trim();
+
+        if (!name) {
+          toast("이름을 입력해주세요");
+          $("inputDisplayName").focus();
+          return;
+        }
+
+        let msg = "";
         if (pin && pin === ADMIN_PIN) {
-          state.session = { mode: "user", displayName: name || "관리자", admin: true, userId: "admin" };
-        } else if (name) {
+          state.session = { mode: "user", displayName: name, admin: true, userId: "admin" };
+          msg = `${name}님 로그인 (관리자) · 스킬은 이 기기에 저장됩니다`;
+        } else if (pin && pin !== ADMIN_PIN) {
           const uidUser = state.session.userId || uid();
           state.session = { mode: "user", displayName: name, admin: false, userId: uidUser };
+          msg = "PIN이 올바르지 않아 일반 로그인으로 처리됩니다";
         } else {
-          state.session = { mode: "guest", displayName: "", admin: false, userId: null };
+          const uidUser = state.session.userId || uid();
+          state.session = { mode: "user", displayName: name, admin: false, userId: uidUser };
+          msg = `${name}님 로그인 · 스킬은 이 기기에 저장됩니다`;
         }
         saveState();
         $("modalSession").classList.remove("open");
-        $("roleLabel").textContent = roleLabel();
+        $("roleLabel").textContent = roleLabelText();
+        updateLoginBtn();
         updateAdminUI();
         renderSidebar();
         renderProjects();
         if (selectedSkillId) openDetail(selectedSkillId);
+        toast(msg);
       });
 
+      // ── Skill modal ──
       $("btnSkillCancel").addEventListener("click", () => $("modalSkill").classList.remove("open"));
       $("btnSkillDelete").addEventListener("click", () => {
+        if (!isLoggedIn()) return;
         const sk = state.skills.find(s => s.id === editingSkillId);
-        if (!sk) return;
-        if (!confirm(`스킬 "${sk.name}"을(를) 완전 삭제할까요?`)) return;
+        if (!sk || !confirm(`스킬 "${sk.name}"을(를) 완전 삭제할까요?`)) return;
         state.skills = state.skills.filter(s => s.id !== sk.id);
         state.favorites = state.favorites.filter(fid => fid !== sk.id);
-        state.projects.forEach(p => { p.instances = p.instances.filter(inst => inst.skillId !== sk.id); });
+        state.projects.forEach(p => { p.instances = p.instances.filter(i => i.skillId !== sk.id); });
         saveState();
         $("modalSkill").classList.remove("open");
-        closeDetail();
-        renderSidebar();
-        renderProjects();
-        toast("삭제됨");
+        closeDetail(); renderSidebar(); renderProjects(); toast("삭제됨");
       });
       $("btnSkillSave").addEventListener("click", () => {
+        if (!isLoggedIn()) { toast("로그인 후 스킬을 저장할 수 있습니다"); return; }
         const name = $("skName").value.trim();
         const slash = normalizeSlash($("skSlash").value);
         const desc = $("skDesc").value.trim();
@@ -945,27 +1129,43 @@
         if (editingSkillId) {
           const sk = state.skills.find(s => s.id === editingSkillId);
           if (!sk) return;
-          sk.name = name; sk.slash = slash; sk.desc = desc; sk.prompt = prompt; sk.group = group;
+          sk.name = name; sk.slash = slash; sk.desc = desc;
+          sk.prompt = prompt; sk.group = group;
         } else {
           state.skills.unshift({
             id: uid(), name, slash, desc, prompt, group,
-            authorId: state.session.userId || null, usage: 0,
+            authorId: state.session.userId || null,
+            authorName: state.session.displayName || "",
+            usage: 0,
           });
         }
         saveState();
         $("modalSkill").classList.remove("open");
-        renderSidebar();
-        toast("저장됨");
+        renderSidebar(); toast("저장됨");
       });
 
+      // ── Manage modal ──
       $("btnManage").addEventListener("click", openManage);
       $("btnCloseManage").addEventListener("click", () => $("modalManage").classList.remove("open"));
+      $("btnAddGroup").addEventListener("click", () => {
+        const name = $("newGroupName").value.trim();
+        if (addGroupAction(name)) {
+          $("newGroupName").value = "";
+        } else {
+          toast("그룹 이름을 입력하세요");
+          $("newGroupName").focus();
+        }
+      });
+      $("newGroupName").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") $("btnAddGroup").click();
+      });
       $("btnResetUsage").addEventListener("click", () => {
         if (!confirm("사용 건수를 초기화할까요?")) return;
         state.caseCount = 0;
         state.skills.forEach(s => s.usage = 0);
         saveState();
         $("manageCaseCount").textContent = "0건";
+        renderSidebar();
         toast("사용 건수 초기화됨");
       });
       $("btnClearAll").addEventListener("click", () => {
@@ -973,32 +1173,25 @@
         localStorage.removeItem(STORAGE_KEY);
         location.reload();
       });
-      $("btnAddGroup").addEventListener("click", () => {
-        const name = prompt("그룹 이름");
-        if (!name || !name.trim()) return;
-        state.groups.push({ id: uid(), name: name.trim() });
-        saveState();
-        renderManageGroups();
-        renderSidebar();
-        toast("그룹 추가됨");
-      });
 
+      // ── Escape to close ──
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
           closeDetail();
           $("modalSession").classList.remove("open");
           $("modalSkill").classList.remove("open");
           $("modalManage").classList.remove("open");
+          $("groupAddForm").classList.remove("open");
         }
       });
     }
 
     init();
 
-    // ── PWA & 스킬 동적 로딩 ─────────────────────────────
+    // ── PWA & 스킬 동적 로딩 ──────────────────────────────
 
     function updateAdminUI() {
-      $("btnRefreshSkills").style.display = state.session.admin ? "inline-block" : "none";
+      $("btnRefreshSkills").style.display = isAdmin() ? "inline-block" : "none";
     }
 
     async function tryFetchSkills() {
@@ -1007,37 +1200,31 @@
         if (!res.ok) return null;
         const data = await res.json();
         if (!Array.isArray(data) || !data.length) return null;
-        return data.map(s => ({ usage: 0, group: null, ...s }));
-      } catch {
-        return null;
-      }
+        return data.map(s => ({ usage: 0, group: null, authorName: "", ...s }));
+      } catch { return null; }
     }
 
     $("btnRefreshSkills").addEventListener("click", async () => {
       const fresh = await tryFetchSkills();
-      if (!fresh) { toast("skills/index.json 로드 실패 — 로컬 서버로 실행 중인지 확인하세요."); return; }
+      if (!fresh) { toast("skills/index.json 로드 실패 — 로컬 서버 확인"); return; }
       const userSkills = state.skills.filter(s => s.authorId);
       const freshIds = new Set(fresh.map(s => s.id));
       const preserved = userSkills.filter(s => !freshIds.has(s.id));
       state.skills = [...fresh, ...preserved];
-      saveState();
-      renderSidebar();
+      saveState(); renderSidebar();
       toast(`기본 스킬 ${fresh.length}개 업데이트 완료`);
     });
 
-    // 첫 실행(localStorage 없음)이면 서버 스킬 자동 로드
     if (!localStorage.getItem(STORAGE_KEY)) {
       tryFetchSkills().then(fresh => {
         if (!fresh) return;
         state.skills = fresh;
-        saveState();
-        renderSidebar();
+        saveState(); renderSidebar();
       });
     }
 
     updateAdminUI();
 
-    // Service Worker 등록 (PWA 오프라인·설치 지원)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').catch(() => {});

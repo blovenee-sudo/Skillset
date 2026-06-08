@@ -612,9 +612,9 @@
         const ws = state.session && state.session.workspace;
         if (ws) {
           await saveToFs(ws, state);
-          toast(`폴더 연결됨 ✓ — skills/${ws}/state.json 생성됨`);
+          toast(`✓ skills/${ws}/state.json 저장됨 — 이후 자동 동기화`);
         } else {
-          toast("폴더 연결됨 ✓ — 로그인 후 세션별로 저장됩니다");
+          toast("폴더 연결됨 ✓ — 로그인하면 세션별로 자동 저장됩니다");
         }
       } catch (e) { if (e.name !== "AbortError") toast("폴더 연결 실패"); }
     }
@@ -1363,6 +1363,13 @@
         renderProjects();
         closeDetail();
         toast(msg);
+        // 폴더 미연결 상태면 로그인 직후 자동으로 폴더 선택창 띄움 (최초 1회)
+        if (!rootHandle && FS_SUPPORTED) {
+          setTimeout(async () => {
+            toast("Skillset 루트 폴더를 선택하면 이후 자동 저장됩니다 👇");
+            await connectFolder();
+          }, 800);
+        }
       });
 
       // ── Skill modal ──

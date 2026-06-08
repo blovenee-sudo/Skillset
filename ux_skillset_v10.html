@@ -434,9 +434,9 @@
         <div class="manage-row">
           <div>
             <div class="manage-label">Skillset 폴더 연결</div>
-            <div class="manage-hint" id="fsStatus">연결 시 skills/{폴더명}/state.json에 저장</div>
+            <div class="manage-hint" id="fsStatus">로그인 시 자동 연결 · 여기선 재연결만</div>
           </div>
-          <button type="button" class="btn-sm" id="btnConnectFolder" style="flex-shrink:0">폴더 선택</button>
+          <button type="button" class="btn-sm" id="btnConnectFolder" style="flex-shrink:0">재연결</button>
         </div>
         <div class="manage-row">
           <div>
@@ -622,9 +622,9 @@
       const el = $("fsStatus");
       if (el) el.textContent = rootHandle
         ? "✓ 연결됨 — skills/{폴더명}/state.json"
-        : "연결 시 skills 폴더 안에 세션별로 저장";
+        : "로그인 시 자동 연결 · 여기선 재연결만";
       const btn = $("btnConnectFolder");
-      if (btn) btn.textContent = rootHandle ? "폴더 변경" : "폴더 선택";
+      if (btn) btn.textContent = rootHandle ? "재연결" : "재연결";
     }
     async function saveToFs(workspace, data) {
       if (!rootHandle) return;

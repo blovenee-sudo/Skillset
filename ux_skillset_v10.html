@@ -334,8 +334,8 @@
         <button type="button" class="copy-btn" id="btnCopy">복사</button>
         <button type="button" class="btn-sm" id="btnEditSkill" style="display:none">스킬 편집</button>
         <button type="button" class="btn-sm" id="btnDelSkill" style="display:none;border-color:#7f1d1d;color:#fca5a5">스킬 삭제</button>
-        <span id="detailUpdateBadge" style="display:none;font-size:10px;font-weight:600;color:#fb923c;background:#431407;border:1px solid #78350f;border-radius:4px;padding:3px 7px;align-self:center;white-space:nowrap">↑ 업데이트 있음</span>
-        <button type="button" class="btn-sm" id="btnResetSkill" style="display:none;color:#fb923c;border-color:#78350f" title="기본 스킬 형태로 되돌립니다">초기화</button>
+        <button type="button" class="btn-sm" id="detailUpdateBadge" style="display:none;color:#fb923c;border-color:#78350f" title="기본 스킬이 업데이트됐습니다. 클릭해 적용하세요">↑ 업데이트 적용</button>
+        <button type="button" class="btn-sm" id="btnResetSkill" style="display:none;color:var(--muted);border-color:var(--border)" title="기본 스킬 형태로 되돌립니다">초기화</button>
       </div>
     </div>
   </div>
@@ -1258,18 +1258,34 @@
         if (selectedSkillId && isLoggedIn()) openSkillModal(selectedSkillId);
       });
 
-      $("btnResetSkill").addEventListener("click", () => {
+      // 공통 헬퍼 — 선택된 스킬을 latestBaseSkills 내용으로 덮어씀
+      function applyBaseToSelected(confirmMsg, doneMsg) {
         if (!isLoggedIn() || !selectedSkillId) return;
         const sk = state.skills.find(s => s.id === selectedSkillId);
         if (!sk) return;
         const base = latestBaseSkills && latestBaseSkills.find(b => b.id === sk.id);
         if (!base) { toast("기본 스킬 데이터를 불러올 수 없습니다 (서버 연결 확인)"); return; }
-        if (!confirm(`[${sk.name}] 스킬을 기본값으로 초기화합니다.\n수정한 내용이 모두 사라집니다. 계속할까요?`)) return;
+        if (!confirm(confirmMsg)) return;
         ["name","slash","desc","prompt"].forEach(f => { sk[f] = base[f]; });
         sk._editedFromBase = false;
         saveState(); renderSidebar();
-        openDetail(selectedSkillId); // 패널 내용 갱신
-        toast("기본값으로 초기화됐습니다");
+        openDetail(selectedSkillId);
+        toast(doneMsg);
+      }
+
+      $("detailUpdateBadge").addEventListener("click", () => {
+        const sk = state.skills.find(s => s.id === selectedSkillId);
+        applyBaseToSelected(
+          `[${sk && sk.name}] 스킬에 업데이트가 있습니다.\n업데이트 내용으로 덮어씌우겠습니까?`,
+          "업데이트가 적용됐습니다"
+        );
+      });
+      $("btnResetSkill").addEventListener("click", () => {
+        const sk = state.skills.find(s => s.id === selectedSkillId);
+        applyBaseToSelected(
+          `[${sk && sk.name}] 스킬을 기본값으로 초기화합니다.\n수정한 내용이 모두 사라집니다. 계속할까요?`,
+          "기본값으로 초기화됐습니다"
+        );
       });
       $("btnDelSkill").addEventListener("click", () => {
         if (!isLoggedIn()) return;
@@ -1535,28 +1551,19 @@
       } catch { return null; }
     }
 
-    // 기본 스킬 업데이트 확인 — 미수정 스킬 자동 갱신, 수정된 스킬 알림
+    // 기본 스킬 업데이트 확인 — 업데이트된 스킬 수 알림만 (적용은 사용자가 선택)
     function checkBaseSkillUpdates(fresh) {
       if (!fresh || !fresh.length) return;
       const FIELDS = ["name", "slash", "desc", "prompt"];
-      let autoCount = 0;
-      const modifiedNames = [];
-      state.skills.forEach((sk, idx) => {
+      const updatedNames = [];
+      state.skills.forEach(sk => {
         if (sk.authorId !== null) return; // 사용자 생성 스킬 제외
         const base = fresh.find(b => b.id === sk.id);
         if (!base) return;
-        const hasDiff = FIELDS.some(f => sk[f] !== base[f]);
-        if (!hasDiff) return;
-        if (sk._editedFromBase) {
-          modifiedNames.push(sk.name); // 직접 수정한 스킬 → 알림만
-        } else {
-          // 수정하지 않은 스킬 → 자동 갱신
-          FIELDS.forEach(f => { state.skills[idx][f] = base[f]; });
-          autoCount++;
-        }
+        if (FIELDS.some(f => sk[f] !== base[f])) updatedNames.push(sk.name);
       });
-      if (autoCount) { saveState(); renderSidebar(); toast(`기본 스킬 ${autoCount}개 자동 업데이트됨`); }
-      if (modifiedNames.length) toast(`수정된 기본 스킬 ${modifiedNames.length}개에 업데이트가 있습니다 — 상세에서 확인`);
+      if (updatedNames.length)
+        toast(`기본 스킬 ${updatedNames.length}개에 업데이트가 있습니다 — 스킬 상세에서 확인·적용`);
     }
 
     $("btnRefreshSkills").addEventListener("click", async () => {

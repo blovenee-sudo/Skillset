@@ -352,6 +352,11 @@
       <label>폴더명 <span style="font-size:10px;color:var(--muted)">스킬·프로젝트가 저장될 워크스페이스</span></label>
       <input type="text" id="inputWorkspace" placeholder="이름과 동일하게 자동입력" />
       <div id="wsChips" style="display:none;flex-wrap:wrap;gap:5px;margin:-4px 0 6px"></div>
+      <label>저장 폴더 위치 <span style="font-size:10px;color:var(--muted)">Skillset 루트 폴더 선택</span></label>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+        <span id="folderPathLabel" style="flex:1;font-size:11px;color:var(--muted);font-family:ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">미선택 — 선택하면 skills/{폴더명}/state.json 저장</span>
+        <button type="button" class="btn-sm" id="btnPickFolder" style="flex-shrink:0">폴더 선택</button>
+      </div>
       <label>관리자 PIN (선택)</label>
       <input type="password" id="inputAdminPin" placeholder="PIN이 있으면 스킬 업데이트 활성화" autocomplete="off" />
       <div class="row" style="justify-content:space-between">
@@ -622,9 +627,22 @@
       const el = $("fsStatus");
       if (el) el.textContent = rootHandle
         ? "✓ 연결됨 — skills/{폴더명}/state.json"
-        : "로그인 시 자동 연결 · 여기선 재연결만";
+        : "로그인 모달에서 폴더 지정 · 여기선 재연결만";
       const btn = $("btnConnectFolder");
-      if (btn) btn.textContent = rootHandle ? "재연결" : "재연결";
+      if (btn) btn.textContent = "재연결";
+    }
+    function updateFolderPathLabel() {
+      const el = $("folderPathLabel");
+      if (!el) return;
+      if (rootHandle) {
+        el.textContent = `✓ ${rootHandle.name} — skills/{폴더명}/state.json`;
+        el.style.color = "var(--accent)";
+        $("btnPickFolder").textContent = "변경";
+      } else {
+        el.textContent = "미선택 — 선택하면 skills/{폴더명}/state.json 저장";
+        el.style.color = "var(--muted)";
+        $("btnPickFolder").textContent = "폴더 선택";
+      }
     }
     async function saveToFs(workspace, data) {
       if (!rootHandle) return;
@@ -1299,8 +1317,14 @@
         } else {
           chips.style.display = "none";
         }
+        // 폴더 연결 상태 표시
+        updateFolderPathLabel();
         $("btnLogout").style.display = isLoggedIn() ? "inline-block" : "none";
         $("modalSession").classList.add("open");
+      });
+      $("btnPickFolder").addEventListener("click", async () => {
+        await connectFolder();
+        updateFolderPathLabel();
       });
       // 이름 입력 시 폴더명 자동동기화
       $("inputDisplayName").addEventListener("input", () => {
@@ -1363,13 +1387,6 @@
         renderProjects();
         closeDetail();
         toast(msg);
-        // 폴더 미연결 상태면 로그인 직후 자동으로 폴더 선택창 띄움 (최초 1회)
-        if (!rootHandle && FS_SUPPORTED) {
-          setTimeout(async () => {
-            toast("Skillset 루트 폴더를 선택하면 이후 자동 저장됩니다 👇");
-            await connectFolder();
-          }, 800);
-        }
       });
 
       // ── Skill modal ──

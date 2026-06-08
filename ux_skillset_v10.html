@@ -1098,7 +1098,7 @@
         ["name","slash","desc","prompt"].some(f => sk[f] !== baseRef[f]);
       const userEdited = !!sk._editedFromBase;
       $("detailUpdateBadge").style.display =
-        (isBaseSkill && !userEdited && hasUpstreamUpdate) ? "inline-block" : "none";
+        (isLoggedIn() && isBaseSkill && !userEdited && hasUpstreamUpdate) ? "inline-block" : "none";
       $("btnResetSkill").style.display =
         (isLoggedIn() && isBaseSkill && userEdited) ? "inline-block" : "none";
 

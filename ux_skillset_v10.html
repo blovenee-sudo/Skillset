@@ -1556,24 +1556,16 @@
       } catch { return null; }
     }
 
-    // 기본 스킬 업데이트 확인
-    // - 사용자가 수정하지 않은 기본 스킬: 조용히 baseline 맞춤 (로그인 직후 불필요한 배지 방지)
-    // - 사용자가 직접 수정한 기본 스킬(_editedFromBase): 상세에서 "초기화" 버튼으로 처리
+    // 기본 스킬 업데이트 확인 — 감지 및 알림만, 실제 적용은 스킬 상세 버튼으로
     function checkBaseSkillUpdates(fresh) {
       if (!fresh || !fresh.length) return;
       const FIELDS = ["name", "slash", "desc", "prompt"];
-      let synced = false;
-      state.skills.forEach((sk, idx) => {
-        if (sk.authorId !== null) return; // 사용자 생성 스킬 제외
-        if (sk._editedFromBase) return;   // 직접 수정한 스킬은 건드리지 않음
+      const count = state.skills.filter(sk => {
+        if (sk.authorId !== null || sk._editedFromBase) return false;
         const base = fresh.find(b => b.id === sk.id);
-        if (!base) return;
-        if (FIELDS.some(f => sk[f] !== base[f])) {
-          FIELDS.forEach(f => { state.skills[idx][f] = base[f]; });
-          synced = true;
-        }
-      });
-      if (synced) { saveState(); renderSidebar(); }
+        return base && FIELDS.some(f => sk[f] !== base[f]);
+      }).length;
+      if (count) toast(`기본 스킬 ${count}개에 업데이트가 있습니다 — 스킬 상세에서 확인·적용`);
     }
 
     $("btnRefreshSkills").addEventListener("click", async () => {

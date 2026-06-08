@@ -1581,12 +1581,12 @@
 
     tryFetchSkills().then(fresh => {
       if (!fresh) return;
-      if (!localStorage.getItem(STORAGE_KEY)) {
-        // 첫 실행: index.json 으로 초기 스킬 세팅
+      if (!isLoggedIn()) {
+        // 비로그인: 항상 최신 index.json 으로 기본 스킬 갱신 (비로그인 = 기본 스킬 그대로)
         state.skills = fresh;
         saveState(); renderSidebar();
       } else {
-        // 기존 사용자: 업데이트 감지 (자동 갱신 + 알림)
+        // 세션 로그인 중: 업데이트 감지 및 알림 (적용은 사용자가 선택)
         checkBaseSkillUpdates(fresh);
       }
     });

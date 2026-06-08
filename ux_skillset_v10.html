@@ -354,7 +354,7 @@
       <div id="wsChips" style="display:none;flex-wrap:wrap;gap:5px;margin:-4px 0 6px"></div>
       <label>저장 폴더 위치 <span style="font-size:10px;color:var(--muted)">Skillset &gt; skills 폴더 선택</span></label>
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
-        <span id="folderPathLabel" style="flex:1;font-size:11px;color:var(--muted);font-family:ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">미선택 — skills/{폴더명}/state.json 으로 저장</span>
+        <span id="folderPathLabel" style="flex:1;font-size:11px;color:var(--muted);font-family:ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">미선택 — skills/session/{폴더명}.json 으로 저장</span>
         <button type="button" class="btn-sm" id="btnPickFolder" style="flex-shrink:0">폴더 선택</button>
       </div>
       <label>관리자 PIN (선택)</label>
@@ -577,9 +577,10 @@
     }
 
     // ── File System Access API ─────────────────────────────
-    // skills/{workspace}/state.json 에 저장. localStorage fallback.
+    // skills/session/{workspace}.json 에 저장. localStorage fallback.
     const FS_SUPPORTED = "showDirectoryPicker" in window;
-    let rootHandle = null; // Skillset 루트 디렉토리 핸들
+    let rootHandle    = null; // skills/ 폴더 핸들
+    let sessionHandle = null; // skills/session/ 핸들 (자동 생성)
 
     async function _fsDb(mode, fn) {
       return new Promise((res, rej) => {
@@ -603,21 +604,21 @@
       if (!h) return;
       try {
         const perm = await h.queryPermission({ mode: "readwrite" });
-        if (perm === "granted") { rootHandle = h; updateFsStatus(); }
+        if (perm === "granted") { rootHandle = h; sessionHandle = null; updateFsStatus(); }
       } catch {}
     }
     async function connectFolder() {
       if (!FS_SUPPORTED) { toast("이 브라우저는 파일 접근 API를 지원하지 않습니다 (Chrome/Edge 권장)"); return; }
       try {
         const h = await window.showDirectoryPicker({ mode: "readwrite", startIn: "desktop" });
-        rootHandle = h;
+        rootHandle = h; sessionHandle = null;
         await setFsHandle(h);
         updateFsStatus();
         // 연결 직후 현재 세션 상태를 즉시 파일로 저장
         const ws = state.session && state.session.workspace;
         if (ws) {
           await saveToFs(ws, state);
-          toast(`✓ skills/${ws}/state.json 저장됨 — 이후 자동 동기화`);
+          toast(`✓ skills/session/${ws}.json 저장됨 — 이후 자동 동기화`);
         } else {
           toast("폴더 연결됨 ✓ — 로그인하면 세션별로 자동 저장됩니다");
         }
@@ -626,7 +627,7 @@
     function updateFsStatus() {
       const el = $("fsStatus");
       if (el) el.textContent = rootHandle
-        ? "✓ 연결됨 — skills/{폴더명}/state.json"
+        ? "✓ 연결됨 — skills/session/{폴더명}.json"
         : "로그인 모달에서 폴더 지정 · 여기선 재연결만";
       const btn = $("btnConnectFolder");
       if (btn) btn.textContent = "재연결";
@@ -635,45 +636,57 @@
       const el = $("folderPathLabel");
       if (!el) return;
       if (rootHandle) {
-        el.textContent = `✓ ${rootHandle.name}/ — {폴더명}/state.json`;
+        el.textContent = `✓ ${rootHandle.name}/ — session/{폴더명}.json`;
         el.style.color = "var(--accent)";
         $("btnPickFolder").textContent = "변경";
       } else {
-        el.textContent = "미선택 — skills/{폴더명}/state.json 으로 저장";
+        el.textContent = "미선택 — skills/session/{폴더명}.json 으로 저장";
         el.style.color = "var(--muted)";
         $("btnPickFolder").textContent = "폴더 선택";
       }
     }
-    // rootHandle = skills/ 폴더 자체. {workspace}/state.json 직접 생성.
-    async function saveToFs(workspace, data) {
-      if (!rootHandle) return;
+    // rootHandle = skills/ 폴더, sessionHandle = skills/session/ (자동 생성)
+    // 파일 구조: skills/session/{workspace}.json (평탄 파일, 폴더 없음)
+    async function getSessionHandle() {
+      if (sessionHandle) return sessionHandle;
+      if (!rootHandle) return null;
       try {
-        const wsDir = await rootHandle.getDirectoryHandle(workspace, { create: true });
-        const fh    = await wsDir.getFileHandle("state.json", { create: true });
-        const w     = await fh.createWritable();
+        sessionHandle = await rootHandle.getDirectoryHandle("session", { create: true });
+        return sessionHandle;
+      } catch { return null; }
+    }
+    async function saveToFs(workspace, data) {
+      const sh = await getSessionHandle();
+      if (!sh) return;
+      try {
+        const fh = await sh.getFileHandle(`${workspace}.json`, { create: true });
+        const w  = await fh.createWritable();
         await w.write(JSON.stringify(data, null, 2)); await w.close();
       } catch {}
     }
     async function loadFromFs(workspace) {
-      if (!rootHandle) return null;
+      const sh = await getSessionHandle();
+      if (!sh) return null;
       try {
-        const wsDir = await rootHandle.getDirectoryHandle(workspace);
-        const fh    = await wsDir.getFileHandle("state.json");
+        const fh = await sh.getFileHandle(`${workspace}.json`);
         return JSON.parse(await (await fh.getFile()).text());
       } catch { return null; }
     }
     async function deleteFromFs(workspace) {
-      if (!rootHandle) return;
-      try { await rootHandle.removeEntry(workspace, { recursive: true }); } catch {}
+      const sh = await getSessionHandle();
+      if (!sh) return;
+      try { await sh.removeEntry(`${workspace}.json`); } catch {}
     }
     async function listWorkspacesFromFs() {
-      if (!rootHandle) return [];
+      const sh = await getSessionHandle();
+      if (!sh) return [];
       try {
-        const dirs = [];
-        for await (const [name, h] of rootHandle.entries()) {
-          if (h.kind === "directory") dirs.push(name);
+        const list = [];
+        for await (const [name, h] of sh.entries()) {
+          if (h.kind === "file" && name.endsWith(".json") && name !== "index.json")
+            list.push(name.slice(0, -5));
         }
-        return dirs;
+        return list;
       } catch { return []; }
     }
 
@@ -701,7 +714,7 @@
         base.session = state.session;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(base));
       }
-      // File system (연결된 경우 skills/{ws}/state.json 에도 저장)
+      // File system (연결된 경우 skills/session/{ws}.json 에도 저장)
       if (ws && rootHandle) saveToFs(ws, state).catch(() => {});
     }
 
@@ -1462,7 +1475,7 @@
         const ws = state.session && state.session.workspace;
         if (ws) {
           localStorage.removeItem(wsKey(ws));
-          await deleteFromFs(ws); // skills/{ws}/ 폴더 삭제
+          await deleteFromFs(ws); // skills/session/{ws}.json 삭제
         }
         localStorage.removeItem(STORAGE_KEY);
         location.reload();

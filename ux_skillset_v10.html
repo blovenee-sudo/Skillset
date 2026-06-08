@@ -349,6 +349,9 @@
       </p>
       <label>이름 <span style="color:#f87171">*</span></label>
       <input type="text" id="inputDisplayName" placeholder="예: 김보니" />
+      <label>폴더명 <span style="font-size:10px;color:var(--muted)">스킬·프로젝트가 저장될 워크스페이스</span></label>
+      <input type="text" id="inputWorkspace" placeholder="이름과 동일하게 자동입력" />
+      <div id="wsChips" style="display:none;flex-wrap:wrap;gap:5px;margin:-4px 0 6px"></div>
       <label>관리자 PIN (선택)</label>
       <input type="password" id="inputAdminPin" placeholder="PIN이 있으면 스킬 업데이트 활성화" autocomplete="off" />
       <div class="row" style="justify-content:space-between">
@@ -517,47 +520,70 @@
       return "id_" + Math.random().toString(36).slice(2, 11) + Date.now().toString(36);
     }
 
-    function loadState() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) {
-          return {
-            skills: DEFAULT_SKILLS.map(s => ({ ...s })),
-            projects: [{ id: uid(), name: "샘플 프로젝트", instances: [] }],
-            favorites: [],
-            session: { mode: "guest", displayName: "", admin: false },
-            caseCount: 0,
-            groups: [],
-          };
-        }
-        const d = JSON.parse(raw);
-        if (!d.skills || !d.skills.length) d.skills = DEFAULT_SKILLS.map(s => ({ ...s }));
-        if (!d.projects) d.projects = [{ id: uid(), name: "프로젝트 1", instances: [] }];
-        if (!Array.isArray(d.favorites)) d.favorites = [];
-        if (!d.session) d.session = { mode: "guest", displayName: "", admin: false };
-        if (typeof d.caseCount !== "number") d.caseCount = 0;
-        if (!Array.isArray(d.groups)) d.groups = [];
-        d.skills.forEach(s => {
-          if (typeof s.usage !== "number") s.usage = 0;
-          if (!("group" in s)) s.group = null;
-          if (!("authorName" in s)) s.authorName = "";
-        });
-        return d;
-      } catch {
-        return loadState.fallback();
-      }
+    // ── 워크스페이스 헬퍼 ──────────────────────────────────
+    function wsKey(workspace) {
+      return workspace ? `${STORAGE_KEY}_ws_${workspace}` : STORAGE_KEY;
     }
-    loadState.fallback = () => ({
-      skills: DEFAULT_SKILLS.map(s => ({ ...s })),
-      projects: [{ id: uid(), name: "샘플 프로젝트", instances: [] }],
-      favorites: [],
-      session: { mode: "guest", displayName: "", admin: false },
-      caseCount: 0,
-      groups: [],
-    });
+    function listWorkspaces() {
+      const prefix = `${STORAGE_KEY}_ws_`;
+      const list = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(prefix)) list.push(k.slice(prefix.length));
+      }
+      return list;
+    }
+    function normalizeData(d) {
+      if (!d.skills || !d.skills.length) d.skills = DEFAULT_SKILLS.map(s => ({ ...s }));
+      if (!d.projects) d.projects = [{ id: uid(), name: "프로젝트 1", instances: [] }];
+      if (!Array.isArray(d.favorites)) d.favorites = [];
+      if (!d.session) d.session = { mode: "guest", displayName: "", admin: false };
+      if (typeof d.caseCount !== "number") d.caseCount = 0;
+      if (!Array.isArray(d.groups)) d.groups = [];
+      d.skills.forEach(s => {
+        if (typeof s.usage !== "number") s.usage = 0;
+        if (!("group" in s)) s.group = null;
+        if (!("authorName" in s)) s.authorName = "";
+      });
+      return d;
+    }
+    function parseStored(key) {
+      try { const r = localStorage.getItem(key); return r ? normalizeData(JSON.parse(r)) : null; }
+      catch { return null; }
+    }
+    function defaultState() {
+      return {
+        skills: DEFAULT_SKILLS.map(s => ({ ...s })),
+        projects: [{ id: uid(), name: "샘플 프로젝트", instances: [] }],
+        favorites: [],
+        session: { mode: "guest", displayName: "", admin: false },
+        caseCount: 0,
+        groups: [],
+      };
+    }
+
+    function loadState() {
+      const base = parseStored(STORAGE_KEY) || defaultState();
+      // 마지막 워크스페이스 세션이 있으면 해당 워크스페이스 데이터 복원
+      if (base.session && base.session.workspace) {
+        const ws = parseStored(wsKey(base.session.workspace));
+        if (ws) return ws;
+        base.session.workspace = null; // 워크스페이스 데이터 없으면 초기화
+      }
+      return base;
+    }
+    loadState.fallback = defaultState;
 
     function saveState() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      const ws = state.session && state.session.workspace;
+      localStorage.setItem(wsKey(ws), JSON.stringify(state));
+      // 워크스페이스 사용 중이면 기본 키에도 세션 포인터 저장 (재시작 시 복원용)
+      if (ws) {
+        let base = {};
+        try { base = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch {}
+        base.session = state.session;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(base));
+      }
     }
 
     let state = loadState();
@@ -575,8 +601,10 @@
     function isAdmin() { return !!state.session.admin; }
 
     function roleLabelText() {
-      if (state.session.admin) return `${state.session.displayName || "관리자"} (관리자)`;
-      if (state.session.mode === "user") return state.session.displayName || "사용자";
+      const ws = state.session.workspace;
+      const wsLabel = ws ? ` [${ws}]` : "";
+      if (state.session.admin) return `${state.session.displayName || "관리자"}${wsLabel} (관리자)`;
+      if (state.session.mode === "user") return `${state.session.displayName || "사용자"}${wsLabel}`;
       return "비로그인 · 복사만 가능";
     }
 
@@ -1129,13 +1157,44 @@
       $("btnLogin").addEventListener("click", () => {
         $("inputDisplayName").value = state.session.displayName || "";
         $("inputAdminPin").value = "";
+        $("inputWorkspace").value = state.session.workspace || state.session.displayName || "";
+        $("inputWorkspace")._manual = !!state.session.workspace;
+        // 기존 워크스페이스 칩 표시
+        const chips = $("wsChips");
+        chips.innerHTML = "";
+        const wsList = listWorkspaces();
+        if (wsList.length) {
+          wsList.forEach(ws => {
+            const btn = document.createElement("button");
+            btn.type = "button"; btn.className = "btn-sm";
+            btn.textContent = ws;
+            btn.style.cssText = "font-size:11px;padding:3px 8px";
+            btn.addEventListener("click", () => {
+              $("inputWorkspace").value = ws;
+              $("inputWorkspace")._manual = true;
+            });
+            chips.appendChild(btn);
+          });
+          chips.style.display = "flex";
+        } else {
+          chips.style.display = "none";
+        }
         $("btnLogout").style.display = isLoggedIn() ? "inline-block" : "none";
         $("modalSession").classList.add("open");
       });
+      // 이름 입력 시 폴더명 자동동기화
+      $("inputDisplayName").addEventListener("input", () => {
+        if (!$("inputWorkspace")._manual) $("inputWorkspace").value = $("inputDisplayName").value.trim();
+      });
+      $("inputWorkspace").addEventListener("input", () => { $("inputWorkspace")._manual = true; });
       $("btnCancelSession").addEventListener("click", () => $("modalSession").classList.remove("open"));
       $("btnLogout").addEventListener("click", () => {
-        state.session = { mode: "guest", displayName: "", admin: false, userId: null };
+        // 워크스페이스 데이터 저장 후 기본 상태로 복귀
         saveState();
+        const base = parseStored(STORAGE_KEY) || defaultState();
+        base.session = { mode: "guest", displayName: "", admin: false, userId: null, workspace: null };
+        state = base;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         $("modalSession").classList.remove("open");
         $("roleLabel").textContent = roleLabelText();
         updateLoginBtn();
@@ -1148,6 +1207,7 @@
       $("btnSaveSession").addEventListener("click", () => {
         const pin = $("inputAdminPin").value;
         const name = $("inputDisplayName").value.trim();
+        const workspace = ($("inputWorkspace").value.trim() || name);
 
         if (!name) {
           toast("이름을 입력해주세요");
@@ -1155,19 +1215,23 @@
           return;
         }
 
+        // 워크스페이스 데이터 로드 (기존 폴더면 복원, 없으면 새 폴더)
+        const wsData = parseStored(wsKey(workspace));
+        const newState = wsData || defaultState();
+        const uidUser = (wsData && wsData.session && wsData.session.userId) || state.session.userId || uid();
+
         let msg = "";
         if (pin && pin === ADMIN_PIN) {
-          state.session = { mode: "user", displayName: name, admin: true, userId: "admin" };
-          msg = `${name}님 로그인 (관리자) · 스킬은 이 기기에 저장됩니다`;
+          newState.session = { mode: "user", displayName: name, admin: true, userId: "admin", workspace };
+          msg = `${name}님 로그인 (관리자) · [${workspace}] 폴더`;
         } else if (pin && pin !== ADMIN_PIN) {
-          const uidUser = state.session.userId || uid();
-          state.session = { mode: "user", displayName: name, admin: false, userId: uidUser };
-          msg = "PIN이 올바르지 않아 일반 로그인으로 처리됩니다";
+          newState.session = { mode: "user", displayName: name, admin: false, userId: uidUser, workspace };
+          msg = `PIN 불일치 — 일반 로그인 · [${workspace}] 폴더`;
         } else {
-          const uidUser = state.session.userId || uid();
-          state.session = { mode: "user", displayName: name, admin: false, userId: uidUser };
-          msg = `${name}님 로그인 · 스킬은 이 기기에 저장됩니다`;
+          newState.session = { mode: "user", displayName: name, admin: false, userId: uidUser, workspace };
+          msg = `${name}님 로그인 · [${workspace}] 폴더`;
         }
+        state = newState;
         saveState();
         $("modalSession").classList.remove("open");
         $("roleLabel").textContent = roleLabelText();
@@ -1254,6 +1318,8 @@
       });
       $("btnClearAll").addEventListener("click", () => {
         if (!confirm("모든 데이터를 삭제하고 초기 상태로 돌아갑니다. 계속할까요?")) return;
+        const ws = state.session && state.session.workspace;
+        if (ws) localStorage.removeItem(wsKey(ws));
         localStorage.removeItem(STORAGE_KEY);
         location.reload();
       });

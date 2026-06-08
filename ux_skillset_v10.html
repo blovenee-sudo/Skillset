@@ -394,8 +394,8 @@
   <!-- LLM 스킬 생성 프롬프트 modal -->
   <div class="modal-backdrop" id="modalLLMPrompt">
     <div class="modal" style="max-width:480px">
-      <h4>LLM에서 스킬 생성하기</h4>
-      <p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.6">아래 내용을 복사해 Claude, ChatGPT 등에 붙여넣으면 스킬로 활용할 수 있습니다.</p>
+      <h4 id="llmPromptTitle">LLM에서 스킬 생성하기</h4>
+      <p id="llmPromptDesc" style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.6">아래 내용을 복사해 Claude, ChatGPT 등에 붙여넣으면 스킬로 활용할 수 있습니다.</p>
       <textarea class="prompt-area" id="llmPromptText" readonly style="min-height:180px;background:var(--bg2);cursor:text;font-family:monospace;font-size:12px"></textarea>
       <div class="row">
         <button type="button" class="btn-sm" id="btnLLMPromptClose">닫기</button>
@@ -1408,12 +1408,24 @@
         const group = $("skGroup").value || null;
         if (!name) return toast("스킬명을 입력하세요");
         const isNew = !editingSkillId;
+        let llmLines = [];
         if (editingSkillId) {
           const sk = state.skills.find(s => s.id === editingSkillId);
           if (!sk) return;
+          // 변경 전 값 캡처 (팝업용)
+          const prev = { name: sk.name, slash: sk.slash, desc: sk.desc, prompt: sk.prompt };
           sk.name = name; sk.slash = slash; sk.desc = desc;
           sk.prompt = prompt; sk.group = group;
           if (sk.authorId === null) sk._editedFromBase = true; // 기본 스킬 편집 표시
+          // 편집 LLM 팝업 내용 구성
+          llmLines.push(`다음 스킬의 내용을 아래와 같이 수정해주세요.\n`);
+          if (prev.slash !== slash) llmLines.push(`명령어: ${prev.slash || "(없음)"} → ${slash}`);
+          if (prev.name  !== name)  llmLines.push(`스킬명: ${prev.name} → ${name}`);
+          if (prev.desc  !== desc)  llmLines.push(`설명: ${prev.desc || "(없음)"} → ${desc}`);
+          llmLines.push(`\n${slash}`);
+          if (name)   llmLines.push(`스킬명: ${name}`);
+          if (desc)   llmLines.push(`설명: ${desc}`);
+          if (prompt) llmLines.push(`\n수정된 지침:\n${prompt}`);
         } else {
           state.skills.unshift({
             id: uid(), name, slash, desc, prompt, group,
@@ -1421,19 +1433,21 @@
             authorName: state.session.displayName || "",
             usage: 0,
           });
+          // 신규 LLM 팝업 내용 구성
+          if (slash)  llmLines.push(slash);
+          if (name)   llmLines.push(`스킬명: ${name}`);
+          if (desc)   llmLines.push(`설명: ${desc}`);
+          if (prompt) llmLines.push(`\n지침:\n${prompt}`);
         }
         saveState();
         $("modalSkill").classList.remove("open");
         renderSidebar(); toast("저장됨");
-        if (isNew) {
-          const lines = [];
-          if (slash) lines.push(slash);
-          if (name)  lines.push(`스킬명: ${name}`);
-          if (desc)  lines.push(`설명: ${desc}`);
-          if (prompt) lines.push(`\n지침:\n${prompt}`);
-          $("llmPromptText").value = lines.join("\n");
-          $("modalLLMPrompt").classList.add("open");
-        }
+        $("llmPromptTitle").textContent = isNew ? "LLM에서 스킬 생성하기" : "LLM에서 스킬 수정하기";
+        $("llmPromptDesc").textContent  = isNew
+          ? "아래 내용을 복사해 Claude, ChatGPT 등에 붙여넣으면 스킬로 활용할 수 있습니다."
+          : "아래 내용을 복사해 Claude, ChatGPT 등에 붙여넣으면 스킬 내용을 수정할 수 있습니다.";
+        $("llmPromptText").value = llmLines.join("\n");
+        $("modalLLMPrompt").classList.add("open");
       });
 
       // ── Manage modal ──

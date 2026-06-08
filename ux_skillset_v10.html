@@ -352,9 +352,9 @@
       <label>폴더명 <span style="font-size:10px;color:var(--muted)">스킬·프로젝트가 저장될 워크스페이스</span></label>
       <input type="text" id="inputWorkspace" placeholder="이름과 동일하게 자동입력" />
       <div id="wsChips" style="display:none;flex-wrap:wrap;gap:5px;margin:-4px 0 6px"></div>
-      <label>저장 폴더 위치 <span style="font-size:10px;color:var(--muted)">Skillset 루트 폴더 선택</span></label>
+      <label>저장 폴더 위치 <span style="font-size:10px;color:var(--muted)">Skillset &gt; skills 폴더 선택</span></label>
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
-        <span id="folderPathLabel" style="flex:1;font-size:11px;color:var(--muted);font-family:ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">미선택 — 선택하면 skills/{폴더명}/state.json 저장</span>
+        <span id="folderPathLabel" style="flex:1;font-size:11px;color:var(--muted);font-family:ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">미선택 — skills/{폴더명}/state.json 으로 저장</span>
         <button type="button" class="btn-sm" id="btnPickFolder" style="flex-shrink:0">폴더 선택</button>
       </div>
       <label>관리자 PIN (선택)</label>
@@ -635,47 +635,42 @@
       const el = $("folderPathLabel");
       if (!el) return;
       if (rootHandle) {
-        el.textContent = `✓ ${rootHandle.name} — skills/{폴더명}/state.json`;
+        el.textContent = `✓ ${rootHandle.name}/ — {폴더명}/state.json`;
         el.style.color = "var(--accent)";
         $("btnPickFolder").textContent = "변경";
       } else {
-        el.textContent = "미선택 — 선택하면 skills/{폴더명}/state.json 저장";
+        el.textContent = "미선택 — skills/{폴더명}/state.json 으로 저장";
         el.style.color = "var(--muted)";
         $("btnPickFolder").textContent = "폴더 선택";
       }
     }
+    // rootHandle = skills/ 폴더 자체. {workspace}/state.json 직접 생성.
     async function saveToFs(workspace, data) {
       if (!rootHandle) return;
       try {
-        const skills = await rootHandle.getDirectoryHandle("skills", { create: true });
-        const wsDir  = await skills.getDirectoryHandle(workspace, { create: true });
-        const fh     = await wsDir.getFileHandle("state.json", { create: true });
-        const w      = await fh.createWritable();
+        const wsDir = await rootHandle.getDirectoryHandle(workspace, { create: true });
+        const fh    = await wsDir.getFileHandle("state.json", { create: true });
+        const w     = await fh.createWritable();
         await w.write(JSON.stringify(data, null, 2)); await w.close();
       } catch {}
     }
     async function loadFromFs(workspace) {
       if (!rootHandle) return null;
       try {
-        const skills = await rootHandle.getDirectoryHandle("skills");
-        const wsDir  = await skills.getDirectoryHandle(workspace);
-        const fh     = await wsDir.getFileHandle("state.json");
+        const wsDir = await rootHandle.getDirectoryHandle(workspace);
+        const fh    = await wsDir.getFileHandle("state.json");
         return JSON.parse(await (await fh.getFile()).text());
       } catch { return null; }
     }
     async function deleteFromFs(workspace) {
       if (!rootHandle) return;
-      try {
-        const skills = await rootHandle.getDirectoryHandle("skills");
-        await skills.removeEntry(workspace, { recursive: true });
-      } catch {}
+      try { await rootHandle.removeEntry(workspace, { recursive: true }); } catch {}
     }
     async function listWorkspacesFromFs() {
       if (!rootHandle) return [];
       try {
-        const skills = await rootHandle.getDirectoryHandle("skills");
         const dirs = [];
-        for await (const [name, h] of skills.entries()) {
+        for await (const [name, h] of rootHandle.entries()) {
           if (h.kind === "directory") dirs.push(name);
         }
         return dirs;

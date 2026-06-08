@@ -1089,13 +1089,18 @@
       $("btnEditSkill").style.display = isLoggedIn() ? "inline-block" : "none";
       $("btnDelSkill").style.display = isLoggedIn() ? "inline-block" : "none";
 
-      // 기본 스킬 전용 — 초기화 버튼 + 업데이트 배지
+      // 기본 스킬 전용 버튼 (상호 배타적)
+      // - 업데이트 적용: 사용자가 수정 안 한 기본 스킬에 index.json 변경이 있을 때만
+      // - 초기화: 사용자가 직접 수정한 기본 스킬에서만 (자기 변경 되돌리기)
       const isBaseSkill = sk.authorId === null;
       const baseRef = latestBaseSkills && latestBaseSkills.find(b => b.id === sk.id);
-      const hasUpstreamUpdate = baseRef &&
+      const hasUpstreamUpdate = !!baseRef &&
         ["name","slash","desc","prompt"].some(f => sk[f] !== baseRef[f]);
-      $("btnResetSkill").style.display = (isLoggedIn() && isBaseSkill) ? "inline-block" : "none";
-      $("detailUpdateBadge").style.display = (isBaseSkill && hasUpstreamUpdate) ? "inline-block" : "none";
+      const userEdited = !!sk._editedFromBase;
+      $("detailUpdateBadge").style.display =
+        (isBaseSkill && !userEdited && hasUpstreamUpdate) ? "inline-block" : "none";
+      $("btnResetSkill").style.display =
+        (isLoggedIn() && isBaseSkill && userEdited) ? "inline-block" : "none";
 
       $("detailPanel").classList.add("open");
       $("detailBackdrop").classList.add("open");
@@ -1551,19 +1556,24 @@
       } catch { return null; }
     }
 
-    // 기본 스킬 업데이트 확인 — 업데이트된 스킬 수 알림만 (적용은 사용자가 선택)
+    // 기본 스킬 업데이트 확인
+    // - 사용자가 수정하지 않은 기본 스킬: 조용히 baseline 맞춤 (로그인 직후 불필요한 배지 방지)
+    // - 사용자가 직접 수정한 기본 스킬(_editedFromBase): 상세에서 "초기화" 버튼으로 처리
     function checkBaseSkillUpdates(fresh) {
       if (!fresh || !fresh.length) return;
       const FIELDS = ["name", "slash", "desc", "prompt"];
-      const updatedNames = [];
-      state.skills.forEach(sk => {
+      let synced = false;
+      state.skills.forEach((sk, idx) => {
         if (sk.authorId !== null) return; // 사용자 생성 스킬 제외
+        if (sk._editedFromBase) return;   // 직접 수정한 스킬은 건드리지 않음
         const base = fresh.find(b => b.id === sk.id);
         if (!base) return;
-        if (FIELDS.some(f => sk[f] !== base[f])) updatedNames.push(sk.name);
+        if (FIELDS.some(f => sk[f] !== base[f])) {
+          FIELDS.forEach(f => { state.skills[idx][f] = base[f]; });
+          synced = true;
+        }
       });
-      if (updatedNames.length)
-        toast(`기본 스킬 ${updatedNames.length}개에 업데이트가 있습니다 — 스킬 상세에서 확인·적용`);
+      if (synced) { saveState(); renderSidebar(); }
     }
 
     $("btnRefreshSkills").addEventListener("click", async () => {

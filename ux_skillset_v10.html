@@ -383,6 +383,19 @@
     </div>
   </div>
 
+  <!-- LLM 스킬 생성 프롬프트 modal -->
+  <div class="modal-backdrop" id="modalLLMPrompt">
+    <div class="modal" style="max-width:480px">
+      <h4>LLM에서 스킬 생성하기</h4>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.6">아래 내용을 복사해 Claude, ChatGPT 등에 붙여넣으면 스킬로 활용할 수 있습니다.</p>
+      <textarea class="prompt-area" id="llmPromptText" readonly style="min-height:180px;background:var(--bg2);cursor:text;font-family:monospace;font-size:12px"></textarea>
+      <div class="row">
+        <button type="button" class="btn-sm" id="btnLLMPromptClose">닫기</button>
+        <button type="button" class="btn-primary" id="btnLLMPromptCopy">복사하기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 관리 modal -->
   <div class="modal-backdrop" id="modalManage">
     <div class="modal" style="max-width:440px">
@@ -1188,6 +1201,7 @@
         const prompt = $("skPrompt").value;
         const group = $("skGroup").value || null;
         if (!name) return toast("스킬명을 입력하세요");
+        const isNew = !editingSkillId;
         if (editingSkillId) {
           const sk = state.skills.find(s => s.id === editingSkillId);
           if (!sk) return;
@@ -1204,6 +1218,15 @@
         saveState();
         $("modalSkill").classList.remove("open");
         renderSidebar(); toast("저장됨");
+        if (isNew) {
+          const lines = [];
+          if (slash) lines.push(slash);
+          if (name)  lines.push(`스킬명: ${name}`);
+          if (desc)  lines.push(`설명: ${desc}`);
+          if (prompt) lines.push(`\n지침:\n${prompt}`);
+          $("llmPromptText").value = lines.join("\n");
+          $("modalLLMPrompt").classList.add("open");
+        }
       });
 
       // ── Manage modal ──
@@ -1237,12 +1260,20 @@
       });
 
       // ── Escape to close ──
+      // ── LLM prompt modal ──
+      $("btnLLMPromptClose").addEventListener("click", () => $("modalLLMPrompt").classList.remove("open"));
+      $("btnLLMPromptCopy").addEventListener("click", async () => {
+        const ok = await copyToClipboard($("llmPromptText").value);
+        toast(ok ? "복사됐습니다. LLM에 붙여넣으세요!" : "복사 실패");
+      });
+
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
           closeDetail();
           $("modalSession").classList.remove("open");
           $("modalSkill").classList.remove("open");
           $("modalManage").classList.remove("open");
+          $("modalLLMPrompt").classList.remove("open");
           $("groupAddForm").classList.remove("open");
         }
       });

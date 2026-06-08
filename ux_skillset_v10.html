@@ -177,15 +177,16 @@
     .project-head h2 { margin: 0; font-size: 14px; flex: 1; }
     .project-head .mini { font-size: 11px; color: var(--muted); }
     .drop-zone {
-      min-height: 100px; padding: 10px; display: flex; flex-direction: column; gap: 8px;
-      background: rgba(0,0,0,.15);
+      min-height: 100px; padding: 10px; display: flex; flex-wrap: wrap; gap: 8px;
+      align-content: flex-start; background: rgba(0,0,0,.15);
     }
     .drop-zone.drag-over { outline: 2px dashed var(--accent); outline-offset: -4px; }
     .drop-hint { text-align: center; color: var(--muted); font-size: 12px; padding: 20px; }
     .instance-pill {
       display: flex; align-items: flex-start; gap: 8px; padding: 10px;
       border-radius: var(--radius); border: 1px solid var(--border);
-      background: var(--surface2); cursor: pointer; width: 100%; box-sizing: border-box;
+      background: var(--surface2); cursor: pointer;
+      width: 280px; flex-shrink: 0; box-sizing: border-box;
       transition: border-color .15s;
     }
     .instance-pill:hover { border-color: var(--accent); }

@@ -193,12 +193,12 @@
 
     /* ── Bottom detail panel ── */
     .detail-backdrop {
-      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      position: fixed; top: 0; left: 300px; right: 0; bottom: 0; background: rgba(0,0,0,.45);
       opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 40;
     }
     .detail-backdrop.open { opacity: 1; pointer-events: auto; }
     .detail-panel {
-      position: fixed; left: 0; right: 0; bottom: 0; height: 100dvh;
+      position: fixed; left: 300px; right: 0; bottom: 0; height: 100dvh;
       background: var(--surface); border-top: 1px solid var(--border);
       border-radius: 16px 16px 0 0; box-shadow: var(--shadow);
       transform: translateY(105%); transition: transform .28s cubic-bezier(.2,.8,.2,1);

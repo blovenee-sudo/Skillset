@@ -433,8 +433,15 @@
         </div>
         <div class="manage-row">
           <div>
+            <div class="manage-label">Skillset 폴더 연결</div>
+            <div class="manage-hint" id="fsStatus">연결 시 skills/{폴더명}/state.json에 저장</div>
+          </div>
+          <button type="button" class="btn-sm" id="btnConnectFolder" style="flex-shrink:0">폴더 선택</button>
+        </div>
+        <div class="manage-row">
+          <div>
             <div class="manage-label" style="color:#fca5a5">기기 데이터 전체 삭제</div>
-            <div class="manage-hint">스킬, 프로젝트, 설정 모두 초기화</div>
+            <div class="manage-hint">현재 세션 스킬·프로젝트·설정 및 skills 폴더 초기화</div>
           </div>
           <button type="button" class="btn-sm" id="btnClearAll" style="border-color:#7f1d1d;color:#fca5a5;flex-shrink:0">전체 삭제</button>
         </div>
@@ -524,7 +531,9 @@
     function wsKey(workspace) {
       return workspace ? `${STORAGE_KEY}_ws_${workspace}` : STORAGE_KEY;
     }
-    function listWorkspaces() {
+    async function listWorkspaces() {
+      const fsWs = await listWorkspacesFromFs();
+      if (fsWs.length) return fsWs;
       const prefix = `${STORAGE_KEY}_ws_`;
       const list = [];
       for (let i = 0; i < localStorage.length; i++) {
@@ -562,6 +571,92 @@
       };
     }
 
+    // ── File System Access API ─────────────────────────────
+    // skills/{workspace}/state.json 에 저장. localStorage fallback.
+    const FS_SUPPORTED = "showDirectoryPicker" in window;
+    let rootHandle = null; // Skillset 루트 디렉토리 핸들
+
+    async function _fsDb(mode, fn) {
+      return new Promise((res, rej) => {
+        const req = indexedDB.open("ax_fs_v1", 1);
+        req.onupgradeneeded = e => e.target.result.createObjectStore("h");
+        req.onsuccess = e => { const s = e.target.result.transaction("h", mode).objectStore("h"); fn(s, res); };
+        req.onerror = () => rej(req.error);
+      });
+    }
+    async function getFsHandle() {
+      try { return await _fsDb("readonly", (s, res) => { const r = s.get("root"); r.onsuccess = () => res(r.result || null); r.onerror = () => res(null); }); }
+      catch { return null; }
+    }
+    async function setFsHandle(h) {
+      try { await _fsDb("readwrite", (s, res) => { const r = s.put(h, "root"); r.onsuccess = () => res(); r.onerror = () => res(); }); }
+      catch {}
+    }
+    async function initFsHandle() {
+      if (!FS_SUPPORTED) return;
+      const h = await getFsHandle();
+      if (!h) return;
+      try {
+        const perm = await h.queryPermission({ mode: "readwrite" });
+        if (perm === "granted") { rootHandle = h; updateFsStatus(); }
+      } catch {}
+    }
+    async function connectFolder() {
+      if (!FS_SUPPORTED) { toast("이 브라우저는 파일 접근 API를 지원하지 않습니다 (Chrome/Edge 권장)"); return; }
+      try {
+        const h = await window.showDirectoryPicker({ mode: "readwrite", startIn: "desktop" });
+        rootHandle = h;
+        await setFsHandle(h);
+        updateFsStatus();
+        toast("폴더 연결됨 ✓ — skills/{세션}/state.json 에 저장됩니다");
+      } catch (e) { if (e.name !== "AbortError") toast("폴더 연결 실패"); }
+    }
+    function updateFsStatus() {
+      const el = $("fsStatus");
+      if (el) el.textContent = rootHandle
+        ? "✓ 연결됨 — skills/{폴더명}/state.json"
+        : "연결 시 skills 폴더 안에 세션별로 저장";
+      const btn = $("btnConnectFolder");
+      if (btn) btn.textContent = rootHandle ? "폴더 변경" : "폴더 선택";
+    }
+    async function saveToFs(workspace, data) {
+      if (!rootHandle) return;
+      try {
+        const skills = await rootHandle.getDirectoryHandle("skills", { create: true });
+        const wsDir  = await skills.getDirectoryHandle(workspace, { create: true });
+        const fh     = await wsDir.getFileHandle("state.json", { create: true });
+        const w      = await fh.createWritable();
+        await w.write(JSON.stringify(data, null, 2)); await w.close();
+      } catch {}
+    }
+    async function loadFromFs(workspace) {
+      if (!rootHandle) return null;
+      try {
+        const skills = await rootHandle.getDirectoryHandle("skills");
+        const wsDir  = await skills.getDirectoryHandle(workspace);
+        const fh     = await wsDir.getFileHandle("state.json");
+        return JSON.parse(await (await fh.getFile()).text());
+      } catch { return null; }
+    }
+    async function deleteFromFs(workspace) {
+      if (!rootHandle) return;
+      try {
+        const skills = await rootHandle.getDirectoryHandle("skills");
+        await skills.removeEntry(workspace, { recursive: true });
+      } catch {}
+    }
+    async function listWorkspacesFromFs() {
+      if (!rootHandle) return [];
+      try {
+        const skills = await rootHandle.getDirectoryHandle("skills");
+        const dirs = [];
+        for await (const [name, h] of skills.entries()) {
+          if (h.kind === "directory") dirs.push(name);
+        }
+        return dirs;
+      } catch { return []; }
+    }
+
     function loadState() {
       const base = parseStored(STORAGE_KEY) || defaultState();
       // 마지막 워크스페이스 세션이 있으면 해당 워크스페이스 데이터 복원
@@ -578,14 +673,16 @@
       state.collapsedGroups = [...collapsedGroups];
       state.sidebarTab = sidebarTab;
       const ws = state.session && state.session.workspace;
+      // localStorage (항상 저장 — fallback)
       localStorage.setItem(wsKey(ws), JSON.stringify(state));
-      // 워크스페이스 사용 중이면 기본 키에도 세션 포인터 저장 (재시작 시 복원용)
       if (ws) {
         let base = {};
         try { base = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch {}
         base.session = state.session;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(base));
       }
+      // File system (연결된 경우 skills/{ws}/state.json 에도 저장)
+      if (ws && rootHandle) saveToFs(ws, state).catch(() => {});
     }
 
     let state = loadState();
@@ -1170,7 +1267,7 @@
       });
 
       // ── Login modal ──
-      $("btnLogin").addEventListener("click", () => {
+      $("btnLogin").addEventListener("click", async () => {
         $("inputDisplayName").value = state.session.displayName || "";
         $("inputAdminPin").value = "";
         $("inputWorkspace").value = state.session.workspace || state.session.displayName || "";
@@ -1178,7 +1275,7 @@
         // 기존 워크스페이스 칩 표시
         const chips = $("wsChips");
         chips.innerHTML = "";
-        const wsList = listWorkspaces();
+        const wsList = await listWorkspaces();
         if (wsList.length) {
           wsList.forEach(ws => {
             const btn = document.createElement("button");
@@ -1221,7 +1318,7 @@
         closeDetail();
         toast("로그아웃됨");
       });
-      $("btnSaveSession").addEventListener("click", () => {
+      $("btnSaveSession").addEventListener("click", async () => {
         const pin = $("inputAdminPin").value;
         const name = $("inputDisplayName").value.trim();
         const workspace = ($("inputWorkspace").value.trim() || name);
@@ -1232,9 +1329,9 @@
           return;
         }
 
-        // 워크스페이스 데이터 로드 (기존 폴더면 복원, 없으면 새 폴더)
-        const wsData = parseStored(wsKey(workspace));
-        const newState = wsData || defaultState();
+        // 워크스페이스 데이터 로드 (FS 우선 → localStorage fallback)
+        const wsData = (await loadFromFs(workspace)) || parseStored(wsKey(workspace));
+        const newState = wsData ? normalizeData(wsData) : defaultState();
         const uidUser = (wsData && wsData.session && wsData.session.userId) || state.session.userId || uid();
 
         let msg = "";
@@ -1334,13 +1431,17 @@
         renderSidebar();
         toast("사용 건수 초기화됨");
       });
-      $("btnClearAll").addEventListener("click", () => {
+      $("btnClearAll").addEventListener("click", async () => {
         if (!confirm("모든 데이터를 삭제하고 초기 상태로 돌아갑니다. 계속할까요?")) return;
         const ws = state.session && state.session.workspace;
-        if (ws) localStorage.removeItem(wsKey(ws));
+        if (ws) {
+          localStorage.removeItem(wsKey(ws));
+          await deleteFromFs(ws); // skills/{ws}/ 폴더 삭제
+        }
         localStorage.removeItem(STORAGE_KEY);
         location.reload();
       });
+      $("btnConnectFolder").addEventListener("click", connectFolder);
 
       // ── Escape to close ──
       // ── LLM prompt modal ──
@@ -1363,6 +1464,7 @@
     }
 
     init();
+    initFsHandle(); // 저장된 폴더 핸들 복원 (권한 있는 경우)
 
     // ── PWA & 스킬 동적 로딩 ──────────────────────────────
 

@@ -177,18 +177,19 @@
     .project-head h2 { margin: 0; font-size: 14px; flex: 1; }
     .project-head .mini { font-size: 11px; color: var(--muted); }
     .drop-zone {
-      min-height: 100px; padding: 10px; display: flex; flex-wrap: wrap; gap: 8px;
-      align-content: flex-start; background: rgba(0,0,0,.15);
+      min-height: 100px; padding: 10px; display: flex; flex-direction: column; gap: 8px;
+      background: rgba(0,0,0,.15);
     }
     .drop-zone.drag-over { outline: 2px dashed var(--accent); outline-offset: -4px; }
-    .drop-hint { width: 100%; text-align: center; color: var(--muted); font-size: 12px; padding: 20px; }
+    .drop-hint { text-align: center; color: var(--muted); font-size: 12px; padding: 20px; }
     .instance-pill {
-      display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px;
-      border-radius: 8px; background: var(--bg); border: 1px solid var(--border);
-      font-size: 12px; cursor: pointer; max-width: 100%;
+      display: flex; align-items: flex-start; gap: 8px; padding: 10px;
+      border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--surface2); cursor: pointer; width: 100%; box-sizing: border-box;
+      transition: border-color .15s;
     }
     .instance-pill:hover { border-color: var(--accent); }
-    .instance-pill .rm { color: var(--muted); padding: 0 2px; cursor: pointer; }
+    .instance-pill .rm { color: var(--muted); padding: 2px 0 0 2px; cursor: pointer; font-size: 14px; flex-shrink: 0; }
     .instance-pill .rm:hover { color: #f87171; }
 
     /* ── Bottom detail panel ── */
@@ -891,8 +892,16 @@
           if (!sk) return;
           const pill = document.createElement("div");
           pill.className = "instance-pill";
-          pill.innerHTML = `<span>${escapeHtml(sk.name)}</span>`;
-          pill.addEventListener("click", () => openDetail(sk.id));
+          pill.innerHTML = `
+            <div class="skill-meta" style="flex:1;min-width:0">
+              <div class="slash">${escapeHtml(sk.slash || "")}</div>
+              <div class="title">${escapeHtml(sk.name)}</div>
+              <div class="desc">${escapeHtml(sk.desc || "")}</div>
+            </div>`;
+          pill.addEventListener("click", (e) => {
+            if (e.target.closest(".rm")) return;
+            openDetail(sk.id);
+          });
           const rm = document.createElement("span");
           rm.className = "rm"; rm.textContent = "×"; rm.title = "프로젝트에서 제거";
           rm.addEventListener("click", (e) => {

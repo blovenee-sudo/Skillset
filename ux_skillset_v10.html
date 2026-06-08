@@ -325,10 +325,9 @@
       <button type="button" class="btn-sm" id="btnCloseDetail">닫기</button>
     </div>
     <div class="detail-body">
-      <p style="margin:0 0 6px;font-size:11px;color:var(--muted)">「프롬프트 복사」 시 <strong>마크다운 공통 출력 규칙</strong>이 클립보드에 자동으로 덧붙습니다.</p>
-      <textarea class="prompt-area" id="detailPrompt" spellcheck="false"></textarea>
+      <textarea class="prompt-area" id="detailPrompt" spellcheck="false" readonly></textarea>
       <div class="detail-actions">
-        <button type="button" class="copy-btn" id="btnCopy">프롬프트 복사</button>
+        <button type="button" class="copy-btn" id="btnCopy">스킬 명령어 복사</button>
         <button type="button" class="btn-sm" id="btnEditSkill" style="display:none">스킬 편집</button>
         <button type="button" class="btn-sm" id="btnDelSkill" style="display:none;border-color:#7f1d1d;color:#fca5a5">스킬 삭제</button>
       </div>
@@ -929,13 +928,11 @@
     function openDetail(skillId) {
       const sk = state.skills.find(s => s.id === skillId);
       if (!sk) return;
-      $("detailPrompt").removeEventListener("input", onPromptInput);
       selectedSkillId = skillId;
       $("detailSlash").textContent = sk.slash;
       $("detailTitle").textContent = sk.name;
       $("detailAuthor").textContent = sk.authorName ? `작성자: ${sk.authorName}` : "";
       $("detailPrompt").value = sk.prompt || "";
-      $("detailPrompt").readOnly = !isLoggedIn();
 
       // 편집/삭제 버튼: 로그인 시에만 노출
       $("btnEditSkill").style.display = isLoggedIn() ? "inline-block" : "none";
@@ -943,16 +940,9 @@
 
       $("detailPanel").classList.add("open");
       $("detailBackdrop").classList.add("open");
-      if (isLoggedIn()) $("detailPrompt").addEventListener("input", onPromptInput);
-    }
-
-    function onPromptInput() {
-      const sk = state.skills.find(s => s.id === selectedSkillId);
-      if (sk) { sk.prompt = $("detailPrompt").value; saveState(); }
     }
 
     function closeDetail() {
-      $("detailPrompt").removeEventListener("input", onPromptInput);
       $("detailPanel").classList.remove("open");
       $("detailBackdrop").classList.remove("open");
       selectedSkillId = null;
@@ -1087,19 +1077,15 @@
       $("detailBackdrop").addEventListener("click", closeDetail);
 
       $("btnCopy").addEventListener("click", async () => {
-        const t = buildClipboardPrompt($("detailPrompt").value);
-        const ok = await copyToClipboard(t);
+        const sk = selectedSkillId ? state.skills.find(s => s.id === selectedSkillId) : null;
+        if (!sk) return;
+        const ok = await copyToClipboard(sk.slash || sk.name);
         if (ok) {
-          if (selectedSkillId) {
-            const sk = state.skills.find(s => s.id === selectedSkillId);
-            if (sk) {
-              sk.usage = (sk.usage || 0) + 1;
-              state.caseCount = (state.caseCount || 0) + 1;
-              saveState();
-              renderSidebar(); // 사용횟수 즉시 반영
-            }
-          }
-          toast("복사됨 ✓ (마크다운 공통 규칙 포함)");
+          sk.usage = (sk.usage || 0) + 1;
+          state.caseCount = (state.caseCount || 0) + 1;
+          saveState();
+          renderSidebar();
+          toast("명령어 복사됨 ✓");
         } else {
           toast("복사 실패 — 브라우저 권한을 확인하세요");
         }

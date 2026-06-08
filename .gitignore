@@ -2,6 +2,9 @@
 .env
 env-config.js
 
+# 환경별 경로 설정 (개인 경로 포함 — 커밋 금지)
+ENV.md
+
 # macOS
 .DS_Store
 **/.DS_Store

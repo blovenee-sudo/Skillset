@@ -352,11 +352,6 @@
       <label>폴더명 <span style="font-size:10px;color:var(--muted)">스킬·프로젝트가 저장될 워크스페이스</span></label>
       <input type="text" id="inputWorkspace" placeholder="이름과 동일하게 자동입력" />
       <div id="wsChips" style="display:none;flex-wrap:wrap;gap:5px;margin:-4px 0 6px"></div>
-      <label>저장 폴더 위치 <span style="font-size:10px;color:var(--muted)">Skillset &gt; skills 폴더 선택</span></label>
-      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
-        <span id="folderPathLabel" style="flex:1;font-size:11px;color:var(--muted);font-family:ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">미선택 — skills/session/{폴더명}.json 으로 저장</span>
-        <button type="button" class="btn-sm" id="btnPickFolder" style="flex-shrink:0">폴더 선택</button>
-      </div>
       <label>관리자 PIN (선택)</label>
       <input type="password" id="inputAdminPin" placeholder="PIN이 있으면 스킬 업데이트 활성화" autocomplete="off" />
       <div class="row" style="justify-content:space-between">
@@ -435,13 +430,6 @@
             <button type="button" class="btn-sm" id="btnAddGroup">추가</button>
           </div>
           <div id="manageGroupList"></div>
-        </div>
-        <div class="manage-row">
-          <div>
-            <div class="manage-label">Skillset 폴더 연결</div>
-            <div class="manage-hint" id="fsStatus">로그인 시 자동 연결 · 여기선 재연결만</div>
-          </div>
-          <button type="button" class="btn-sm" id="btnConnectFolder" style="flex-shrink:0">재연결</button>
         </div>
         <div class="manage-row">
           <div>
@@ -604,7 +592,7 @@
       if (!h) return;
       try {
         const perm = await h.queryPermission({ mode: "readwrite" });
-        if (perm === "granted") { rootHandle = h; sessionHandle = null; updateFsStatus(); }
+        if (perm === "granted") { rootHandle = h; sessionHandle = null; }
       } catch {}
     }
     async function connectFolder() {
@@ -613,7 +601,6 @@
         const h = await window.showDirectoryPicker({ mode: "readwrite", startIn: "desktop" });
         rootHandle = h; sessionHandle = null;
         await setFsHandle(h);
-        updateFsStatus();
         // 연결 직후 현재 세션 상태를 즉시 파일로 저장
         const ws = state.session && state.session.workspace;
         if (ws) {
@@ -623,27 +610,6 @@
           toast("폴더 연결됨 ✓ — 로그인하면 세션별로 자동 저장됩니다");
         }
       } catch (e) { if (e.name !== "AbortError") toast("폴더 연결 실패"); }
-    }
-    function updateFsStatus() {
-      const el = $("fsStatus");
-      if (el) el.textContent = rootHandle
-        ? "✓ 연결됨 — skills/session/{폴더명}.json"
-        : "로그인 모달에서 폴더 지정 · 여기선 재연결만";
-      const btn = $("btnConnectFolder");
-      if (btn) btn.textContent = "재연결";
-    }
-    function updateFolderPathLabel() {
-      const el = $("folderPathLabel");
-      if (!el) return;
-      if (rootHandle) {
-        el.textContent = `✓ ${rootHandle.name}/ — session/{폴더명}.json`;
-        el.style.color = "var(--accent)";
-        $("btnPickFolder").textContent = "변경";
-      } else {
-        el.textContent = "미선택 — skills/session/{폴더명}.json 으로 저장";
-        el.style.color = "var(--muted)";
-        $("btnPickFolder").textContent = "폴더 선택";
-      }
     }
     // rootHandle = skills/ 폴더, sessionHandle = skills/session/ (자동 생성)
     // 파일 구조: skills/session/{workspace}.json (평탄 파일, 폴더 없음)
@@ -1325,14 +1291,8 @@
         } else {
           chips.style.display = "none";
         }
-        // 폴더 연결 상태 표시
-        updateFolderPathLabel();
         $("btnLogout").style.display = isLoggedIn() ? "inline-block" : "none";
         $("modalSession").classList.add("open");
-      });
-      $("btnPickFolder").addEventListener("click", async () => {
-        await connectFolder();
-        updateFolderPathLabel();
       });
       // 이름 입력 시 폴더명 자동동기화
       $("inputDisplayName").addEventListener("input", () => {
@@ -1367,6 +1327,9 @@
           $("inputDisplayName").focus();
           return;
         }
+
+        // 폴더 미연결이면 자동 연결 시도 (최초 1회, 사용자 제스처 내에서 실행)
+        if (FS_SUPPORTED && !rootHandle) await connectFolder();
 
         // 워크스페이스 데이터 로드 (FS 우선 → localStorage fallback)
         const wsData = (await loadFromFs(workspace)) || parseStored(wsKey(workspace));
@@ -1472,15 +1435,21 @@
       });
       $("btnClearAll").addEventListener("click", async () => {
         if (!confirm("모든 데이터를 삭제하고 초기 상태로 돌아갑니다. 계속할까요?")) return;
-        const ws = state.session && state.session.workspace;
-        if (ws) {
-          localStorage.removeItem(wsKey(ws));
-          await deleteFromFs(ws); // skills/session/{ws}.json 삭제
+        // localStorage — 모든 워크스페이스 키 + 기본 키 제거
+        const prefix = `${STORAGE_KEY}_ws_`;
+        const toRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k === STORAGE_KEY || k.startsWith(prefix))) toRemove.push(k);
         }
-        localStorage.removeItem(STORAGE_KEY);
+        toRemove.forEach(k => localStorage.removeItem(k));
+        // File system — session/ 폴더 전체 삭제 (모든 세션 JSON 일괄 제거)
+        if (rootHandle) {
+          try { await rootHandle.removeEntry("session", { recursive: true }); } catch {}
+          sessionHandle = null;
+        }
         location.reload();
       });
-      $("btnConnectFolder").addEventListener("click", connectFolder);
 
       // ── Escape to close ──
       // ── LLM prompt modal ──

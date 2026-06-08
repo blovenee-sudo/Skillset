@@ -608,7 +608,14 @@
         rootHandle = h;
         await setFsHandle(h);
         updateFsStatus();
-        toast("폴더 연결됨 ✓ — skills/{세션}/state.json 에 저장됩니다");
+        // 연결 직후 현재 세션 상태를 즉시 파일로 저장
+        const ws = state.session && state.session.workspace;
+        if (ws) {
+          await saveToFs(ws, state);
+          toast(`폴더 연결됨 ✓ — skills/${ws}/state.json 생성됨`);
+        } else {
+          toast("폴더 연결됨 ✓ — 로그인 후 세션별로 저장됩니다");
+        }
       } catch (e) { if (e.name !== "AbortError") toast("폴더 연결 실패"); }
     }
     function updateFsStatus() {

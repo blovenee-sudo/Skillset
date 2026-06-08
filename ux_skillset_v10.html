@@ -575,6 +575,8 @@
     loadState.fallback = defaultState;
 
     function saveState() {
+      state.collapsedGroups = [...collapsedGroups];
+      state.sidebarTab = sidebarTab;
       const ws = state.session && state.session.workspace;
       localStorage.setItem(wsKey(ws), JSON.stringify(state));
       // 워크스페이스 사용 중이면 기본 키에도 세션 포인터 저장 (재시작 시 복원용)
@@ -587,14 +589,24 @@
     }
 
     let state = loadState();
-    let sidebarTab = "skills";
+    let sidebarTab = state.sidebarTab || "skills";
     let selectedSkillId = null;
     let editingSkillId = null;
     let dragSkillId = null;
     let dragGroupId = null;
-    const collapsedGroups = new Set();
+    const collapsedGroups = new Set(state.collapsedGroups || []);
 
     const $ = (id) => document.getElementById(id);
+
+    /** 워크스페이스 전환 후 UI 상태 복원 */
+    function applyWorkspaceState() {
+      collapsedGroups.clear();
+      (state.collapsedGroups || []).forEach(id => collapsedGroups.add(id));
+      sidebarTab = state.sidebarTab || "skills";
+      document.querySelectorAll("#sidebarTabs button").forEach(b => {
+        b.classList.toggle("active", b.dataset.tab === sidebarTab);
+      });
+    }
 
     /** 로그인 여부 — 이름이 있는 세션 = 로그인 상태 */
     function isLoggedIn() { return state.session.mode === "user"; }
@@ -1079,6 +1091,10 @@
     function init() {
       $("roleLabel").textContent = roleLabelText();
       updateLoginBtn();
+      // 저장된 탭 상태 복원
+      document.querySelectorAll("#sidebarTabs button").forEach(b => {
+        b.classList.toggle("active", b.dataset.tab === sidebarTab);
+      });
       renderSidebar();
       renderProjects();
 
@@ -1194,6 +1210,7 @@
         const base = parseStored(STORAGE_KEY) || defaultState();
         base.session = { mode: "guest", displayName: "", admin: false, userId: null, workspace: null };
         state = base;
+        applyWorkspaceState();
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         $("modalSession").classList.remove("open");
         $("roleLabel").textContent = roleLabelText();
@@ -1232,6 +1249,7 @@
           msg = `${name}님 로그인 · [${workspace}] 폴더`;
         }
         state = newState;
+        applyWorkspaceState();
         saveState();
         $("modalSession").classList.remove("open");
         $("roleLabel").textContent = roleLabelText();
@@ -1239,7 +1257,7 @@
         updateAdminUI();
         renderSidebar();
         renderProjects();
-        if (selectedSkillId) openDetail(selectedSkillId);
+        closeDetail();
         toast(msg);
       });
 

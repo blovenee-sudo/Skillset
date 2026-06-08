@@ -1097,10 +1097,12 @@
       const hasUpstreamUpdate = !!baseRef &&
         ["name","slash","desc","prompt"].some(f => sk[f] !== baseRef[f]);
       const userEdited = !!sk._editedFromBase;
+      // 업데이트 적용: upstream 변경 있으면 항상 표시 (편집 여부 무관)
+      // 초기화: upstream 변경 없고 본인이 편집한 경우에만 표시
       $("detailUpdateBadge").style.display =
-        (isLoggedIn() && isBaseSkill && !userEdited && hasUpstreamUpdate) ? "inline-block" : "none";
+        (isLoggedIn() && isBaseSkill && hasUpstreamUpdate) ? "inline-block" : "none";
       $("btnResetSkill").style.display =
-        (isLoggedIn() && isBaseSkill && userEdited) ? "inline-block" : "none";
+        (isLoggedIn() && isBaseSkill && userEdited && !hasUpstreamUpdate) ? "inline-block" : "none";
 
       $("detailPanel").classList.add("open");
       $("detailBackdrop").classList.add("open");
@@ -1588,6 +1590,10 @@
       } else {
         // 세션 로그인 중: 업데이트 감지 및 알림 (적용은 사용자가 선택)
         checkBaseSkillUpdates(fresh);
+      }
+      // fetch 완료 후 상세 패널이 열려있으면 버튼 가시성 재평가
+      if (selectedSkillId && $("detailPanel").classList.contains("open")) {
+        openDetail(selectedSkillId);
       }
     });
 

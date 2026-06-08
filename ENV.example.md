@@ -22,13 +22,13 @@ cp ENV.example.md ENV.md
 | 스킬 MD 파일 | `/Users/[username]/Desktop/클로드코드/회사/Skillset/skills` |
 | 옵시디언 저장 | `/Users/[username]/Library/Mobile Documents/iCloud~md~obsidian/Documents/bonee/회사/목표설정` |
 
-## work — 회사 PC (Google Workspace Drive)
+## work — 회사 PC (WORKS 드라이브)
 
 | 항목 | 경로 |
 |------|------|
-| 프로그램 설치 | `~/Library/CloudStorage/GoogleDrive-[email]/My Drive/Skillset` |
-| 스킬 MD 파일 | `~/Library/CloudStorage/GoogleDrive-[email]/My Drive/Skillset/skills` |
-| 옵시디언 저장 | `~/Library/CloudStorage/GoogleDrive-[email]/My Drive/Skillset/Obsidian/목표설정` |
+| 프로그램 설치 | `~/Library/CloudStorage/WORKS드라이브-[email]/내 드라이브/Skillset` |
+| 스킬 MD 파일 | `~/Library/CloudStorage/WORKS드라이브-[email]/내 드라이브/Skillset/skills` |
+| 옵시디언 저장 | `(회사 PC에서 Obsidian 경로 확인 후 입력)` |
 
 ---
 

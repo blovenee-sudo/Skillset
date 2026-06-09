@@ -336,6 +336,7 @@
         <button type="button" class="btn-sm" id="btnDelSkill" style="display:none;border-color:#7f1d1d;color:#fca5a5">스킬 삭제</button>
         <button type="button" class="btn-sm" id="detailUpdateBadge" style="display:none;color:#fb923c;border-color:#78350f" title="기본 스킬이 업데이트됐습니다. 클릭해 적용하세요">↑ 업데이트 적용</button>
         <button type="button" class="btn-sm" id="btnResetSkill" style="display:none;color:var(--muted);border-color:var(--border)" title="기본 스킬 형태로 되돌립니다">초기화</button>
+        <button type="button" class="btn-sm" id="btnViewMD" style="display:none;color:var(--muted);border-color:var(--border)" title="스킬 원본 MD 파일 보기">지침 MD</button>
       </div>
     </div>
   </div>
@@ -400,6 +401,19 @@
       <div class="row">
         <button type="button" class="btn-sm" id="btnLLMPromptClose">닫기</button>
         <button type="button" class="btn-primary" id="btnLLMPromptCopy">복사하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 지침 MD 뷰어 modal -->
+  <div class="modal-backdrop" id="modalMDViewer">
+    <div class="modal" style="max-width:520px">
+      <h4 id="mdViewerTitle">지침 원본 (MD)</h4>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.6">스킬 파일의 원본 마크다운 내용입니다.</p>
+      <textarea class="prompt-area" id="mdViewerText" readonly style="min-height:240px;background:var(--bg2);cursor:text;font-family:monospace;font-size:12px"></textarea>
+      <div class="row">
+        <button type="button" class="btn-sm" id="btnMDViewerClose">닫기</button>
+        <button type="button" class="btn-primary" id="btnMDViewerCopy">복사하기</button>
       </div>
     </div>
   </div>
@@ -1103,6 +1117,8 @@
         (isLoggedIn() && isBaseSkill && hasUpstreamUpdate) ? "inline-block" : "none";
       $("btnResetSkill").style.display =
         (isLoggedIn() && isBaseSkill && userEdited && !hasUpstreamUpdate) ? "inline-block" : "none";
+      // 지침 MD 보기: 기본 스킬에만 노출 (로그인 여부 무관)
+      $("btnViewMD").style.display = isBaseSkill ? "inline-block" : "none";
 
       $("detailPanel").classList.add("open");
       $("detailBackdrop").classList.add("open");
@@ -1294,6 +1310,27 @@
           "기본값으로 초기화됐습니다"
         );
       });
+      $("btnViewMD").addEventListener("click", async () => {
+        const sk = state.skills.find(s => s.id === selectedSkillId);
+        if (!sk) return;
+        // 편집된 경우에도 원본 파일명 기준으로 fetch
+        const baseRef = latestBaseSkills && latestBaseSkills.find(b => b.id === sk.id);
+        const slash = (baseRef || sk).slash;
+        const mdUrl = `./skills/${sk.id}-${slash.slice(1)}.md`;
+        try {
+          const res = await fetch(mdUrl, { cache: 'no-cache' });
+          if (!res.ok) { toast("MD 파일을 불러올 수 없습니다"); return; }
+          $("mdViewerTitle").textContent = `지침 원본 — ${sk.name}`;
+          $("mdViewerText").value = await res.text();
+          $("modalMDViewer").classList.add("open");
+        } catch { toast("MD 파일을 불러올 수 없습니다"); }
+      });
+      $("btnMDViewerClose").addEventListener("click", () => $("modalMDViewer").classList.remove("open"));
+      $("btnMDViewerCopy").addEventListener("click", async () => {
+        const ok = await copyToClipboard($("mdViewerText").value);
+        toast(ok ? "복사됐습니다" : "복사 실패");
+      });
+
       $("btnDelSkill").addEventListener("click", () => {
         if (!isLoggedIn()) return;
         const sk = state.skills.find(s => s.id === selectedSkillId);

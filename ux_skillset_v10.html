@@ -974,19 +974,56 @@
       }
 
       if (sidebarTab === "skills" && !q && hasGroups) {
-        // ── 그룹별 아코디언 (드래그로 스킬 배정 + 그룹 순서 변경) ──
+        // ── 사용자 지정 그룹 아코디언 ──
         state.groups.forEach(g => {
           const gSkills = skills.filter(s => s.group === g.id);
           const hdr = buildGroupHeader(g.id, g.id, g.name, gSkills.length);
           el.appendChild(hdr);
           if (!collapsedGroups.has(g.id)) gSkills.forEach(sk => appendSkillChip(el, sk));
         });
-
-        // 그룹 없음 섹션 — 항상 표시 (스킬을 그룹에서 빼내는 드롭 타겟 역할도 함)
         const ungrouped = skills.filter(s => !s.group);
         const hdrUng = buildGroupHeader("__ungrouped__", null, "그룹 없음", ungrouped.length);
         el.appendChild(hdrUng);
         if (!collapsedGroups.has("__ungrouped__")) ungrouped.forEach(sk => appendSkillChip(el, sk));
+      } else if (sidebarTab === "skills" && !q) {
+        // ── 기본 카테고리 그룹핑 (사용자 그룹 없을 때) ──
+        const CATS = ["Analysis", "Planning", "공통"];
+        CATS.forEach(cat => {
+          const catSkills = skills.filter(s => s.category === cat);
+          if (!catSkills.length) return;
+          const catKey = `__cat__${cat}`;
+          const hdr = document.createElement("div");
+          hdr.className = "group-header";
+          hdr.dataset.catKey = catKey;
+          hdr.style.cursor = "pointer";
+          const isCollapsed = collapsedGroups.has(catKey);
+          hdr.innerHTML = `<span class="group-toggle">${isCollapsed ? "▶" : "▼"}</span><span class="group-name">${escapeHtml(cat)}</span><span class="group-count">${catSkills.length}</span>`;
+          hdr.addEventListener("click", () => {
+            if (collapsedGroups.has(catKey)) collapsedGroups.delete(catKey);
+            else collapsedGroups.add(catKey);
+            renderSidebar();
+          });
+          el.appendChild(hdr);
+          if (!isCollapsed) catSkills.forEach(sk => appendSkillChip(el, sk));
+        });
+        // 카테고리 없는 스킬 (사용자 생성 스킬)
+        const noCat = skills.filter(s => !s.category);
+        if (noCat.length) {
+          const catKey = "__cat__none";
+          const hdr = document.createElement("div");
+          hdr.className = "group-header";
+          hdr.style.cursor = "pointer";
+          const isCollapsed = collapsedGroups.has(catKey);
+          hdr.innerHTML = `<span class="group-toggle">${isCollapsed ? "▶" : "▼"}</span><span class="group-name">내 스킬</span><span class="group-count">${noCat.length}</span>`;
+          hdr.addEventListener("click", () => {
+            if (collapsedGroups.has(catKey)) collapsedGroups.delete(catKey);
+            else collapsedGroups.add(catKey);
+            renderSidebar();
+          });
+          el.appendChild(hdr);
+          if (!isCollapsed) noCat.forEach(sk => appendSkillChip(el, sk));
+        }
+        if (!skills.length) el.innerHTML = `<div class="empty-state">해당 없음</div>`;
       } else {
         if (!skills.length) {
           el.innerHTML = `<div class="empty-state">해당 없음</div>`;

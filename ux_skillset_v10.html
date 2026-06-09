@@ -76,17 +76,6 @@
     }
     .search-wrap input:focus { outline: none; border-color: var(--accent); }
 
-    /* group-add form between search and scroll */
-    .group-add-form {
-      display: none; padding: 6px 10px 8px; gap: 6px; align-items: center;
-      border-bottom: 1px solid var(--border);
-    }
-    .group-add-form.open { display: flex; }
-    .group-add-form input {
-      flex: 1; padding: 6px 10px; border-radius: 6px;
-      border: 1px solid var(--border); background: var(--bg); font-size: 12px;
-    }
-    .group-add-form input:focus { outline: none; border-color: var(--accent); }
 
     .sidebar-scroll { flex: 1; overflow-y: auto; padding: 8px 10px 80px; }
 
@@ -117,44 +106,23 @@
       border-radius: 999px; padding: 1px 7px;
     }
 
-    /* ── Group headers ── */
+    /* ── Category headers ── */
     .group-header {
-      display: flex; align-items: center; margin: 8px 0 2px; gap: 2px;
+      display: flex; align-items: center; margin: 12px 0 3px; gap: 4px;
+      cursor: pointer; user-select: none;
     }
     .group-toggle {
-      flex: 1; display: flex; align-items: center; gap: 6px;
-      padding: 5px 6px; border-radius: 6px; text-align: left;
-      color: var(--muted); font-size: 11px; font-weight: 600;
-      letter-spacing: 0.05em; text-transform: uppercase;
+      flex: 1; display: flex; align-items: center; gap: 5px; text-align: left;
+      color: var(--muted); font-size: 10px; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase;
     }
-    .group-toggle:hover { background: var(--surface2); color: var(--text); }
-    .group-arrow { font-size: 9px; width: 10px; flex-shrink: 0; }
+    .group-toggle:hover { color: var(--text); }
+    .group-arrow { font-size: 8px; flex-shrink: 0; }
     .group-name { flex: 1; }
     .group-count {
       background: var(--border); border-radius: 999px;
-      padding: 1px 7px; font-size: 10px; font-weight: 400;
+      padding: 1px 6px; font-size: 10px; font-weight: 400;
     }
-    .group-del-btn {
-      padding: 3px 7px; border-radius: 6px; font-size: 12px;
-      color: var(--muted); flex-shrink: 0;
-    }
-    .group-del-btn:hover { color: #f87171; background: rgba(248,113,113,.1); }
-    /* 그룹 드래그 & 드롭 */
-    .group-header.drop-target .group-toggle {
-      background: rgba(91,141,239,.15);
-      outline: 2px dashed var(--accent); outline-offset: -2px; border-radius: 6px;
-    }
-    .group-header.dragging-group { opacity: 0.4; }
-    .group-drag-handle {
-      color: var(--border); padding: 0 3px; font-size: 13px;
-      cursor: grab; flex-shrink: 0; user-select: none;
-    }
-    .group-drag-handle:hover { color: var(--muted); }
-    .group-add-trigger {
-      display: block; width: 100%; text-align: center;
-      font-size: 11px; color: var(--muted); padding: 4px 0 8px;
-    }
-    .group-add-trigger:hover { color: var(--accent); }
 
     /* ── Main content ── */
     .content {
@@ -267,12 +235,6 @@
     .manage-row:last-child { border-bottom: none; }
     .manage-label { font-size: 13px; }
     .manage-hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .manage-group-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; }
-    .manage-group-item input {
-      flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);
-      background: var(--bg); font-size: 12px; margin-bottom: 0; width: auto;
-    }
-
     .empty-state { color: var(--muted); font-size: 13px; text-align: center; padding: 40px 20px; }
   </style>
 </head>
@@ -296,12 +258,6 @@
       </div>
       <div class="search-wrap">
         <input type="search" id="sidebarSearch" placeholder="검색…" autocomplete="off" />
-      </div>
-      <!-- 인라인 그룹 추가 폼 (로그인 시 노출) -->
-      <div class="group-add-form" id="groupAddForm">
-        <input type="text" id="groupAddInput" placeholder="새 그룹 이름…" />
-        <button type="button" class="btn-sm" id="btnGroupAddConfirm">추가</button>
-        <button type="button" class="btn-sm" id="btnGroupAddCancel">×</button>
       </div>
       <div class="sidebar-scroll" id="sidebarList"></div>
     </aside>
@@ -380,10 +336,6 @@
       <input type="text" id="skSlash" />
       <label>한 줄 설명</label>
       <input type="text" id="skDesc" />
-      <label>그룹 (선택)</label>
-      <select id="skGroup">
-        <option value="">그룹 없음</option>
-      </select>
       <label>프롬프트 본문</label>
       <textarea class="prompt-area" id="skPrompt" style="min-height:120px"></textarea>
       <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
@@ -422,20 +374,6 @@
             <strong id="manageCaseCount">0건</strong>
             <button type="button" class="btn-sm" id="btnResetUsage">초기화</button>
           </div>
-        </div>
-        <div class="manage-row" style="flex-direction:column;align-items:stretch">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <div>
-              <div class="manage-label">그룹 관리</div>
-              <div class="manage-hint">그룹 이름 변경 · 삭제</div>
-            </div>
-          </div>
-          <!-- 인라인 그룹 추가 -->
-          <div style="display:flex;gap:6px;margin-bottom:8px">
-            <input type="text" id="newGroupName" placeholder="새 그룹 이름" style="flex:1;padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);font-size:12px;margin:0;width:auto" />
-            <button type="button" class="btn-sm" id="btnAddGroup">추가</button>
-          </div>
-          <div id="manageGroupList"></div>
         </div>
         <div class="manage-row">
           <div>
@@ -502,23 +440,23 @@
     }
 
     const DEFAULT_SKILLS = [
-      { id: "s0", name: "피그마 초안 자동 생성", slash: "/figma-draft", desc: "CaMP 설계킷 기반 화면 초안", authorId: null, authorName: "", usage: 0, group: null,
+      { id: "s0", name: "피그마 초안 자동 생성", slash: "/figma-draft", desc: "CaMP 설계킷 기반 화면 초안", authorId: null, authorName: "", usage: 0,
         prompt: `당신은 UX 디자이너입니다. CaMP 설계킷(또는 제공하는 컴포넌트 라이브러리)을 기준으로 아래 요구사항에 맞는 피그마 화면 초안 구조를 제안하세요.\n\n- 화면명 / 목적\n- 섹션별 와이어 수준 레이아웃(텍스트로 영역 설명)\n- 사용할 컴포넌트 후보와 상태(empty, loading, error)\n- 인터랙션 메모\n\n요구사항:\n` },
-      { id: "s1", name: "스펙 분석 · 문의 목록", slash: "/spec-analysis", desc: "스펙 파악 + 애매한 항목 추출", authorId: null, authorName: "", usage: 0, group: null,
+      { id: "s1", name: "스펙 분석 · 문의 목록", slash: "/spec-analysis", desc: "스펙 파악 + 애매한 항목 추출", authorId: null, authorName: "", usage: 0,
         prompt: `다음 제품/기능 스펙을 읽고 정리하세요.\n\n1) 핵심 사용자 시나리오 요약\n2) 명확히 정의된 요구사항 목록\n3) 애매하거나 누락 가능성이 있는 항목 → PM/개발에 질문할 문의 목록(우선순위 포함)\n4) UX 리스크(인지부하, 오류 가능성 등)\n\n스펙:\n` },
-      { id: "s2", name: "벤치마킹 · 인사이트", slash: "/benchmarking", desc: "유사 서비스 사례 수집", authorId: null, authorName: "", usage: 0, group: null,
+      { id: "s2", name: "벤치마킹 · 인사이트", slash: "/benchmarking", desc: "유사 서비스 사례 수집", authorId: null, authorName: "", usage: 0,
         prompt: `우리가 만들려는 서비스/기능과 유사한 글로벌·국내 사례를 벤치마킹하세요.\n\n- 서비스명, URL(알면), 관련 화면\n- 잘한 점 / 아쉬운 점\n- 우리 제품에 가져올 인사이트 3가지\n\n대상:\n` },
-      { id: "s3", name: "As-is / To-be 정리", slash: "/asis-tobe", desc: "설득 자료용 비교표", authorId: null, authorName: "", usage: 0, group: null,
+      { id: "s3", name: "As-is / To-be 정리", slash: "/asis-tobe", desc: "설득 자료용 비교표", authorId: null, authorName: "", usage: 0,
         prompt: `현재(As-is)와 개선 후(To-be)를 비교하는 표와 한 페이지 요약 슬라이드용 불릿을 만드세요.\n\n표 열: 영역 | As-is | To-be | 기대효과 | 이해관계자 메시지\n\n맥락:\n` },
-      { id: "s4", name: "플로우차트 · 프로세스 맵", slash: "/flowchart", desc: "Mermaid 다이어그램 자동 생성", authorId: null, authorName: "", usage: 0, group: null,
+      { id: "s4", name: "플로우차트 · 프로세스 맵", slash: "/flowchart", desc: "Mermaid 다이어그램 자동 생성", authorId: null, authorName: "", usage: 0,
         prompt: `아래 프로세스를 Mermaid flowchart 문법으로 표현하세요. 분기·예외·되돌아가기를 포함하고, 코드블록으로만 출력하세요.\n\n프로세스 설명:\n` },
-      { id: "s5", name: "기능 정의서 · 엣지케이스", slash: "/feature-spec", desc: "세부 기능 + 예외 처리 정리", authorId: null, authorName: "", usage: 0, group: null,
+      { id: "s5", name: "기능 정의서 · 엣지케이스", slash: "/feature-spec", desc: "세부 기능 + 예외 처리 정리", authorId: null, authorName: "", usage: 0,
         prompt: `기능 정의서 형식으로 정리하세요.\n\n- 기능 ID, 이름, 목적\n- 입력/출력, 상태 전이\n- 정상 플로우\n- 엣지케이스(네트워크 오류, 권한, 빈 데이터, 중복 등)와 처리 방침\n- 비기능(접근성, 성능) 메모\n\n대상 기능:\n` },
-      { id: "s6", name: "휴리스틱 평가 1차 탐지", slash: "/heuristic", desc: "닐슨 10원칙 기반 화면 점검", authorId: null, authorName: "", usage: 0, group: null,
+      { id: "s6", name: "휴리스틱 평가 1차 탐지", slash: "/heuristic", desc: "닐슨 10원칙 기반 화면 점검", authorId: null, authorName: "", usage: 0,
         prompt: `닐슨 휴리스틱 10원칙 기준으로 화면을 1차 점검하세요. 각 원칙별로 관찰된 문제, 심각도(낮/중/높), 개선 제안을 표로 정리하세요. 스크린샷이나 화면 설명이 있으면 함께 고려합니다.\n\n화면:\n` },
-      { id: "s7", name: "회의록 · 액션아이템", slash: "/meeting-notes", desc: "미팅 후 정리 자동화", authorId: null, authorName: "", usage: 0, group: null,
+      { id: "s7", name: "회의록 · 액션아이템", slash: "/meeting-notes", desc: "미팅 후 정리 자동화", authorId: null, authorName: "", usage: 0,
         prompt: `회의 메모/전사본을 아래 형식으로 정리하세요.\n\n- 결정사항\n- 액션아이템(담당, 기한, 완료조건)\n- 열린 이슈 / 다음 논의 안건\n\n원문:\n` },
-      { id: "s8", name: "리뷰 코멘트 수정 목록", slash: "/review-comments", desc: "피그마 리뷰 코멘트 우선순위화", authorId: null, authorName: "", usage: 0, group: null,
+      { id: "s8", name: "리뷰 코멘트 수정 목록", slash: "/review-comments", desc: "피그마 리뷰 코멘트 우선순위화", authorId: null, authorName: "", usage: 0,
         prompt: `피그마(또는 디자인 리뷰) 코멘트 목록을 우선순위와 수정 난이도로 분류하고, 수정안 초안을 제안하세요. 표: 우선순위 | 코멘트 요약 | 화면/컴포넌트 | 제안 수정안\n\n코멘트:\n` },
     ];
 
@@ -547,10 +485,8 @@
       if (!Array.isArray(d.favorites)) d.favorites = [];
       if (!d.session) d.session = { mode: "guest", displayName: "", admin: false };
       if (typeof d.caseCount !== "number") d.caseCount = 0;
-      if (!Array.isArray(d.groups)) d.groups = [];
       d.skills.forEach(s => {
         if (typeof s.usage !== "number") s.usage = 0;
-        if (!("group" in s)) s.group = null;
         if (!("authorName" in s)) s.authorName = "";
       });
       return d;
@@ -566,7 +502,6 @@
         favorites: [],
         session: { mode: "guest", displayName: "", admin: false },
         caseCount: 0,
-        groups: [],
       };
     }
 
@@ -719,7 +654,6 @@
     let selectedSkillId = null;
     let editingSkillId = null;
     let dragSkillId = null;
-    let dragGroupId = null;
     const collapsedGroups = new Set(state.collapsedGroups || []);
 
     const $ = (id) => document.getElementById(id);
@@ -825,117 +759,9 @@
       container.appendChild(chip);
     }
 
-    /**
-     * 그룹 헤더 엘리먼트를 생성합니다.
-     * @param {string}      key       collapsedGroups 키 (groupId 또는 "__ungrouped__")
-     * @param {string|null} groupId   null = 그룹 없음 섹션
-     * @param {string}      name      표시 이름
-     * @param {number}      count     소속 스킬 수
-     */
-    function buildGroupHeader(key, groupId, name, count) {
-      const isCollapsed = collapsedGroups.has(key);
-      const hdr = document.createElement("div");
-      hdr.className = "group-header";
-
-      // ── 그룹 자체 드래그 (순서 변경, named group만) ──
-      if (groupId) {
-        hdr.draggable = true;
-        hdr.addEventListener("dragstart", (e) => {
-          dragGroupId = groupId;
-          e.dataTransfer.setData("text/group-id", groupId);
-          e.dataTransfer.effectAllowed = "move";
-          // 다음 프레임에 적용해야 드래그 이미지가 정상 캡처됨
-          requestAnimationFrame(() => hdr.classList.add("dragging-group"));
-        });
-        hdr.addEventListener("dragend", () => {
-          hdr.classList.remove("dragging-group");
-          dragGroupId = null;
-        });
-      }
-
-      // ── 드롭 대상 (스킬 → 그룹 배정 / 그룹 → 그룹 순서 변경) ──
-      hdr.addEventListener("dragover", (e) => { e.preventDefault(); hdr.classList.add("drop-target"); });
-      hdr.addEventListener("dragenter", (e) => { e.preventDefault(); hdr.classList.add("drop-target"); });
-      hdr.addEventListener("dragleave", (e) => {
-        if (!hdr.contains(e.relatedTarget)) hdr.classList.remove("drop-target");
-      });
-      hdr.addEventListener("drop", (e) => {
-        e.preventDefault();
-        hdr.classList.remove("drop-target");
-        const skillId = e.dataTransfer.getData("text/skill-id") || dragSkillId;
-        const grpId   = e.dataTransfer.getData("text/group-id") || dragGroupId;
-
-        if (skillId) {
-          // 스킬을 이 그룹으로 배정 (groupId === null 이면 그룹 해제)
-          const sk = state.skills.find(s => s.id === skillId);
-          if (sk && sk.group !== groupId) {
-            sk.group = groupId;
-            saveState(); renderSidebar();
-            toast(`"${sk.name}" → ${groupId ? `"${name}"` : "그룹 없음"}`);
-          }
-        } else if (grpId && groupId && grpId !== groupId) {
-          // 그룹 순서 변경
-          const fromIdx = state.groups.findIndex(x => x.id === grpId);
-          const toIdx   = state.groups.findIndex(x => x.id === groupId);
-          if (fromIdx !== -1 && toIdx !== -1) {
-            const [moved] = state.groups.splice(fromIdx, 1);
-            state.groups.splice(toIdx, 0, moved);
-            saveState(); renderSidebar();
-          }
-        }
-      });
-
-      // ── 접기/펼치기 토글 ──
-      const toggle = document.createElement("button");
-      toggle.type = "button";
-      toggle.className = "group-toggle";
-      toggle.draggable = false;
-      toggle.innerHTML = `<span class="group-arrow">${isCollapsed ? "▶" : "▼"}</span>
-        <span class="group-name">${escapeHtml(name)}</span>
-        <span class="group-count">${count}</span>`;
-      toggle.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (collapsedGroups.has(key)) collapsedGroups.delete(key);
-        else collapsedGroups.add(key);
-        renderSidebar();
-      });
-      hdr.appendChild(toggle);
-
-      // ── 드래그 핸들 + 삭제 버튼 (named group & 로그인 시) ──
-      if (groupId && isLoggedIn()) {
-        const handle = document.createElement("span");
-        handle.className = "group-drag-handle";
-        handle.title = "드래그하여 순서 변경";
-        handle.textContent = "⠿";
-        handle.draggable = false; // 핸들 텍스트 자체는 비드래그
-        hdr.appendChild(handle);
-
-        const delBtn = document.createElement("button");
-        delBtn.type = "button";
-        delBtn.className = "group-del-btn";
-        delBtn.title = "그룹 삭제";
-        delBtn.textContent = "×";
-        delBtn.draggable = false;
-        delBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          if (!confirm(`그룹 "${name}"을(를) 삭제할까요? 스킬의 그룹 배치가 해제됩니다.`)) return;
-          state.skills.forEach(s => { if (s.group === groupId) s.group = null; });
-          state.groups = state.groups.filter(x => x.id !== groupId);
-          saveState(); renderSidebar();
-          toast(`"${name}" 그룹 삭제됨`);
-        });
-        hdr.appendChild(delBtn);
-      }
-
-      return hdr;
-    }
-
     function renderSidebar() {
       const el = $("sidebarList");
       el.innerHTML = "";
-
-      // 그룹 추가 폼 버튼 표시 여부 (로그인 + 스킬 탭)
-      $("groupAddForm").classList.remove("open");
 
       if (sidebarTab === "projects") {
         state.projects.forEach(p => {
@@ -956,38 +782,9 @@
 
       const skills = filteredSkills();
       const q = ($("sidebarSearch").value || "").trim();
-      // 그룹이 존재하고 실제로 배정된 스킬이 있을 때만 user-groups 뷰 사용
-      const hasGroups = state.groups.length > 0 && skills.some(s => s.group);
 
-      // 로그인 시 사이드바 그룹 추가 트리거
-      if (sidebarTab === "skills" && isLoggedIn()) {
-        const trig = document.createElement("button");
-        trig.type = "button";
-        trig.className = "group-add-trigger";
-        trig.textContent = "+ 그룹 추가";
-        trig.addEventListener("click", () => {
-          $("groupAddForm").classList.toggle("open");
-          if ($("groupAddForm").classList.contains("open")) {
-            $("groupAddInput").focus();
-          }
-        });
-        el.appendChild(trig);
-      }
-
-      if (sidebarTab === "skills" && !q && hasGroups) {
-        // ── 사용자 지정 그룹 아코디언 ──
-        state.groups.forEach(g => {
-          const gSkills = skills.filter(s => s.group === g.id);
-          const hdr = buildGroupHeader(g.id, g.id, g.name, gSkills.length);
-          el.appendChild(hdr);
-          if (!collapsedGroups.has(g.id)) gSkills.forEach(sk => appendSkillChip(el, sk));
-        });
-        const ungrouped = skills.filter(s => !s.group);
-        const hdrUng = buildGroupHeader("__ungrouped__", null, "그룹 없음", ungrouped.length);
-        el.appendChild(hdrUng);
-        if (!collapsedGroups.has("__ungrouped__")) ungrouped.forEach(sk => appendSkillChip(el, sk));
-      } else if (sidebarTab === "skills" && !q) {
-        // ── 기본 카테고리 그룹핑 (사용자 그룹 없을 때) ──
+      if (sidebarTab === "skills" && !q) {
+        // ── 카테고리 그룹핑 ──
         const CATS = ["Analysis", "Planning", "공통"];
         CATS.forEach(cat => {
           const catSkills = skills.filter(s => s.category === cat);
@@ -1195,64 +992,13 @@
       $("skSlash").value = sk ? sk.slash : "/";
       $("skDesc").value = sk ? (sk.desc || "") : "";
       $("skPrompt").value = sk ? (sk.prompt || "") : "";
-      const sel = $("skGroup");
-      sel.innerHTML = '<option value="">그룹 없음</option>';
-      state.groups.forEach(g => {
-        const opt = document.createElement("option");
-        opt.value = g.id;
-        opt.textContent = g.name;
-        if (sk && sk.group === g.id) opt.selected = true;
-        sel.appendChild(opt);
-      });
       $("btnSkillDelete").style.display = sk ? "inline-block" : "none";
       $("modalSkill").classList.add("open");
     }
 
     function openManage() {
       $("manageCaseCount").textContent = `${state.caseCount}건`;
-      $("newGroupName").value = "";
-      renderManageGroups();
       $("modalManage").classList.add("open");
-    }
-
-    function renderManageGroups() {
-      const list = $("manageGroupList");
-      list.innerHTML = "";
-      if (!state.groups.length) {
-        list.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:4px 0">그룹이 없습니다. 위에서 추가하거나 사이드바 「+ 그룹 추가」를 사용하세요.</div>`;
-        return;
-      }
-      state.groups.forEach(g => {
-        const item = document.createElement("div");
-        item.className = "manage-group-item";
-        const inp = document.createElement("input");
-        inp.type = "text"; inp.value = g.name;
-        inp.addEventListener("blur", () => {
-          const nv = inp.value.trim();
-          if (!nv) { inp.value = g.name; return; }
-          g.name = nv; saveState(); renderSidebar();
-        });
-        const delBtn = document.createElement("button");
-        delBtn.type = "button"; delBtn.className = "btn-sm"; delBtn.textContent = "삭제";
-        delBtn.style.cssText = "border-color:#7f1d1d;color:#fca5a5;flex-shrink:0";
-        delBtn.addEventListener("click", () => {
-          if (!confirm(`그룹 "${g.name}"을(를) 삭제할까요?`)) return;
-          state.skills.forEach(s => { if (s.group === g.id) s.group = null; });
-          state.groups = state.groups.filter(x => x.id !== g.id);
-          saveState(); renderManageGroups(); renderSidebar();
-        });
-        item.appendChild(inp); item.appendChild(delBtn);
-        list.appendChild(item);
-      });
-    }
-
-    function addGroupAction(name) {
-      if (!name || !name.trim()) return false;
-      state.groups.push({ id: uid(), name: name.trim() });
-      saveState(); renderSidebar();
-      if ($("modalManage").classList.contains("open")) renderManageGroups();
-      toast(`"${name.trim()}" 그룹 추가됨`);
-      return true;
     }
 
     function toast(msg) {
@@ -1290,30 +1036,10 @@
           sidebarTab = btn.dataset.tab;
           document.querySelectorAll("#sidebarTabs button").forEach(b => b.classList.toggle("active", b === btn));
           $("sidebarSearch").value = "";
-          $("groupAddForm").classList.remove("open");
           renderSidebar();
         });
       });
       $("sidebarSearch").addEventListener("input", () => renderSidebar());
-
-      // ── Sidebar group add ──
-      $("btnGroupAddConfirm").addEventListener("click", () => {
-        const name = $("groupAddInput").value.trim();
-        if (addGroupAction(name)) {
-          $("groupAddInput").value = "";
-          $("groupAddForm").classList.remove("open");
-        } else {
-          toast("그룹 이름을 입력하세요");
-        }
-      });
-      $("groupAddInput").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") $("btnGroupAddConfirm").click();
-        if (e.key === "Escape") $("groupAddForm").classList.remove("open");
-      });
-      $("btnGroupAddCancel").addEventListener("click", () => {
-        $("groupAddInput").value = "";
-        $("groupAddForm").classList.remove("open");
-      });
 
       // ── Detail panel ──
       $("btnCloseDetail").addEventListener("click", closeDetail);
@@ -1527,7 +1253,6 @@
         const slash = normalizeSlash($("skSlash").value);
         const desc = $("skDesc").value.trim();
         const prompt = $("skPrompt").value;
-        const group = $("skGroup").value || null;
         if (!name) return toast("스킬명을 입력하세요");
         const isNew = !editingSkillId;
         let llmLines = [];
@@ -1537,7 +1262,7 @@
           // 변경 전 값 캡처 (팝업용)
           const prev = { name: sk.name, slash: sk.slash, desc: sk.desc, prompt: sk.prompt };
           sk.name = name; sk.slash = slash; sk.desc = desc;
-          sk.prompt = prompt; sk.group = group;
+          sk.prompt = prompt;
           if (sk.authorId === null) sk._editedFromBase = true; // 기본 스킬 편집 표시
           // 사용자 스킬이면 MD 파일도 업데이트
           if (sk.authorId !== null && FS_SUPPORTED && rootHandle) saveSkillMdToFs(sk).catch(() => {});
@@ -1555,7 +1280,7 @@
           llmLines.push(prompt || "(지침 내용 없음)");
         } else {
           const newSkill = {
-            id: uid(), name, slash, desc, prompt, group,
+            id: uid(), name, slash, desc, prompt,
             authorId: state.session.userId || null,
             authorName: state.session.displayName || "",
             usage: 0,
@@ -1587,18 +1312,6 @@
       // ── Manage modal ──
       $("btnManage").addEventListener("click", openManage);
       $("btnCloseManage").addEventListener("click", () => $("modalManage").classList.remove("open"));
-      $("btnAddGroup").addEventListener("click", () => {
-        const name = $("newGroupName").value.trim();
-        if (addGroupAction(name)) {
-          $("newGroupName").value = "";
-        } else {
-          toast("그룹 이름을 입력하세요");
-          $("newGroupName").focus();
-        }
-      });
-      $("newGroupName").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") $("btnAddGroup").click();
-      });
       $("btnResetUsage").addEventListener("click", () => {
         if (!confirm("사용 건수를 초기화할까요?")) return;
         state.caseCount = 0;
@@ -1641,7 +1354,6 @@
           $("modalSkill").classList.remove("open");
           $("modalManage").classList.remove("open");
           $("modalLLMPrompt").classList.remove("open");
-          $("groupAddForm").classList.remove("open");
         }
       });
     }
@@ -1663,7 +1375,7 @@
         if (!res.ok) return null;
         const data = await res.json();
         if (!Array.isArray(data) || !data.length) return null;
-        const skills = data.map(s => ({ usage: 0, group: null, authorName: "", ...s }));
+        const skills = data.map(s => ({ usage: 0, authorName: "", ...s }));
         latestBaseSkills = skills; // 항상 최신 보관
         return skills;
       } catch { return null; }

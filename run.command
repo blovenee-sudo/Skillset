@@ -4,6 +4,22 @@
 
 cd "$(dirname "$0")"
 
+# ── Claude Code 슬래시 명령어 자동 설치 ──────────────────────
+SKILLS_DIR="$(dirname "$0")/skills"
+CLAUDE_CMD="$HOME/.claude/commands"
+mkdir -p "$CLAUDE_CMD"
+installed=0
+for md in "$SKILLS_DIR"/s*.md; do
+  [ -f "$md" ] || continue
+  filename=$(basename "$md")
+  cmdname="${filename#s[0-9]*-}"          # s0-figma-draft.md → figma-draft.md
+  # frontmatter(--- 블록) 제거 후 본문만 복사
+  awk '/^---/{f++; next} f>=2' "$md" | sed '/./,$!d' > "$CLAUDE_CMD/$cmdname"
+  installed=$((installed + 1))
+done
+[ $installed -gt 0 ] && echo "✅ Claude Code 스킬 명령어 ${installed}개 설치 → ~/.claude/commands/"
+# ─────────────────────────────────────────────────────────────
+
 PORT=8080
 URL="http://localhost:$PORT/ux_skillset_v10.html"
 

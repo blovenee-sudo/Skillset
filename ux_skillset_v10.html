@@ -111,14 +111,16 @@
       display: flex; align-items: center; margin: 12px 0 3px; gap: 4px;
       cursor: pointer; user-select: none;
     }
+    .group-header:hover .group-name { color: var(--text); }
     .group-toggle {
-      flex: 1; display: flex; align-items: center; gap: 5px; text-align: left;
+      flex-shrink: 0;
+      color: var(--muted); font-size: 8px;
+    }
+    .group-name {
+      flex: 1;
       color: var(--muted); font-size: 10px; font-weight: 600;
       letter-spacing: 0.08em; text-transform: uppercase;
     }
-    .group-toggle:hover { color: var(--text); }
-    .group-arrow { font-size: 8px; flex-shrink: 0; }
-    .group-name { flex: 1; }
     .group-count {
       background: var(--border); border-radius: 999px;
       padding: 1px 6px; font-size: 10px; font-weight: 400;

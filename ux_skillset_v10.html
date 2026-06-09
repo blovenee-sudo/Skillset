@@ -956,7 +956,8 @@
 
       const skills = filteredSkills();
       const q = ($("sidebarSearch").value || "").trim();
-      const hasGroups = state.groups.length > 0;
+      // 그룹이 존재하고 실제로 배정된 스킬이 있을 때만 user-groups 뷰 사용
+      const hasGroups = state.groups.length > 0 && skills.some(s => s.group);
 
       // 로그인 시 사이드바 그룹 추가 트리거
       if (sidebarTab === "skills" && isLoggedIn()) {
@@ -1694,11 +1695,19 @@
     tryFetchSkills().then(fresh => {
       if (!fresh) return;
       if (!isLoggedIn()) {
-        // 비로그인: 항상 최신 index.json 으로 기본 스킬 갱신 (비로그인 = 기본 스킬 그대로)
+        // 비로그인: 항상 최신 index.json 으로 기본 스킬 갱신
         state.skills = fresh;
         saveState(); renderSidebar();
       } else {
-        // 세션 로그인 중: 업데이트 감지 및 알림 (적용은 사용자가 선택)
+        // 세션 로그인 중: 기본 스킬의 category 필드를 최신 index.json 기준으로 동기화
+        let changed = false;
+        state.skills.forEach(sk => {
+          if (sk.authorId === null) {
+            const base = fresh.find(b => b.id === sk.id);
+            if (base && sk.category !== base.category) { sk.category = base.category; changed = true; }
+          }
+        });
+        if (changed) { saveState(); renderSidebar(); }
         checkBaseSkillUpdates(fresh);
       }
       // fetch 완료 후 상세 패널이 열려있으면 버튼 가시성 재평가

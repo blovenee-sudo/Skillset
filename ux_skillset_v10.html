@@ -662,6 +662,30 @@
       } catch { return []; }
     }
 
+    // 사용자 생성 스킬을 session/{slug}.md 로 저장 (run.command 자동 설치 연동)
+    async function saveSkillMdToFs(sk) {
+      if (!sk || !sk.slash) return;
+      const sh = await getSessionHandle();
+      if (!sh) return;
+      const slug = sk.slash.slice(1); // /my-skill → my-skill
+      const content = [
+        `---`,
+        `id: ${sk.id}`,
+        `name: ${sk.name}`,
+        `slash: ${sk.slash}`,
+        `desc: ${sk.desc || ""}`,
+        `authorName: ${sk.authorName || ""}`,
+        `---`,
+        ``,
+        sk.prompt || "",
+      ].join("\n");
+      try {
+        const fh = await sh.getFileHandle(`${slug}.md`, { create: true });
+        const w  = await fh.createWritable();
+        await w.write(content); await w.close();
+      } catch {}
+    }
+
     function loadState() {
       const base = parseStored(STORAGE_KEY) || defaultState();
       // 마지막 워크스페이스 세션이 있으면 해당 워크스페이스 데이터 복원
@@ -1477,27 +1501,39 @@
           sk.name = name; sk.slash = slash; sk.desc = desc;
           sk.prompt = prompt; sk.group = group;
           if (sk.authorId === null) sk._editedFromBase = true; // 기본 스킬 편집 표시
+          // 사용자 스킬이면 MD 파일도 업데이트
+          if (sk.authorId !== null && FS_SUPPORTED && rootHandle) saveSkillMdToFs(sk).catch(() => {});
           // 편집 LLM 팝업 내용 구성
-          llmLines.push(`다음 스킬의 내용을 아래와 같이 수정해주세요.\n`);
-          if (prev.slash !== slash) llmLines.push(`명령어: ${prev.slash || "(없음)"} → ${slash}`);
-          if (prev.name  !== name)  llmLines.push(`스킬명: ${prev.name} → ${name}`);
-          if (prev.desc  !== desc)  llmLines.push(`설명: ${prev.desc || "(없음)"} → ${desc}`);
-          llmLines.push(`\n${slash}`);
-          if (name)   llmLines.push(`스킬명: ${name}`);
-          if (desc)   llmLines.push(`설명: ${desc}`);
-          if (prompt) llmLines.push(`\n수정된 지침:\n${prompt}`);
+          llmLines.push(`아래 내용으로 슬래시 명령어 스킬을 수정해주세요.`);
+          llmLines.push(``);
+          if (prev.slash !== slash) llmLines.push(`슬래시 명령어: ${prev.slash || "(없음)"} → ${slash}`);
+          else if (slash)           llmLines.push(`슬래시 명령어: ${slash}`);
+          if (prev.name !== name)   llmLines.push(`스킬명: ${prev.name} → ${name}`);
+          else if (name)            llmLines.push(`스킬명: ${name}`);
+          if (prev.desc !== desc)   llmLines.push(`설명: ${prev.desc || "(없음)"} → ${desc}`);
+          else if (desc)            llmLines.push(`설명: ${desc}`);
+          llmLines.push(``);
+          llmLines.push(`수정된 지침:`);
+          llmLines.push(prompt || "(지침 내용 없음)");
         } else {
-          state.skills.unshift({
+          const newSkill = {
             id: uid(), name, slash, desc, prompt, group,
             authorId: state.session.userId || null,
             authorName: state.session.displayName || "",
             usage: 0,
-          });
+          };
+          state.skills.unshift(newSkill);
+          // FS 연결된 경우 사용자 스킬 MD 파일 저장
+          if (FS_SUPPORTED && rootHandle) saveSkillMdToFs(newSkill).catch(() => {});
           // 신규 LLM 팝업 내용 구성
-          if (slash)  llmLines.push(slash);
-          if (name)   llmLines.push(`스킬명: ${name}`);
-          if (desc)   llmLines.push(`설명: ${desc}`);
-          if (prompt) llmLines.push(`\n지침:\n${prompt}`);
+          llmLines.push(`아래 내용으로 슬래시 명령어 스킬을 생성해주세요.`);
+          llmLines.push(``);
+          if (slash) llmLines.push(`슬래시 명령어: ${slash}`);
+          if (name)  llmLines.push(`스킬명: ${name}`);
+          if (desc)  llmLines.push(`설명: ${desc}`);
+          llmLines.push(``);
+          llmLines.push(`지침:`);
+          llmLines.push(prompt || "(지침 내용 없음)");
         }
         saveState();
         $("modalSkill").classList.remove("open");

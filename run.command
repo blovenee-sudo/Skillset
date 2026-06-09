@@ -9,14 +9,24 @@ SKILLS_DIR="$(dirname "$0")/skills"
 CLAUDE_CMD="$HOME/.claude/commands"
 mkdir -p "$CLAUDE_CMD"
 installed=0
+# 기본 스킬 설치 (skills/s*.md)
 for md in "$SKILLS_DIR"/s*.md; do
   [ -f "$md" ] || continue
   filename=$(basename "$md")
   cmdname="${filename#s[0-9]*-}"          # s0-figma-draft.md → figma-draft.md
-  # frontmatter(--- 블록) 제거 후 본문만 복사
   awk '/^---/{f++; next} f>=2' "$md" | sed '/./,$!d' > "$CLAUDE_CMD/$cmdname"
   installed=$((installed + 1))
 done
+# 사용자 생성 스킬 설치 (skills/session/*.md)
+SESSION_DIR="$SKILLS_DIR/session"
+if [ -d "$SESSION_DIR" ]; then
+  for md in "$SESSION_DIR"/*.md; do
+    [ -f "$md" ] || continue
+    filename=$(basename "$md")
+    awk '/^---/{f++; next} f>=2' "$md" | sed '/./,$!d' > "$CLAUDE_CMD/$filename"
+    installed=$((installed + 1))
+  done
+fi
 [ $installed -gt 0 ] && echo "✅ Claude Code 스킬 명령어 ${installed}개 설치 → ~/.claude/commands/"
 # ─────────────────────────────────────────────────────────────
 

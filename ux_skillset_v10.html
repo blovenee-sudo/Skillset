@@ -599,6 +599,15 @@
       } catch { return []; }
     }
 
+    // 사용자 생성 스킬 MD 파일 삭제 (session/{slug}.md)
+    async function deleteSkillMdFromFs(sk) {
+      if (!sk || !sk.slash) return;
+      const sh = await getSessionHandle();
+      if (!sh) return;
+      const slug = sk.slash.slice(1);
+      try { await sh.removeEntry(`${slug}.md`); } catch {}
+    }
+
     // 사용자 생성 스킬을 session/{slug}.md 로 저장 (run.command 자동 설치 연동)
     async function saveSkillMdToFs(sk) {
       if (!sk || !sk.slash) return;
@@ -1125,6 +1134,7 @@
         if (!isLoggedIn()) return;
         const sk = state.skills.find(s => s.id === selectedSkillId);
         if (!sk || !confirm(`스킬 "${sk.name}"을(를) 삭제할까요?`)) return;
+        if (sk.authorId !== null && FS_SUPPORTED && rootHandle) deleteSkillMdFromFs(sk).catch(() => {});
         state.skills = state.skills.filter(s => s.id !== sk.id);
         state.favorites = state.favorites.filter(fid => fid !== sk.id);
         state.projects.forEach(p => { p.instances = p.instances.filter(i => i.skillId !== sk.id); });
@@ -1242,6 +1252,7 @@
         if (!isLoggedIn()) return;
         const sk = state.skills.find(s => s.id === editingSkillId);
         if (!sk || !confirm(`스킬 "${sk.name}"을(를) 완전 삭제할까요?`)) return;
+        if (sk.authorId !== null && FS_SUPPORTED && rootHandle) deleteSkillMdFromFs(sk).catch(() => {});
         state.skills = state.skills.filter(s => s.id !== sk.id);
         state.favorites = state.favorites.filter(fid => fid !== sk.id);
         state.projects.forEach(p => { p.instances = p.instances.filter(i => i.skillId !== sk.id); });

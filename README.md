@@ -174,7 +174,48 @@ desc: 한 줄 설명
 git pull
 ```
 
-이후 앱에서 관리자 로그인 → 헤더 **↻ 스킬 업데이트** 버튼 클릭
+이후 `run.command` (Mac) 또는 `run.bat` (Windows) 재실행하면 앱 스킬과 Claude Code 명령어가 함께 업데이트됩니다.
+
+---
+
+## Claude Code 슬래시 명령어 자동 설치
+
+> **Claude Code CLI 사용자에게만 해당됩니다.**  
+> Claude.ai 웹, ChatGPT 등 다른 LLM은 앱에서 프롬프트를 복사해 붙여넣어 사용하세요.
+
+`run.command` (Mac) 실행 시 `skills/` 폴더의 기본 스킬이 Claude Code 슬래시 명령어로 자동 등록됩니다.
+
+```
+~/.claude/commands/
+├── figma-draft.md       ← /figma-draft
+├── spec-analysis.md     ← /spec-analysis
+├── benchmarking.md      ← /benchmarking
+├── asis-tobe.md         ← /asis-tobe
+└── ...
+```
+
+설치 후 Claude Code에서 바로 사용할 수 있습니다:
+
+```
+/figma-draft
+/spec-analysis
+/benchmarking
+```
+
+### 스킬 업데이트 시 (기존 설치자)
+
+기본 스킬의 지침 내용이 변경되었을 때:
+
+```bash
+git pull
+```
+
+이후 `run.command` 재실행하면 `~/.claude/commands/` 파일이 **자동으로 덮어씌워져** 최신 지침으로 업데이트됩니다. 별도 작업 불필요.
+
+| 사용 방식 | 스킬 업데이트 방법 |
+|----------|-----------------|
+| **로컬 실행 (run.command)** | `git pull` → `run.command` 재실행 — 자동 반영 |
+| **URL 접속만 사용** | 로컬에서 `git pull` → `run.command` 한 번 실행 (서버 유지 필요 없음) |
 
 ---
 

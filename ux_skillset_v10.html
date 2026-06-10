@@ -318,9 +318,8 @@
       </p>
       <label>이름 <span style="color:#f87171">*</span></label>
       <input type="text" id="inputDisplayName" placeholder="예: 김보니" />
-      <label>폴더명 <span style="font-size:10px;color:var(--muted)">스킬·프로젝트가 저장될 워크스페이스</span></label>
-      <input type="text" id="inputWorkspace" placeholder="이름과 동일하게 자동입력" />
       <div id="wsChips" style="display:none;flex-wrap:wrap;gap:5px;margin:-4px 0 6px"></div>
+      <input type="text" id="inputWorkspace" style="display:none" />
       <label>관리자 PIN (선택)</label>
       <input type="password" id="inputAdminPin" placeholder="PIN이 있으면 스킬 업데이트 활성화" autocomplete="off" />
       <div class="row" style="justify-content:space-between">
@@ -1193,6 +1192,7 @@
             btn.textContent = ws;
             btn.style.cssText = "font-size:11px;padding:3px 8px";
             btn.addEventListener("click", () => {
+              $("inputDisplayName").value = ws;
               $("inputWorkspace").value = ws;
               $("inputWorkspace")._manual = true;
             });

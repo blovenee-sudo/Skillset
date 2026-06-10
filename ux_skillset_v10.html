@@ -286,10 +286,6 @@
       <button type="button" class="btn-sm" id="btnCloseDetail">닫기</button>
     </div>
     <div class="detail-body">
-      <div id="detailViewTabs" style="display:none;gap:4px;margin-bottom:6px">
-        <button type="button" class="btn-sm" id="btnViewGuide" style="color:var(--text);border-color:var(--accent)" title="스킬 가이드 프롬프트 보기">스킬 가이드</button>
-        <button type="button" class="btn-sm" id="btnViewMD" style="color:var(--muted);border-color:var(--border)" title="스킬 원본 MD 파일 보기">지침 MD</button>
-      </div>
       <textarea class="prompt-area" id="detailPrompt" spellcheck="false" readonly></textarea>
       <div class="detail-actions">
         <code id="detailSlashBadge" style="font-family:ui-monospace,monospace;font-size:13px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--accent);align-self:center;white-space:nowrap"></code>
@@ -987,12 +983,17 @@
       $("btnResetSkill").style.display =
         (isLoggedIn() && isBaseSkill && userEdited && !hasUpstreamUpdate) ? "inline-block" : "none";
 
-      // 스킬 가이드 / 지침 MD 탭: 기본 스킬에만 표시, 항상 '스킬 가이드' 뷰로 초기화
-      $("detailViewTabs").style.display = isBaseSkill ? "flex" : "none";
-      $("btnViewGuide").style.color = "var(--text)";
-      $("btnViewGuide").style.borderColor = "var(--accent)";
-      $("btnViewMD").style.color = "var(--muted)";
-      $("btnViewMD").style.borderColor = "var(--border)";
+      // 기본 스킬이면 MD 파일 자동 로드해 가이드+지침 통합 표시
+      if (isBaseSkill) {
+        const slash = (baseRef || sk).slash;
+        fetch(`./skills/${sk.id}-${slash.slice(1)}.md`, { cache: 'no-cache' })
+          .then(res => res.ok ? res.text() : null)
+          .then(md => {
+            if (!md || selectedSkillId !== skillId) return;
+            $("detailPrompt").value = formatMdForDisplay(md);
+          })
+          .catch(() => {});
+      }
 
       $("detailPanel").classList.add("open");
       $("detailBackdrop").classList.add("open");
@@ -1137,31 +1138,15 @@
           "기본값으로 초기화됐습니다"
         );
       });
-      $("btnViewGuide").addEventListener("click", () => {
-        const sk = state.skills.find(s => s.id === selectedSkillId);
-        if (!sk) return;
-        $("detailPrompt").value = sk.prompt || "";
-        $("btnViewGuide").style.color = "var(--text)";
-        $("btnViewGuide").style.borderColor = "var(--accent)";
-        $("btnViewMD").style.color = "var(--muted)";
-        $("btnViewMD").style.borderColor = "var(--border)";
-      });
-      $("btnViewMD").addEventListener("click", async () => {
-        const sk = state.skills.find(s => s.id === selectedSkillId);
-        if (!sk) return;
-        const baseRef = latestBaseSkills && latestBaseSkills.find(b => b.id === sk.id);
-        const slash = (baseRef || sk).slash;
-        const mdUrl = `./skills/${sk.id}-${slash.slice(1)}.md`;
-        try {
-          const res = await fetch(mdUrl, { cache: 'no-cache' });
-          if (!res.ok) { toast("MD 파일을 불러올 수 없습니다"); return; }
-          $("detailPrompt").value = await res.text();
-          $("btnViewMD").style.color = "var(--text)";
-          $("btnViewMD").style.borderColor = "var(--accent)";
-          $("btnViewGuide").style.color = "var(--muted)";
-          $("btnViewGuide").style.borderColor = "var(--border)";
-        } catch { toast("MD 파일을 불러올 수 없습니다"); }
-      });
+      // formatMdForDisplay: frontmatter 제거 + AI 지침 구분선 삽입
+      function formatMdForDisplay(mdText) {
+        // YAML frontmatter (--- ... ---) 제거
+        let body = mdText.replace(/^---[\s\S]*?---\s*\n/, "").trim();
+        // AI INSTRUCTIONS 구분선을 시각적 섹션 타이틀로 교체
+        body = body.replace(/---\s*\n<!--[^>]*-->\s*\n/g,
+          "\n\n━━━━━━━━━━ 지침 내용 ━━━━━━━━━━\n\n");
+        return body;
+      }
 
       $("btnDelSkill").addEventListener("click", () => {
         if (!isLoggedIn()) return;

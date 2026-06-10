@@ -315,12 +315,14 @@
         이름 입력 시 스킬 생성·편집·삭제가 가능합니다.<br>
         <span style="color:var(--muted);font-size:11px">💾 스킬과 프로젝트는 <strong style="color:var(--text)">이 기기에만</strong> 저장됩니다.</span>
       </p>
-      <label>이름 <span style="color:#f87171">*</span></label>
-      <input type="text" id="inputDisplayName" placeholder="예: 김보니" />
-      <div id="wsChips" style="display:none;flex-wrap:wrap;gap:5px;margin:-4px 0 6px"></div>
+      <div id="nameSection">
+        <label>이름 <span style="color:#f87171">*</span></label>
+        <input type="text" id="inputDisplayName" placeholder="예: 김보니" />
+        <div id="wsChips" style="display:none;flex-wrap:wrap;gap:5px;margin:-4px 0 6px"></div>
+      </div>
       <input type="text" id="inputWorkspace" style="display:none" />
       <div id="adminPinSection" style="display:none">
-        <input type="password" id="inputAdminPin" placeholder="관리자 PIN" autocomplete="off" style="margin-top:8px" />
+        <input type="password" id="inputAdminPin" placeholder="관리자 PIN" autocomplete="off" />
       </div>
       <div class="row" style="justify-content:space-between">
         <button type="button" class="btn-sm" id="btnLogout" style="display:none;color:#fca5a5;border-color:#7f1d1d">로그아웃</button>
@@ -1187,6 +1189,7 @@
         $("inputDisplayName").value = state.session.displayName || "";
         $("inputAdminPin").value = "";
         $("adminPinSection").style.display = "none";
+        $("nameSection").style.display = "block";
         $("inputWorkspace").value = state.session.workspace || state.session.displayName || "";
         $("inputWorkspace")._manual = !!state.session.workspace;
         // 기존 워크스페이스 칩 표시
@@ -1219,10 +1222,13 @@
       });
       $("inputWorkspace").addEventListener("input", () => { $("inputWorkspace")._manual = true; });
       $("btnToggleAdmin").addEventListener("click", () => {
-        const sec = $("adminPinSection");
-        const visible = sec.style.display !== "none";
-        sec.style.display = visible ? "none" : "block";
-        if (visible) $("inputAdminPin").value = "";
+        const pinSec = $("adminPinSection");
+        const isAdminMode = pinSec.style.display !== "none";
+        // 관리자 모드 ↔ 일반 모드 전환
+        pinSec.style.display = isAdminMode ? "none" : "block";
+        $("nameSection").style.display = isAdminMode ? "block" : "none";
+        $("inputAdminPin").value = "";
+        if (!isAdminMode) $("inputAdminPin").focus();
       });
       $("btnCancelSession").addEventListener("click", () => $("modalSession").classList.remove("open"));
       $("btnLogout").addEventListener("click", () => {
@@ -1243,31 +1249,30 @@
         toast("로그아웃됨");
       });
       $("btnSaveSession").addEventListener("click", async () => {
-        const pin = $("inputAdminPin").value;
+        const isAdminMode = $("adminPinSection").style.display !== "none";
+        const pin  = $("inputAdminPin").value;
         const name = $("inputDisplayName").value.trim();
-        const workspace = ($("inputWorkspace").value.trim() || name);
 
-        if (!name) {
-          toast("이름을 입력해주세요");
-          $("inputDisplayName").focus();
-          return;
-        }
+        let workspace, newState, msg;
 
-        // 워크스페이스 데이터 로드 (FS 우선 → localStorage fallback)
-        const wsData = (await loadFromFs(workspace)) || parseStored(wsKey(workspace));
-        const newState = wsData ? normalizeData(wsData) : defaultState();
-        const uidUser = (wsData && wsData.session && wsData.session.userId) || state.session.userId || uid();
-
-        let msg = "";
-        if (pin && pin === ADMIN_PIN) {
-          newState.session = { mode: "user", displayName: name, admin: true, userId: "admin", workspace };
-          msg = `${name}님 로그인 (관리자) · [${workspace}] 폴더`;
-        } else if (pin && pin !== ADMIN_PIN) {
-          newState.session = { mode: "user", displayName: name, admin: false, userId: uidUser, workspace };
-          msg = `PIN 불일치 — 일반 로그인 · [${workspace}] 폴더`;
+        if (isAdminMode) {
+          // ── 관리자 로그인 ──
+          if (!pin) { toast("PIN을 입력해주세요"); $("inputAdminPin").focus(); return; }
+          if (pin !== ADMIN_PIN) { toast("PIN이 올바르지 않습니다"); $("inputAdminPin").value = ""; $("inputAdminPin").focus(); return; }
+          workspace = "admin";
+          const wsData = (await loadFromFs(workspace)) || parseStored(wsKey(workspace));
+          newState = wsData ? normalizeData(wsData) : defaultState();
+          newState.session = { mode: "user", displayName: "관리자", admin: true, userId: "admin", workspace };
+          msg = "관리자 로그인";
         } else {
+          // ── 일반 사용자 로그인 ──
+          if (!name) { toast("이름을 입력해주세요"); $("inputDisplayName").focus(); return; }
+          workspace = $("inputWorkspace").value.trim() || name;
+          const wsData = (await loadFromFs(workspace)) || parseStored(wsKey(workspace));
+          newState = wsData ? normalizeData(wsData) : defaultState();
+          const uidUser = (wsData && wsData.session && wsData.session.userId) || state.session.userId || uid();
           newState.session = { mode: "user", displayName: name, admin: false, userId: uidUser, workspace };
-          msg = `${name}님 로그인 · [${workspace}] 폴더`;
+          msg = `${name}님 로그인`;
         }
         state = newState;
         applyWorkspaceState();

@@ -1221,6 +1221,10 @@
         saveState();
         const base = parseStored(STORAGE_KEY) || defaultState();
         base.session = { mode: "guest", displayName: "", admin: false, userId: null, workspace: null };
+        // 비로그인 화면은 관리자 워크스페이스 기준 기본 스킬로 표시
+        const effLogout = getEffectiveBaseSkills();
+        if (effLogout.length) base.skills = effLogout;
+        else if (latestBaseSkills) base.skills = latestBaseSkills;
         state = base;
         applyWorkspaceState();
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));

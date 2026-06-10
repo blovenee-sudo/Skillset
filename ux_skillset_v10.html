@@ -1452,16 +1452,23 @@
         state.skills = fresh;
         saveState(); renderSidebar();
       } else {
-        // 세션 로그인 중: 기본 스킬의 category 필드를 최신 index.json 기준으로 동기화
+        // 세션 로그인 중: 기본 스킬 동기화
+        const SYNC_FIELDS = ["name", "slash", "desc", "prompt", "category"];
         let changed = false;
         state.skills.forEach(sk => {
-          if (sk.authorId === null) {
-            const base = fresh.find(b => b.id === sk.id);
-            if (base && sk.category !== base.category) { sk.category = base.category; changed = true; }
+          if (sk.authorId !== null) return; // 사용자 스킬은 건드리지 않음
+          const base = fresh.find(b => b.id === sk.id);
+          if (!base) return;
+          if (!isAdmin() && !sk._editedFromBase) {
+            // 일반 사용자 & 미편집 기본 스킬 → 전체 필드 자동 동기화
+            SYNC_FIELDS.forEach(f => { if (sk[f] !== base[f]) { sk[f] = base[f]; changed = true; } });
+          } else {
+            // 관리자 또는 본인이 편집한 스킬 → category만 동기화, 나머지는 수동 적용
+            if (sk.category !== base.category) { sk.category = base.category; changed = true; }
           }
         });
         if (changed) { saveState(); renderSidebar(); }
-        checkBaseSkillUpdates(fresh);
+        if (isAdmin()) checkBaseSkillUpdates(fresh); // 관리자만 업데이트 알림 표시
       }
       // fetch 완료 후 상세 패널이 열려있으면 버튼 가시성 재평가
       if (selectedSkillId && $("detailPanel").classList.contains("open")) {

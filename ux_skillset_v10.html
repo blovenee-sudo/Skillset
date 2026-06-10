@@ -406,7 +406,7 @@
         ? window.__UX_SKILLSET_ENV__ : {};
 
     const ADMIN_PIN =
-      (APP_ENV.ADMIN_PIN && String(APP_ENV.ADMIN_PIN).trim()) || "1234";
+      (APP_ENV.ADMIN_PIN && String(APP_ENV.ADMIN_PIN).trim()) || "0422";
 
     const STORAGE_KEY = "ux_skillset_v10";
 
@@ -965,9 +965,10 @@
       $("detailAuthor").textContent = sk.authorName ? `작성자: ${sk.authorName}` : "";
       $("detailPrompt").value = sk.prompt || "";
 
-      // 편집/삭제 버튼: 로그인 시에만 노출
-      $("btnEditSkill").style.display = isLoggedIn() ? "inline-block" : "none";
-      $("btnDelSkill").style.display = isLoggedIn() ? "inline-block" : "none";
+      // 편집/삭제 버튼: 기본 스킬은 관리자만, 사용자 스킬은 본인만
+      const canEdit = isLoggedIn() && (sk.authorId === null ? isAdmin() : sk.authorId === state.session.userId);
+      $("btnEditSkill").style.display = canEdit ? "inline-block" : "none";
+      $("btnDelSkill").style.display = canEdit ? "inline-block" : "none";
 
       // 기본 스킬 전용 버튼 (상호 배타적)
       // - 업데이트 적용: 사용자가 수정 안 한 기본 스킬에 index.json 변경이 있을 때만
@@ -1099,7 +1100,10 @@
       });
 
       $("btnEditSkill").addEventListener("click", () => {
-        if (selectedSkillId && isLoggedIn()) openSkillModal(selectedSkillId);
+        if (!selectedSkillId || !isLoggedIn()) return;
+        const sk = state.skills.find(s => s.id === selectedSkillId);
+        if (sk && sk.authorId === null && !isAdmin()) return; // 기본 스킬은 관리자만 편집
+        openSkillModal(selectedSkillId);
       });
 
       // 공통 헬퍼 — 선택된 스킬을 latestBaseSkills 내용으로 덮어씀
@@ -1160,7 +1164,9 @@
       $("btnDelSkill").addEventListener("click", () => {
         if (!isLoggedIn()) return;
         const sk = state.skills.find(s => s.id === selectedSkillId);
-        if (!sk || !confirm(`스킬 "${sk.name}"을(를) 삭제할까요?`)) return;
+        if (!sk) return;
+        if (sk.authorId === null && !isAdmin()) return; // 기본 스킬은 관리자만 삭제
+        if (!confirm(`스킬 "${sk.name}"을(를) 삭제할까요?`)) return;
         if (sk.authorId !== null && FS_SUPPORTED && rootHandle) deleteSkillMdFromFs(sk).catch(() => {});
         state.skills = state.skills.filter(s => s.id !== sk.id);
         state.favorites = state.favorites.filter(fid => fid !== sk.id);
@@ -1326,8 +1332,8 @@
         } else {
           const newSkill = {
             id: uid(), name, slash, desc, prompt,
-            authorId: state.session.userId || null,
-            authorName: state.session.displayName || "",
+            authorId: isAdmin() ? null : (state.session.userId || null),
+            authorName: isAdmin() ? "" : (state.session.displayName || ""),
             usage: 0,
           };
           state.skills.unshift(newSkill);

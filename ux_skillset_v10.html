@@ -971,19 +971,19 @@
       $("btnDelSkill").style.display = canDelete ? "inline-block" : "none";
 
       // 기본 스킬 전용 버튼 (상호 배타적)
-      // - 업데이트 적용: 사용자가 수정 안 한 기본 스킬에 index.json 변경이 있을 때만
-      // - 초기화: 사용자가 직접 수정한 기본 스킬에서만 (자기 변경 되돌리기)
+      // - 업데이트 적용: 관리자 워크스페이스(또는 index.json) 기준으로 변경이 있을 때
+      // - 초기화: 일반 사용자가 직접 수정한 기본 스킬에서만 (관리자는 btnRefreshSkills 사용)
       const isBaseSkill = sk.authorId === null;
-      const baseRef = latestBaseSkills && latestBaseSkills.find(b => b.id === sk.id);
+      const baseRef = isBaseSkill ? getEffectiveBaseSkills().find(b => b.id === sk.id) : null;
       const hasUpstreamUpdate = !!baseRef &&
         ["name","slash","desc","prompt"].some(f => sk[f] !== baseRef[f]);
       const userEdited = !!sk._editedFromBase;
-      // 업데이트 적용: upstream 변경 있으면 항상 표시 (편집 여부 무관)
-      // 초기화: upstream 변경 없고 본인이 편집한 경우에만 표시
+      // 업데이트 적용: 일반 사용자에게만, upstream 변경 있으면 표시
+      // 초기화: 일반 사용자가 편집한 경우에만 (관리자는 해당 없음)
       $("detailUpdateBadge").style.display =
-        (isLoggedIn() && isBaseSkill && hasUpstreamUpdate) ? "inline-block" : "none";
+        (isLoggedIn() && !isAdmin() && isBaseSkill && hasUpstreamUpdate) ? "inline-block" : "none";
       $("btnResetSkill").style.display =
-        (isLoggedIn() && isBaseSkill && userEdited && !hasUpstreamUpdate) ? "inline-block" : "none";
+        (isLoggedIn() && !isAdmin() && isBaseSkill && userEdited && !hasUpstreamUpdate) ? "inline-block" : "none";
 
       // 기본 스킬이면 MD 파일 자동 로드해 가이드+지침 통합 표시
       if (isBaseSkill) {
@@ -1109,13 +1109,13 @@
         openSkillModal(selectedSkillId);
       });
 
-      // 공통 헬퍼 — 선택된 스킬을 latestBaseSkills 내용으로 덮어씀
+      // 공통 헬퍼 — 선택된 스킬을 관리자 워크스페이스(또는 index.json) 내용으로 덮어씀
       function applyBaseToSelected(confirmMsg, doneMsg) {
         if (!isLoggedIn() || !selectedSkillId) return;
         const sk = state.skills.find(s => s.id === selectedSkillId);
         if (!sk) return;
-        const base = latestBaseSkills && latestBaseSkills.find(b => b.id === sk.id);
-        if (!base) { toast("기본 스킬 데이터를 불러올 수 없습니다 (서버 연결 확인)"); return; }
+        const base = getEffectiveBaseSkills().find(b => b.id === sk.id);
+        if (!base) { toast("기본 스킬 데이터를 불러올 수 없습니다"); return; }
         if (!confirm(confirmMsg)) return;
         ["name","slash","desc","prompt"].forEach(f => { sk[f] = base[f]; });
         sk._editedFromBase = false;
@@ -1247,7 +1247,7 @@
           workspace = "admin";
           const wsDataA = (await loadFromFs(workspace)) || parseStored(wsKey(workspace));
           newState = wsDataA ? normalizeData(wsDataA) : defaultState();
-          // 첫 로그인이면 최신 기본 스킬로 세팅
+          // 첫 로그인이면 최신 기본 스킬로 세팅 (관리자 첫 로그인은 index.json 기준)
           if (!wsDataA && latestBaseSkills) newState.skills = latestBaseSkills.map(s => ({ ...s }));
           newState.session = { mode: "user", displayName: "관리자", admin: true, userId: "admin", workspace };
           msg = "관리자 로그인";
@@ -1257,8 +1257,12 @@
           workspace = $("inputWorkspace").value.trim() || name;
           const wsDataB = (await loadFromFs(workspace)) || parseStored(wsKey(workspace));
           newState = wsDataB ? normalizeData(wsDataB) : defaultState();
-          // 첫 로그인이면 최신 기본 스킬로 세팅
-          if (!wsDataB && latestBaseSkills) newState.skills = latestBaseSkills.map(s => ({ ...s }));
+          // 첫 로그인이면 관리자 워크스페이스 기준 최신 기본 스킬로 세팅 (없으면 index.json)
+          if (!wsDataB) {
+            const eff = getEffectiveBaseSkills();
+            if (eff.length) newState.skills = eff.map(s => ({ ...s }));
+            else if (latestBaseSkills) newState.skills = latestBaseSkills.map(s => ({ ...s }));
+          }
           const uidUser = (wsDataB && wsDataB.session && wsDataB.session.userId) || state.session.userId || uid();
           newState.session = { mode: "user", displayName: name, admin: false, userId: uidUser, workspace };
           msg = `${name}님 로그인`;
@@ -1274,8 +1278,9 @@
         renderProjects();
         closeDetail();
         toast(msg);
-        // 세션 전환 후 기본 스킬 업데이트 감지
-        if (latestBaseSkills) checkBaseSkillUpdates(latestBaseSkills);
+        // 세션 전환 후 기본 스킬 업데이트 감지 (관리자 워크스페이스 기준)
+        const effAfterLogin = getEffectiveBaseSkills();
+        if (effAfterLogin.length) checkBaseSkillUpdates(effAfterLogin);
       });
 
       // ── Skill modal ──
@@ -1414,6 +1419,22 @@
 
     let latestBaseSkills = null; // skills/index.json 의 최신 기본 스킬 (비교·초기화 용)
 
+    // 실효 기본 스킬 참조: 관리자 워크스페이스 localStorage > index.json fetch 순으로 우선
+    // 관리자가 앱 내에서 편집·저장한 기본 스킬이 최신 default가 됨
+    function getEffectiveBaseSkills() {
+      const adminRaw = localStorage.getItem(wsKey("admin"));
+      if (adminRaw) {
+        try {
+          const adminData = JSON.parse(adminRaw);
+          if (adminData && Array.isArray(adminData.skills)) {
+            const adminBase = adminData.skills.filter(s => s.authorId === null);
+            if (adminBase.length > 0) return adminBase;
+          }
+        } catch {}
+      }
+      return latestBaseSkills || [];
+    }
+
     async function tryFetchSkills() {
       try {
         const res = await fetch('./skills/index.json', { cache: 'no-cache' });
@@ -1451,20 +1472,22 @@
 
     tryFetchSkills().then(fresh => {
       if (!fresh) return;
+      // 실효 기본 스킬: 관리자 워크스페이스 우선, 없으면 index.json
+      const effective = getEffectiveBaseSkills();
       if (!isLoggedIn()) {
-        // 비로그인: 항상 최신 index.json 으로 기본 스킬 갱신
-        state.skills = fresh;
+        // 비로그인: 관리자가 편집한 최신 기본 스킬 상태로 표시
+        state.skills = effective.length ? effective : fresh;
         saveState(); renderSidebar();
       } else {
         // 세션 로그인 중: category만 조용히 동기화, 나머지 변경은 '업데이트 적용' 버튼으로
         let changed = false;
         state.skills.forEach(sk => {
           if (sk.authorId !== null) return;
-          const base = fresh.find(b => b.id === sk.id);
+          const base = effective.find(b => b.id === sk.id);
           if (base && sk.category !== base.category) { sk.category = base.category; changed = true; }
         });
         if (changed) { saveState(); renderSidebar(); }
-        checkBaseSkillUpdates(fresh);
+        checkBaseSkillUpdates(effective);
       }
       // fetch 완료 후 상세 패널이 열려있으면 버튼 가시성 재평가
       if (selectedSkillId && $("detailPanel").classList.contains("open")) {

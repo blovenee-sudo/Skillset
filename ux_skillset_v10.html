@@ -1065,7 +1065,24 @@
       $("btnCopy").addEventListener("click", async () => {
         const sk = selectedSkillId ? state.skills.find(s => s.id === selectedSkillId) : null;
         if (!sk) return;
-        const copyText = (sk.slash || sk.name) + "\n\n" + (sk.prompt || "");
+
+        // 기본 스킬은 MD 파일에서 전체 지침 로드 (index.json prompt보다 우선)
+        let promptText = sk.prompt || "";
+        if (sk.authorId === null) {
+          const baseRef = latestBaseSkills && latestBaseSkills.find(b => b.id === sk.id);
+          const slash = (baseRef || sk).slash;
+          try {
+            const res = await fetch(`./skills/${sk.id}-${slash.slice(1)}.md`, { cache: 'no-cache' });
+            if (res.ok) {
+              const md = await res.text();
+              // YAML frontmatter (--- ... ---) 제거
+              const body = md.replace(/^---[\s\S]*?---\s*\n/, "").trim();
+              if (body) promptText = body;
+            }
+          } catch {}
+        }
+
+        const copyText = (sk.slash || sk.name) + "\n\n" + promptText;
         const ok = await copyToClipboard(copyText);
         if (ok) {
           sk.usage = (sk.usage || 0) + 1;

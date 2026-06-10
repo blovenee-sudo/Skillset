@@ -1245,17 +1245,21 @@
           if (!pin) { toast("PIN을 입력해주세요"); $("inputAdminPin").focus(); return; }
           if (pin !== ADMIN_PIN) { toast("PIN이 올바르지 않습니다"); $("inputAdminPin").value = ""; $("inputAdminPin").focus(); return; }
           workspace = "admin";
-          const wsData = (await loadFromFs(workspace)) || parseStored(wsKey(workspace));
-          newState = wsData ? normalizeData(wsData) : defaultState();
+          const wsDataA = (await loadFromFs(workspace)) || parseStored(wsKey(workspace));
+          newState = wsDataA ? normalizeData(wsDataA) : defaultState();
+          // 첫 로그인이면 최신 기본 스킬로 세팅
+          if (!wsDataA && latestBaseSkills) newState.skills = latestBaseSkills.map(s => ({ ...s }));
           newState.session = { mode: "user", displayName: "관리자", admin: true, userId: "admin", workspace };
           msg = "관리자 로그인";
         } else {
           // ── 일반 사용자 로그인 ──
           if (!name) { toast("이름을 입력해주세요"); $("inputDisplayName").focus(); return; }
           workspace = $("inputWorkspace").value.trim() || name;
-          const wsData = (await loadFromFs(workspace)) || parseStored(wsKey(workspace));
-          newState = wsData ? normalizeData(wsData) : defaultState();
-          const uidUser = (wsData && wsData.session && wsData.session.userId) || state.session.userId || uid();
+          const wsDataB = (await loadFromFs(workspace)) || parseStored(wsKey(workspace));
+          newState = wsDataB ? normalizeData(wsDataB) : defaultState();
+          // 첫 로그인이면 최신 기본 스킬로 세팅
+          if (!wsDataB && latestBaseSkills) newState.skills = latestBaseSkills.map(s => ({ ...s }));
+          const uidUser = (wsDataB && wsDataB.session && wsDataB.session.userId) || state.session.userId || uid();
           newState.session = { mode: "user", displayName: name, admin: false, userId: uidUser, workspace };
           msg = `${name}님 로그인`;
         }
@@ -1452,23 +1456,15 @@
         state.skills = fresh;
         saveState(); renderSidebar();
       } else {
-        // 세션 로그인 중: 기본 스킬 동기화
-        const SYNC_FIELDS = ["name", "slash", "desc", "prompt", "category"];
+        // 세션 로그인 중: category만 조용히 동기화, 나머지 변경은 '업데이트 적용' 버튼으로
         let changed = false;
         state.skills.forEach(sk => {
-          if (sk.authorId !== null) return; // 사용자 스킬은 건드리지 않음
+          if (sk.authorId !== null) return;
           const base = fresh.find(b => b.id === sk.id);
-          if (!base) return;
-          if (!isAdmin() && !sk._editedFromBase) {
-            // 일반 사용자 & 미편집 기본 스킬 → 전체 필드 자동 동기화
-            SYNC_FIELDS.forEach(f => { if (sk[f] !== base[f]) { sk[f] = base[f]; changed = true; } });
-          } else {
-            // 관리자 또는 본인이 편집한 스킬 → category만 동기화, 나머지는 수동 적용
-            if (sk.category !== base.category) { sk.category = base.category; changed = true; }
-          }
+          if (base && sk.category !== base.category) { sk.category = base.category; changed = true; }
         });
         if (changed) { saveState(); renderSidebar(); }
-        if (isAdmin()) checkBaseSkillUpdates(fresh); // 관리자만 업데이트 알림 표시
+        checkBaseSkillUpdates(fresh);
       }
       // fetch 완료 후 상세 패널이 열려있으면 버튼 가시성 재평가
       if (selectedSkillId && $("detailPanel").classList.contains("open")) {

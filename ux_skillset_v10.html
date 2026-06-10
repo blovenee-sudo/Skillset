@@ -1239,9 +1239,6 @@
           return;
         }
 
-        // 폴더 미연결이면 자동 연결 시도 (최초 1회, 사용자 제스처 내에서 실행)
-        if (FS_SUPPORTED && !rootHandle) await connectFolder();
-
         // 워크스페이스 데이터 로드 (FS 우선 → localStorage fallback)
         const wsData = (await loadFromFs(workspace)) || parseStored(wsKey(workspace));
         const newState = wsData ? normalizeData(wsData) : defaultState();

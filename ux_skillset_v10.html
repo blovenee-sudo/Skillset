@@ -963,10 +963,12 @@
       $("detailAuthor").textContent = sk.authorName ? `작성자: ${sk.authorName}` : "";
       $("detailPrompt").value = sk.prompt || "";
 
-      // 편집/삭제 버튼: 기본 스킬은 관리자만, 사용자 스킬은 본인만
-      const canEdit = isLoggedIn() && (sk.authorId === null ? isAdmin() : sk.authorId === state.session.userId);
+      // 편집: 로그인 사용자 모두 가능 (기본 스킬 포함 — 본인 세션에만 저장됨)
+      // 삭제: 기본 스킬은 관리자만 / 사용자 스킬은 본인만
+      const canEdit = isLoggedIn();
+      const canDelete = isLoggedIn() && (sk.authorId === null ? isAdmin() : sk.authorId === state.session.userId);
       $("btnEditSkill").style.display = canEdit ? "inline-block" : "none";
-      $("btnDelSkill").style.display = canEdit ? "inline-block" : "none";
+      $("btnDelSkill").style.display = canDelete ? "inline-block" : "none";
 
       // 기본 스킬 전용 버튼 (상호 배타적)
       // - 업데이트 적용: 사용자가 수정 안 한 기본 스킬에 index.json 변경이 있을 때만
@@ -1104,8 +1106,6 @@
 
       $("btnEditSkill").addEventListener("click", () => {
         if (!selectedSkillId || !isLoggedIn()) return;
-        const sk = state.skills.find(s => s.id === selectedSkillId);
-        if (sk && sk.authorId === null && !isAdmin()) return; // 기본 스킬은 관리자만 편집
         openSkillModal(selectedSkillId);
       });
 

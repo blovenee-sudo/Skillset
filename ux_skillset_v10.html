@@ -290,7 +290,6 @@
       <div class="detail-actions">
         <code id="detailSlashBadge" style="font-family:ui-monospace,monospace;font-size:13px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--accent);align-self:center;white-space:nowrap"></code>
         <button type="button" class="copy-btn" id="btnCopy">스킬 복사</button>
-        <button type="button" class="btn-sm" id="btnQueueSkill" style="display:none" title="1 Turn에 최대 2개까지 선택해 묶어서 복사">+ 선택</button>
         <button type="button" class="btn-sm" id="btnEditSkill" style="display:none">스킬 편집</button>
         <button type="button" class="btn-sm" id="btnDelSkill" style="display:none;border-color:#7f1d1d;color:#fca5a5">스킬 삭제</button>
         <button type="button" class="btn-sm" id="detailUpdateBadge" style="display:none;color:#fb923c;border-color:#78350f" title="기본 스킬이 업데이트됐습니다. 클릭해 적용하세요">↑ 업데이트 적용</button>
@@ -330,14 +329,6 @@
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- 스킬 큐 바 (1 Turn 최대 2개 제한) -->
-  <div id="skillQueueBar" style="display:none;position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--accent);border-radius:10px;padding:8px 14px;flex-direction:row;align-items:center;gap:10px;z-index:300;box-shadow:0 4px 24px rgba(0,0,0,.5);white-space:nowrap">
-    <span style="font-size:11px;color:var(--muted)">선택된 스킬 (최대 2):</span>
-    <div id="skillQueueChips" style="display:flex;gap:6px"></div>
-    <button type="button" id="btnQueueCopy" class="btn-primary" style="font-size:12px;padding:4px 12px">묶어서 복사</button>
-    <button type="button" id="btnQueueClear" class="btn-sm" style="font-size:11px;padding:3px 8px;color:var(--muted)">초기화</button>
   </div>
 
   <!-- 스킬 modal -->
@@ -680,7 +671,7 @@
     let sidebarTab = state.sidebarTab || "skills";
     let selectedSkillId = null;
     let editingSkillId = null;
-    let skillQueue = []; // 1 Turn 선택 큐 (최대 2개)
+
     let dragSkillId = null;
     const collapsedGroups = new Set(state.collapsedGroups || []);
 
@@ -984,13 +975,6 @@
       $("btnEditSkill").style.display = canEdit ? "inline-block" : "none";
       $("btnDelSkill").style.display = canDelete ? "inline-block" : "none";
 
-      // 큐 버튼: 항상 표시, 큐 상태 반영
-      const inQueue = skillQueue.includes(skillId);
-      const qBtn = $("btnQueueSkill");
-      qBtn.style.display = "inline-block";
-      qBtn.textContent = inQueue ? "✓ 선택됨" : "+ 선택";
-      qBtn.style.color = inQueue ? "var(--accent)" : "";
-      qBtn.style.borderColor = inQueue ? "var(--accent)" : "";
 
       // 기본 스킬 전용 버튼 (상호 배타적)
       // - 업데이트 적용: 관리자 워크스페이스(또는 index.json) 기준으로 변경이 있을 때
@@ -1029,18 +1013,6 @@
       selectedSkillId = null;
     }
 
-    function renderSkillQueue() {
-      const bar = $("skillQueueBar");
-      const chips = $("skillQueueChips");
-      if (!skillQueue.length) { bar.style.display = "none"; return; }
-      bar.style.display = "flex";
-      chips.innerHTML = skillQueue.map(id => {
-        const sk = state.skills.find(s => s.id === id);
-        if (!sk) return "";
-        return `<span style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:11px;display:inline-flex;align-items:center;gap:4px">${sk.slash || sk.name}<button data-remove-id="${id}" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:0 0 0 2px;font-size:13px;line-height:1">×</button></span>`;
-      }).join("");
-      $("btnQueueCopy").textContent = `묶어서 복사 (${skillQueue.length})`;
-    }
 
     function openSkillModal(id) {
       editingSkillId = id;
@@ -1460,66 +1432,6 @@
         $("skPromptCounter").style.color = len > 1800 ? "#f87171" : "var(--muted)";
       });
 
-      // ── 스킬 큐 (1 Turn 최대 2개 제한) ──
-      $("btnQueueSkill").addEventListener("click", () => {
-        const id = selectedSkillId;
-        if (!id) return;
-        if (skillQueue.includes(id)) {
-          skillQueue = skillQueue.filter(s => s !== id);
-        } else {
-          if (skillQueue.length >= 2) { toast("1 Turn에 최대 2개 스킬까지 선택할 수 있습니다"); return; }
-          skillQueue.push(id);
-        }
-        renderSkillQueue();
-        openDetail(id);
-      });
-
-      $("skillQueueChips").addEventListener("click", e => {
-        const btn = e.target.closest("[data-remove-id]");
-        if (!btn) return;
-        skillQueue = skillQueue.filter(s => s !== btn.dataset.removeId);
-        renderSkillQueue();
-        if (selectedSkillId) openDetail(selectedSkillId);
-      });
-
-      $("btnQueueCopy").addEventListener("click", async () => {
-        if (!skillQueue.length) return;
-        const parts = [];
-        for (const id of skillQueue) {
-          const sk = state.skills.find(s => s.id === id);
-          if (!sk) continue;
-          let promptText = sk.prompt || "";
-          if (sk.authorId === null) {
-            const baseRef = latestBaseSkills && latestBaseSkills.find(b => b.id === sk.id);
-            const slash = (baseRef || sk).slash;
-            try {
-              const res = await fetch(`./skills/${sk.id}-${slash.slice(1)}.md`, { cache: 'no-cache' });
-              if (res.ok) {
-                const md = await res.text();
-                const body = md.replace(/^---[\s\S]*?---\s*\n/, "").trim();
-                if (body) promptText = body;
-              }
-            } catch {}
-          }
-          parts.push((sk.slash || sk.name) + "\n\n" + promptText);
-          sk.usage = (sk.usage || 0) + 1;
-        }
-        state.caseCount = (state.caseCount || 0) + skillQueue.length;
-        const ok = await copyToClipboard(parts.join("\n\n---\n\n"));
-        if (ok) {
-          saveState(); renderSidebar();
-          toast(`스킬 ${skillQueue.length}개 묶어서 복사됨 ✓`);
-          skillQueue = [];
-          renderSkillQueue();
-          if (selectedSkillId) openDetail(selectedSkillId);
-        }
-      });
-
-      $("btnQueueClear").addEventListener("click", () => {
-        skillQueue = [];
-        renderSkillQueue();
-        if (selectedSkillId) openDetail(selectedSkillId);
-      });
     }
 
     init();

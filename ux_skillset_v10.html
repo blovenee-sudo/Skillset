@@ -300,6 +300,9 @@
         <code id="copyHintSlash" style="font-size:11px;color:var(--accent);background:var(--bg);padding:1px 5px;border-radius:3px"></code>
         명령어만 입력해도 이 지침이 즉시 실행됩니다.
       </div>
+      <div id="reportBadge" style="display:none;margin-top:6px;padding:7px 10px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:6px;font-size:11px;color:#818cf8;align-items:center;gap:6px">
+        📄 <span>리포트 제공 ON — 복사 시 HTML 리포트 생성 지침이 자동 추가됩니다</span>
+      </div>
     </div>
   </div>
 
@@ -346,6 +349,10 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px;margin-bottom:6px">
         <span style="font-size:11px;color:var(--muted)">💡 예시(Few-shot) 최대 2개 · 확인 멘트('알겠습니다' 등) 생략 권장</span>
         <span id="skPromptCounter" style="font-size:11px;color:var(--muted);flex-shrink:0;margin-left:8px">0 / 2,000자</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 0 6px;border-top:1px solid var(--border)">
+        <input type="checkbox" id="skReportEnabled" style="accent-color:#6366f1;width:15px;height:15px;cursor:pointer;flex-shrink:0" />
+        <label for="skReportEnabled" style="font-size:12px;color:var(--text);cursor:pointer;line-height:1.4;user-select:none">📄 <strong>리포트 제공</strong> — 복사 시 HTML 리포트 생성 지침 자동 포함</label>
       </div>
       <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
         <button type="button" class="btn-sm" id="btnSkillDelete" style="display:none;border-color:#7f1d1d;color:#fca5a5">스킬 완전 삭제</button>
@@ -417,6 +424,13 @@
       "- 본 답변의 **기획·정리 산출물**은 기본적으로 **마크다운(GFM)** 형식으로 작성한다.\n" +
       "- `#`~`###` 제목, 불릿/번호 목록, 표, ` ``` ` 코드펜스(Mermaid 포함)를 적극 활용한다.\n" +
       "- 한 파일로보낼 수 있게 구조화한다.\n";
+
+    const REPORT_COPY_INSTRUCTION =
+      "\n\n---\n결과 출력 후, 동일 내용을 담은 완성된 HTML 파일을 코드블록으로 출력하세요." +
+      "\n스타일: 배경 #0f1117 · 카드 #1a1d2e · 포인트 #6366f1 · 텍스트 #e2e8f0" +
+      "\n구성: 상단 헤더(스킬명·날짜·카테고리 배지) → 섹션별 카드 → 하단 인쇄 버튼" +
+      "\n인쇄 버튼: <button onclick=\"window.print()\">🖨️ 인쇄/PDF 저장</button>" +
+      "\n조건: 외부 라이브러리 없는 단독 실행 HTML (CSS 인라인, skill_report_template.html 디자인 참고)";
 
     function hasMarkdownDirective(text) {
       return typeof text === "string" && (
@@ -967,6 +981,7 @@
       $("detailTitle").textContent = sk.name;
       $("detailAuthor").textContent = sk.authorName ? `작성자: ${sk.authorName}` : "";
       $("detailPrompt").value = sk.prompt || "";
+      $("reportBadge").style.display = (sk.reportEnabled !== false) ? "flex" : "none";
 
       // 편집: 로그인 사용자 모두 가능 (기본 스킬 포함 — 본인 세션에만 저장됨)
       // 삭제: 기본 스킬은 관리자만 / 사용자 스킬은 본인만
@@ -1028,6 +1043,7 @@
       const initLen = $("skPrompt").value.length;
       $("skPromptCounter").textContent = `${initLen} / 2,000자`;
       $("skPromptCounter").style.color = initLen > 1800 ? "#f87171" : "var(--muted)";
+      $("skReportEnabled").checked = sk ? (sk.reportEnabled !== false) : true;
       $("btnSkillDelete").style.display = sk ? "inline-block" : "none";
       $("modalSkill").classList.add("open");
     }
@@ -1101,6 +1117,7 @@
           } catch {}
         }
 
+        if (sk.reportEnabled !== false) promptText += REPORT_COPY_INSTRUCTION;
         const copyText = (sk.slash || sk.name) + "\n\n" + promptText;
         const ok = await copyToClipboard(copyText);
         if (ok) {
@@ -1331,6 +1348,7 @@
           const prev = { name: sk.name, slash: sk.slash, desc: sk.desc, prompt: sk.prompt };
           sk.name = name; sk.slash = slash; sk.desc = desc;
           sk.prompt = prompt;
+          sk.reportEnabled = $("skReportEnabled").checked;
           if (sk.authorId === null) sk._editedFromBase = true; // 기본 스킬 편집 표시
           // 사용자 스킬이면 MD 파일도 업데이트
           if (sk.authorId !== null && FS_SUPPORTED && rootHandle) saveSkillMdToFs(sk).catch(() => {});
@@ -1352,6 +1370,7 @@
             authorId: isAdmin() ? null : (state.session.userId || null),
             authorName: isAdmin() ? "" : (state.session.displayName || ""),
             usage: 0,
+            reportEnabled: $("skReportEnabled").checked,
           };
           state.skills.unshift(newSkill);
           // FS 연결된 경우 사용자 스킬 MD 파일 저장

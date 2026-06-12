@@ -6,19 +6,72 @@
   <title>AX 스킬셋 분석 리포트</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ─── Theme tokens ─── */
+    :root {
+      --bg:       #0f1117;
+      --card:     #1a1d2e;
+      --card2:    #12151f;
+      --border:   #2d2f3e;
+      --border2:  #23263a;
+      --text:     #e2e8f0;
+      --text2:    #cbd5e1;
+      --text3:    #94a3b8;
+      --muted:    #475569;
+      --accent:   #6366f1;
+      --accent2:  #818cf8;
+      --spec-body:#94a3b8;
+    }
+    html.light {
+      --bg:       #f8fafc;
+      --card:     #ffffff;
+      --card2:    #f1f5f9;
+      --border:   #e2e8f0;
+      --border2:  #e2e8f0;
+      --text:     #111827;
+      --text2:    #374151;
+      --text3:    #6b7280;
+      --muted:    #9ca3af;
+      --accent:   #4f46e5;
+      --accent2:  #6366f1;
+      --spec-body:#4b5563;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
-      background: #0f1117;
-      color: #e2e8f0;
+      background: var(--bg);
+      color: var(--text);
       line-height: 1.65;
       padding: 48px 20px 64px;
+      transition: background .2s, color .2s;
     }
     .report-wrapper { max-width: 860px; margin: 0 auto; }
 
+    /* ─── Theme toggle button ─── */
+    .theme-toggle {
+      position: fixed;
+      top: 16px;
+      right: 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 100;
+      transition: background .2s, border-color .2s;
+    }
+    .theme-toggle:hover { border-color: var(--accent2); color: var(--accent2); }
+
     /* ─── Header ─── */
     .report-header {
-      background: #1a1d2e;
-      border: 1px solid #2d2f3e;
+      background: var(--card);
+      border: 1px solid var(--border);
       border-radius: 14px;
       padding: 32px 36px;
       margin-bottom: 20px;
@@ -26,30 +79,25 @@
       justify-content: space-between;
       align-items: flex-start;
       gap: 16px;
+      transition: background .2s, border-color .2s;
     }
     .header-left .logo {
       font-size: 10px;
       font-weight: 800;
       letter-spacing: 2.5px;
-      color: #6366f1;
+      color: var(--accent);
       text-transform: uppercase;
       margin-bottom: 10px;
     }
     .header-left h1 {
       font-size: 26px;
       font-weight: 700;
-      color: #f1f5f9;
+      color: var(--text);
       line-height: 1.3;
       margin-bottom: 6px;
     }
-    .header-left .subtitle {
-      font-size: 13px;
-      color: #64748b;
-    }
-    .header-right {
-      text-align: right;
-      flex-shrink: 0;
-    }
+    .header-left .subtitle { font-size: 13px; color: var(--muted); }
+    .header-right { text-align: right; flex-shrink: 0; }
     .badge {
       display: inline-block;
       padding: 5px 13px;
@@ -59,71 +107,62 @@
       letter-spacing: 1px;
       text-transform: uppercase;
     }
-    .badge-analysis { background: rgba(99,102,241,.15); color: #818cf8; border: 1px solid rgba(99,102,241,.3); }
+    .badge-analysis { background: rgba(99,102,241,.15); color: var(--accent2); border: 1px solid rgba(99,102,241,.3); }
     .badge-planning  { background: rgba(16,185,129,.12);  color: #34d399; border: 1px solid rgba(16,185,129,.25); }
     .badge-common    { background: rgba(245,158,11,.12);  color: #fbbf24; border: 1px solid rgba(245,158,11,.25); }
-    .report-date { font-size: 12px; color: #475569; margin-top: 8px; }
+    .report-date { font-size: 12px; color: var(--muted); margin-top: 8px; }
 
     /* ─── Section Card ─── */
     .section-card {
-      background: #1a1d2e;
-      border: 1px solid #2d2f3e;
+      background: var(--card);
+      border: 1px solid var(--border);
       border-radius: 14px;
       padding: 28px 32px;
       margin-bottom: 16px;
+      transition: background .2s, border-color .2s;
     }
     .section-title {
       font-size: 14px;
       font-weight: 700;
-      color: #818cf8;
+      color: var(--accent2);
       margin-bottom: 20px;
       padding-bottom: 14px;
-      border-bottom: 1px solid #2d2f3e;
+      border-bottom: 1px solid var(--border);
     }
 
     /* ─── Summary Grid ─── */
-    .summary-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
+    .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     @media (max-width: 540px) { .summary-grid { grid-template-columns: 1fr; } }
     .summary-item {
-      background: #12151f;
-      border: 1px solid #2d2f3e;
+      background: var(--card2);
+      border: 1px solid var(--border);
       border-radius: 10px;
       padding: 14px 16px;
+      transition: background .2s;
     }
     .summary-label {
       font-size: 10px;
       font-weight: 700;
-      color: #475569;
+      color: var(--muted);
       text-transform: uppercase;
       letter-spacing: 0.8px;
       margin-bottom: 5px;
     }
-    .summary-value { font-size: 13px; color: #cbd5e1; }
+    .summary-value { font-size: 13px; color: var(--text2); }
 
     /* ─── Spec List ─── */
-    .spec-item { padding: 16px 0; border-bottom: 1px solid #23263a; }
+    .spec-item { padding: 16px 0; border-bottom: 1px solid var(--border2); }
     .spec-item:last-child { border-bottom: none; padding-bottom: 0; }
-    .spec-item-title { font-size: 14px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
-    .spec-item-body  { font-size: 13px; color: #94a3b8; line-height: 1.75; }
-    .tag {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600;
-      margin: 2px 4px 2px 0;
-    }
+    .spec-item-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .spec-item-body  { font-size: 13px; color: var(--spec-body); line-height: 1.75; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin: 2px 4px 2px 0; }
     .tag-estimate { background: rgba(245,158,11,.12); color: #fbbf24; border: 1px solid rgba(245,158,11,.2); }
 
     /* ─── Table ─── */
     .styled-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .styled-table th {
-      background: #12151f;
-      color: #475569;
+      background: var(--card2);
+      color: var(--muted);
       font-weight: 700;
       padding: 10px 14px;
       text-align: left;
@@ -135,11 +174,11 @@
     .styled-table th:last-child  { border-radius: 0 6px 6px 0; }
     .styled-table td {
       padding: 13px 14px;
-      color: #cbd5e1;
-      border-top: 1px solid #23263a;
+      color: var(--text2);
+      border-top: 1px solid var(--border2);
       vertical-align: top;
     }
-    .styled-table tr:hover td { background: rgba(255,255,255,.015); }
+    .styled-table tr:hover td { background: rgba(128,128,128,.04); }
 
     /* ─── Checklist ─── */
     .checklist-item {
@@ -147,9 +186,9 @@
       align-items: flex-start;
       gap: 12px;
       padding: 12px 0;
-      border-bottom: 1px solid #23263a;
+      border-bottom: 1px solid var(--border2);
       font-size: 13px;
-      color: #cbd5e1;
+      color: var(--text2);
       line-height: 1.6;
     }
     .checklist-item:last-child { border-bottom: none; padding-bottom: 0; }
@@ -159,37 +198,33 @@
     .status-pass { color: #10b981; }
     .status-warn { color: #f59e0b; }
     .status-fail { color: #ef4444; }
-    .status-open { color: #6366f1; }
+    .status-open { color: var(--accent2); }
 
-    /* ─── Insights List (for benchmarking etc.) ─── */
+    /* ─── Insights List ─── */
     .insight-item {
       display: flex;
       gap: 14px;
       padding: 14px 0;
-      border-bottom: 1px solid #23263a;
+      border-bottom: 1px solid var(--border2);
       align-items: flex-start;
     }
     .insight-item:last-child { border-bottom: none; }
     .insight-num {
-      width: 26px;
-      height: 26px;
+      width: 26px; height: 26px;
       border-radius: 50%;
       background: rgba(99,102,241,.15);
-      color: #818cf8;
-      font-size: 12px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      color: var(--accent2);
+      font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
     }
-    .insight-body { font-size: 13px; color: #cbd5e1; line-height: 1.7; }
-    .insight-body strong { color: #f1f5f9; display: block; margin-bottom: 3px; }
+    .insight-body { font-size: 13px; color: var(--text2); line-height: 1.7; }
+    .insight-body strong { color: var(--text); display: block; margin-bottom: 3px; }
 
     /* ─── Print Button ─── */
     .print-bar { text-align: center; padding: 36px 0 4px; }
     .btn-print {
-      background: #6366f1;
+      background: var(--accent);
       color: #fff;
       border: none;
       border-radius: 10px;
@@ -204,22 +239,13 @@
 
     /* ─── Print ─── */
     @media print {
-      body { background: #fff; color: #1a202c; padding: 0; }
-      .report-header, .section-card { background: #f8fafc; border-color: #e2e8f0; }
-      .header-left .logo { color: #4f46e5; }
-      .section-title { color: #4f46e5; border-color: #e2e8f0; }
-      .summary-item { background: #f1f5f9; border-color: #e2e8f0; }
-      .summary-label { color: #64748b; }
-      .summary-value, .spec-item-body, .checklist-item, .insight-body { color: #374151; }
-      .spec-item-title, .header-left h1 { color: #111827; }
-      .header-left .subtitle, .report-date { color: #6b7280; }
-      .styled-table th { background: #f1f5f9; color: #6b7280; }
-      .styled-table td { color: #374151; border-color: #e2e8f0; }
-      .print-bar { display: none; }
+      .theme-toggle, .print-bar { display: none; }
     }
   </style>
 </head>
 <body>
+  <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">☀️ 라이트 모드</button>
+
   <div class="report-wrapper">
 
     <!-- HEADER -->
@@ -351,5 +377,17 @@
     </div>
 
   </div>
+
+  <script>
+    const btn = document.getElementById('themeToggle');
+    const saved = localStorage.getItem('ax-report-theme');
+    if (saved === 'light') { document.documentElement.classList.add('light'); btn.textContent = '🌙 다크 모드'; }
+
+    function toggleTheme() {
+      const isLight = document.documentElement.classList.toggle('light');
+      btn.textContent = isLight ? '🌙 다크 모드' : '☀️ 라이트 모드';
+      localStorage.setItem('ax-report-theme', isLight ? 'light' : 'dark');
+    }
+  </script>
 </body>
 </html>

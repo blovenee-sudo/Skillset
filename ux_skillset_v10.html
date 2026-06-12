@@ -300,8 +300,9 @@
         <code id="copyHintSlash" style="font-size:11px;color:var(--accent);background:var(--bg);padding:1px 5px;border-radius:3px"></code>
         명령어만 입력해도 이 지침이 즉시 실행됩니다.
       </div>
-      <div id="reportBadge" style="display:none;margin-top:6px;padding:7px 10px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:6px;font-size:11px;color:#818cf8;align-items:center;gap:6px">
-        📄 <span>리포트 제공 ON — 복사 시 HTML 리포트 생성 지침이 자동 추가됩니다</span>
+      <div id="reportToggleRow" style="display:none;margin-top:6px;padding:7px 10px;background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.15);border-radius:6px;font-size:12px;align-items:center;gap:8px">
+        <input type="checkbox" id="detailReportEnabled" style="accent-color:#6366f1;width:14px;height:14px;cursor:pointer;flex-shrink:0" />
+        <label for="detailReportEnabled" style="cursor:pointer;line-height:1.4;user-select:none;color:var(--muted)">📄 <strong style="color:var(--text)">리포트 제공</strong> — 체크 후 복사 시 HTML 리포트 생성 지침 자동 포함</label>
       </div>
     </div>
   </div>
@@ -981,7 +982,8 @@
       $("detailTitle").textContent = sk.name;
       $("detailAuthor").textContent = sk.authorName ? `작성자: ${sk.authorName}` : "";
       $("detailPrompt").value = sk.prompt || "";
-      $("reportBadge").style.display = (sk.reportEnabled !== false) ? "flex" : "none";
+      $("reportToggleRow").style.display = "flex";
+      $("detailReportEnabled").checked = sk.reportEnabled !== false;
 
       // 편집: 로그인 사용자 모두 가능 (기본 스킬 포함 — 본인 세션에만 저장됨)
       // 삭제: 기본 스킬은 관리자만 / 사용자 스킬은 본인만
@@ -1097,6 +1099,13 @@
       $("btnCloseDetail").addEventListener("click", closeDetail);
       $("detailBackdrop").addEventListener("click", closeDetail);
 
+      $("detailReportEnabled").addEventListener("change", () => {
+        const sk = selectedSkillId ? state.skills.find(s => s.id === selectedSkillId) : null;
+        if (!sk) return;
+        sk.reportEnabled = $("detailReportEnabled").checked;
+        saveState();
+      });
+
       $("btnCopy").addEventListener("click", async () => {
         const sk = selectedSkillId ? state.skills.find(s => s.id === selectedSkillId) : null;
         if (!sk) return;
@@ -1117,7 +1126,7 @@
           } catch {}
         }
 
-        if (sk.reportEnabled !== false) promptText += REPORT_COPY_INSTRUCTION;
+        if ($("detailReportEnabled").checked) promptText += REPORT_COPY_INSTRUCTION;
         const copyText = (sk.slash || sk.name) + "\n\n" + promptText;
         const ok = await copyToClipboard(copyText);
         if (ok) {

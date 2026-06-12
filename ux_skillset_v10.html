@@ -654,6 +654,29 @@
       } catch {}
     }
 
+    // 관리자가 기본 스킬 편집 시 skills/{id}-{slash}.md 파일에 직접 저장
+    async function saveBaseSkillMdToFs(sk) {
+      if (!sk || !sk.slash || !rootHandle) return;
+      const filename = `${sk.id}-${sk.slash.slice(1)}.md`;
+      const content = [
+        `---`,
+        `id: ${sk.id}`,
+        `name: ${sk.name}`,
+        `slash: ${sk.slash}`,
+        `desc: ${sk.desc || ""}`,
+        `category: ${sk.category || ""}`,
+        `---`,
+        ``,
+        sk.prompt || "",
+      ].join("\n");
+      try {
+        const fh = await rootHandle.getFileHandle(filename, { create: true });
+        const w  = await fh.createWritable();
+        await w.write(content); await w.close();
+        toast("💾 기본 스킬 MD 저장됨 — git push 후 다른 사용자에게 반영됩니다");
+      } catch {}
+    }
+
     function loadState() {
       const base = parseStored(STORAGE_KEY) || defaultState();
       // 마지막 워크스페이스 세션이 있으면 해당 워크스페이스 데이터 복원
@@ -1361,6 +1384,12 @@
           if (sk.authorId === null) sk._editedFromBase = true; // 기본 스킬 편집 표시
           // 사용자 스킬이면 MD 파일도 업데이트
           if (sk.authorId !== null && FS_SUPPORTED && rootHandle) saveSkillMdToFs(sk).catch(() => {});
+          // 관리자가 기본 스킬 편집: latestBaseSkills 인메모리 즉시 반영 + FS 연결 시 MD 파일 저장
+          if (sk.authorId === null && isAdmin()) {
+            const ref = latestBaseSkills && latestBaseSkills.find(b => b.id === sk.id);
+            if (ref) { ref.name = name; ref.slash = slash; ref.desc = desc; ref.prompt = prompt; }
+            if (FS_SUPPORTED && rootHandle) saveBaseSkillMdToFs(sk).catch(() => {});
+          }
           // 편집 LLM 팝업 내용 구성
           llmLines.push(`아래 내용으로 슬래시 명령어 스킬을 수정해주세요.`);
           llmLines.push(``);
@@ -1473,19 +1502,9 @@
 
     let latestBaseSkills = null; // skills/index.json 의 최신 기본 스킬 (비교·초기화 용)
 
-    // 실효 기본 스킬 참조: 관리자 워크스페이스 localStorage > index.json fetch 순으로 우선
-    // 관리자가 앱 내에서 편집·저장한 기본 스킬이 최신 default가 됨
+    // 기본 스킬 참조: GitHub MD 파일이 소스 오브 트루스
+    // enrichBaseSkillsFromMd()가 latestBaseSkills.prompt를 MD 내용으로 채운 후 호출됨
     function getEffectiveBaseSkills() {
-      const adminRaw = localStorage.getItem(wsKey("admin"));
-      if (adminRaw) {
-        try {
-          const adminData = JSON.parse(adminRaw);
-          if (adminData && Array.isArray(adminData.skills)) {
-            const adminBase = adminData.skills.filter(s => s.authorId === null);
-            if (adminBase.length > 0) return adminBase;
-          }
-        } catch {}
-      }
       return latestBaseSkills || [];
     }
 
@@ -1499,6 +1518,22 @@
         latestBaseSkills = skills; // 항상 최신 보관
         return skills;
       } catch { return null; }
+    }
+
+    // 각 기본 스킬의 MD 파일을 fetch해 latestBaseSkills.prompt를 실제 파일 내용으로 보강
+    // GitHub MD 파일이 소스 오브 트루스 — index.json prompt 필드보다 우선
+    async function enrichBaseSkillsFromMd(skills) {
+      if (!skills || !skills.length) return;
+      await Promise.all(skills.map(async sk => {
+        if (sk.authorId !== null) return;
+        try {
+          const res = await fetch(`./skills/${sk.id}-${sk.slash.slice(1)}.md`, { cache: 'no-cache' });
+          if (!res.ok) return;
+          const md = await res.text();
+          const body = md.replace(/^---[\s\S]*?---\s*\n/, "").trim();
+          if (body) sk.prompt = body;
+        } catch {}
+      }));
     }
 
     // 기본 스킬 업데이트 확인 — 감지 및 알림만, 실제 적용은 스킬 상세 버튼으로
@@ -1516,20 +1551,23 @@
     $("btnRefreshSkills").addEventListener("click", async () => {
       const fresh = await tryFetchSkills();
       if (!fresh) { toast("skills/index.json 로드 실패 — 로컬 서버 확인"); return; }
+      await enrichBaseSkillsFromMd(latestBaseSkills);
+      const base = latestBaseSkills || fresh;
       const userSkills = state.skills.filter(s => s.authorId);
-      const freshIds = new Set(fresh.map(s => s.id));
-      const preserved = userSkills.filter(s => !freshIds.has(s.id));
-      state.skills = [...fresh, ...preserved];
+      const baseIds = new Set(base.map(s => s.id));
+      const preserved = userSkills.filter(s => !baseIds.has(s.id));
+      state.skills = [...base, ...preserved];
       saveState(); renderSidebar();
-      toast(`기본 스킬 ${fresh.length}개 업데이트 완료`);
+      toast(`기본 스킬 ${base.length}개 업데이트 완료`);
     });
 
-    tryFetchSkills().then(fresh => {
+    tryFetchSkills().then(async fresh => {
       if (!fresh) return;
-      // 실효 기본 스킬: 관리자 워크스페이스 우선, 없으면 index.json
+      // MD 파일 내용으로 latestBaseSkills.prompt 보강 (GitHub MD 파일이 소스 오브 트루스)
+      await enrichBaseSkillsFromMd(latestBaseSkills);
       const effective = getEffectiveBaseSkills();
       if (!isLoggedIn()) {
-        // 비로그인: 관리자가 편집한 최신 기본 스킬 상태로 표시
+        // 비로그인: 최신 MD 기반 기본 스킬 표시
         state.skills = effective.length ? effective : fresh;
         saveState(); renderSidebar();
       } else {

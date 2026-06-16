@@ -1053,7 +1053,12 @@
       $("btnResetSkill").style.display =
         (isLoggedIn() && !isAdmin() && isBaseSkill && userEdited && !hasUpstreamUpdate) ? "inline-block" : "none";
 
-      // 기본 스킬이면 MD 파일 자동 로드해 가이드+지침 통합 표시
+      // 기본 스킬: latestBaseSkills 최신 prompt 즉시 표시 (enrichBaseSkillsFromMd 완료 상태)
+      if (isBaseSkill && baseRef && baseRef.prompt) {
+        $("detailPrompt").value = formatMdForDisplay(baseRef.prompt);
+      }
+
+      // 네트워크에서 최신 MD fetch → 위 표시 위에 덮어쓰기 (앱 장시간 실행 시 갱신 대비)
       if (isBaseSkill) {
         const slash = (baseRef || sk).slash;
         fetch(`./skills/${sk.id}-${slash.slice(1)}.md`, { cache: 'no-cache' })

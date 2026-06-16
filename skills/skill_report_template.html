@@ -405,6 +405,7 @@
     <!-- SAVE BAR -->
     <div class="save-bar">
       <select id="saveFormat" class="save-select">
+        <option value="html">💾 HTML 저장</option>
         <option value="print">🖨️ 인쇄</option>
         <option value="pdf">📄 PDF 저장</option>
         <option value="md">📝 MD 저장</option>
@@ -432,6 +433,20 @@
     /* ─── Save / Export ─── */
     function saveReport() {
       const format = document.getElementById('saveFormat').value;
+      const title = document.querySelector('.report-header h1')?.textContent?.trim() || '리포트';
+      const slug = title.replace(/[\s·\/]+/g, '_');
+      if (format === 'html') {
+        const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${slug}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        return;
+      }
       if (format === 'print' || format === 'pdf') {
         window.print();
       } else if (format === 'md') {

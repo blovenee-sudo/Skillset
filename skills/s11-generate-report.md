@@ -184,6 +184,7 @@ CSS·JavaScript·클래스명은 절대 수정하지 않습니다.
   <!-- SAVE BAR: 수정 금지 -->
   <div class="save-bar">
     <select id="saveFormat" class="save-select">
+      <option value="html">💾 HTML 저장</option>
       <option value="print">🖨️ 인쇄</option>
       <option value="pdf">📄 PDF 저장</option>
       <option value="md">📝 MD 저장</option>
@@ -206,9 +207,17 @@ function toggleTheme(){
 /* Save / Export — 수정 금지 */
 function saveReport(){
   const f=document.getElementById('saveFormat').value;
+  const title=document.querySelector('.report-header h1')?.textContent?.trim()||'리포트';
+  const slug=title.replace(/[\s·\/]+/g,'_');
+  if(f==='html'){
+    const html='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+    const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${slug}.html`;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
+    return;
+  }
   if(f==='print'||f==='pdf'){window.print();return;}
   const lines=[];
-  const title=document.querySelector('.report-header h1')?.textContent?.trim()||'리포트';
   const subtitle=document.querySelector('.subtitle')?.textContent?.trim()||'';
   const badge=document.querySelector('.badge')?.textContent?.trim()||'';
   const date=document.querySelector('.report-date')?.textContent?.trim()||'';
@@ -256,7 +265,6 @@ function saveReport(){
     lines.push('');
   });
   const md=lines.join('\n').replace(/\n{3,}/g,'\n\n');
-  const slug=title.replace(/[\s·\/]+/g,'_');
   const blob=new Blob([md],{type:'text/markdown;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${slug}.md`;
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);

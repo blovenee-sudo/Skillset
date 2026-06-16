@@ -426,18 +426,33 @@
       "- `#`~`###` 제목, 불릿/번호 목록, 표, ` ``` ` 코드펜스(Mermaid 포함)를 적극 활용한다.\n" +
       "- 한 파일로보낼 수 있게 구조화한다.\n";
 
-    // 리포트 지침은 skills/report-instructions.md 에서 동적 로드 (캐시)
-    let _reportInstructionCache = null;
-    async function getReportInstruction() {
-      if (_reportInstructionCache) return _reportInstructionCache;
-      try {
-        const res = await fetch('./skills/report-instructions.md', { cache: 'no-cache' });
-        if (res.ok) {
-          const md = await res.text();
-          _reportInstructionCache = "\n\n" + md.replace(/^---[\s\S]*?---\s*\n/, "").trim();
-        }
-      } catch {}
-      return _reportInstructionCache || "\n\n---\n결과 출력 후, 동일 내용을 담은 완성된 HTML 파일을 코드블록으로 출력하세요.\n기준 템플릿: skill_report_template.html";
+    // /generate-report 스킬 존재 여부 확인
+    function hasReportSkill() {
+      return state.skills.some(s => s.slash === '/generate-report');
+    }
+
+    // latestBaseSkills에서 /generate-report 스킬을 찾아 현재 워크스페이스에 추가
+    function addReportSkillFromBase() {
+      const base = latestBaseSkills && latestBaseSkills.find(s => s.slash === '/generate-report');
+      if (base) {
+        state.skills.push({ ...base });
+        saveState(); renderSidebar();
+        toast("/generate-report 스킬이 추가됐습니다 ✓");
+      } else {
+        toast("스킬 데이터를 불러올 수 없습니다 — 새로고침 후 다시 시도하세요");
+      }
+    }
+
+    // 리포트 스킬 미존재 시 안내 (confirm 다이얼로그)
+    function showReportSkillPrompt() {
+      const added = confirm(
+        "/generate-report 스킬이 없습니다.\n\n" +
+        "이 스킬은 분석 결과를 HTML 리포트로 변환합니다.\n" +
+        "(인쇄·PDF·MD 저장 버튼 + 라이트/다크 테마 포함)\n\n" +
+        "지금 추가하시겠습니까?"
+      );
+      if (added) addReportSkillFromBase();
+      else toast("복사됨 ✓ — /generate-report 스킬을 추가하면 HTML 리포트를 생성할 수 있습니다");
     }
 
     function hasMarkdownDirective(text) {
@@ -1156,7 +1171,6 @@
           } catch {}
         }
 
-        if ($("detailReportEnabled").checked) promptText += await getReportInstruction();
         const copyText = (sk.slash || sk.name) + "\n\n" + promptText;
         const ok = await copyToClipboard(copyText);
         if (ok) {
@@ -1164,7 +1178,16 @@
           state.caseCount = (state.caseCount || 0) + 1;
           saveState();
           renderSidebar();
-          toast("스킬 복사됨 ✓");
+          // 리포트 제공 체크 시 2단계 안내
+          if ($("detailReportEnabled").checked && sk.slash !== '/generate-report') {
+            if (hasReportSkill()) {
+              toast("복사됨 ✓ — 결과 출력 후 /generate-report 스킬을 이어서 붙여넣어 HTML 리포트를 생성하세요");
+            } else {
+              showReportSkillPrompt();
+            }
+          } else {
+            toast("스킬 복사됨 ✓");
+          }
           // Claude Code·Cursor·Copilot 안내 표시
           $("copyHintSlash").textContent = sk.slash || sk.name;
           $("copyHint").style.display = "block";
@@ -1585,6 +1608,13 @@
           const base = effective.find(b => b.id === sk.id);
           if (base && sk.category !== base.category) { sk.category = base.category; changed = true; }
         });
+        // 기존 워크스페이스에 없는 새 기본 스킬 자동 추가 (예: /generate-report)
+        const existingIds = new Set(state.skills.map(s => s.id));
+        const newBase = effective.filter(s => !existingIds.has(s.id));
+        if (newBase.length > 0) {
+          state.skills.push(...newBase.map(s => ({ ...s })));
+          changed = true;
+        }
         if (changed) { saveState(); renderSidebar(); }
         checkBaseSkillUpdates(effective);
       }

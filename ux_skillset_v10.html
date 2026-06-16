@@ -1017,7 +1017,15 @@
       });
     }
 
+    function formatMdForDisplay(mdText) {
+      let body = mdText.replace(/^---[\s\S]*?---\s*\n/, "").trim();
+      body = body.replace(/---\s*\n<!--[^>]*-->\s*\n/g,
+        "\n\n━━━━━━━━━━ 지침 내용 ━━━━━━━━━━\n\n");
+      return body;
+    }
+
     function openDetail(skillId) {
+      try {
       const sk = state.skills.find(s => s.id === skillId);
       if (!sk) return;
       selectedSkillId = skillId;
@@ -1072,6 +1080,10 @@
 
       $("detailPanel").classList.add("open");
       $("detailBackdrop").classList.add("open");
+      } catch (e) {
+        console.error("openDetail error:", e);
+        toast("스킬 패널 오류: " + e.message);
+      }
     }
 
     function closeDetail() {
@@ -1176,10 +1188,13 @@
           } catch {}
         }
 
-        // /generate-report: skill_report_template.html을 동적으로 첨부
+        // /generate-report: GitHub raw에서 skill_report_template.html 동적 첨부
         if (sk.slash === '/generate-report') {
           try {
-            const res = await fetch('./skills/skill_report_template.html', { cache: 'no-cache' });
+            const res = await fetch(
+              'https://raw.githubusercontent.com/blovenee-sudo/Skillset/main/skills/skill_report_template.html',
+              { cache: 'no-cache' }
+            );
             if (res.ok) {
               const html = await res.text();
               promptText += '\n\n```html\n' + html + '\n```';
@@ -1259,15 +1274,7 @@
           "기본값으로 초기화됐습니다"
         );
       });
-      // formatMdForDisplay: frontmatter 제거 + AI 지침 구분선 삽입
-      function formatMdForDisplay(mdText) {
-        // YAML frontmatter (--- ... ---) 제거
-        let body = mdText.replace(/^---[\s\S]*?---\s*\n/, "").trim();
-        // AI INSTRUCTIONS 구분선을 시각적 섹션 타이틀로 교체
-        body = body.replace(/---\s*\n<!--[^>]*-->\s*\n/g,
-          "\n\n━━━━━━━━━━ 지침 내용 ━━━━━━━━━━\n\n");
-        return body;
-      }
+
 
       $("btnDelSkill").addEventListener("click", () => {
         if (!isLoggedIn()) return;

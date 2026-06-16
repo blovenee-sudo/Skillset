@@ -6,19 +6,20 @@ desc: 이전 분석 결과를 HTML 리포트 파일로 변환
 category: 공통
 ---
 
-이전 분석 결과 전체를 아래 HTML 템플릿 기반 리포트로 변환해 코드블록으로 출력하세요.
+이전 분석 결과 전체를 HTML 리포트로 변환합니다.
+
+아래 GitHub 경로에서 HTML 템플릿 파일을 불러와 베이스 구조로 사용하세요:
+`https://raw.githubusercontent.com/blovenee-sudo/Skillset/main/skills/skill_report_template.html`
 
 변환 규칙:
-1. `<style>`·`<script>` 블록은 한 글자도 수정하지 않습니다.
-2. 이전 분석의 **모든 섹션과 내용을 빠짐없이** 포함합니다. 요약·생략하지 않습니다.
-3. 분석 결과의 섹션마다 `.section-card`를 하나씩 추가합니다. 섹션 수는 분석 결과를 따릅니다.
-4. 각 콘텐츠 유형에 맞는 요소를 선택합니다:
-   - 핵심 요약 4개 내외 → `.summary-grid > .summary-item`
-   - 항목별 제목+본문 → `.spec-item`
-   - 표 형식 → `.styled-table`
-   - 체크리스트 → `.checklist-item` (✅⚠️❌🔲)
-   - 번호 인사이트 → `.insight-item`
-   - 서술·목록 → `<p>` / `<ul><li>`
-5. 헤더의 프로젝트명·스킬명·날짜·카테고리는 이전 분석 맥락에서 추출합니다.
+1. `<style>`·`<script>` 블록은 수정하지 않습니다.
+2. 이전 분석의 **모든 섹션·내용을 빠짐없이** 포함합니다. 요약·생략 금지.
+3. 섹션마다 `.section-card` 하나씩. 콘텐츠 유형에 맞는 요소 선택:
+   - 핵심 요약 → `.summary-grid > .summary-item`
+   - 항목별 제목+본문 → `.spec-item` / 표 → `.styled-table`
+   - 체크리스트 → `.checklist-item` / 인사이트 → `.insight-item`
+4. 헤더(프로젝트명·스킬명·날짜·카테고리)는 분석 맥락에서 추출.
 
-아래는 AX Skillset 리포트 HTML 템플릿입니다. 이 구조와 스타일을 그대로 유지하면서 분석 내용을 채웁니다:
+출력:
+- 완성된 HTML을 코드블록으로 제공
+- `~/Desktop/[프로젝트명]-report.html` 파일로 저장

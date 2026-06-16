@@ -6,10 +6,20 @@ desc: 이전 분석 결과를 HTML 리포트 파일로 변환
 category: 공통
 ---
 
-이전 분석 결과를 기반으로 완성된 HTML 리포트를 코드블록으로 출력하세요.
+이전 분석 결과 전체를 아래 HTML 구조로 변환해 코드블록으로 출력하세요.
 
-아래 HTML 전체 코드를 그대로 사용하고, `[대괄호 플레이스홀더]`만 이전 분석 내용으로 교체합니다.
-CSS·JavaScript·클래스명은 절대 수정하지 않습니다.
+변환 규칙:
+1. `<style>`·`<script>` 블록은 한 글자도 수정하지 않습니다.
+2. 이전 분석의 **모든 섹션과 내용을 빠짐없이** 포함합니다. 요약·생략하지 않습니다.
+3. 분석 결과의 섹션마다 `.section-card`를 하나씩 추가합니다. 섹션 수는 분석 결과를 따릅니다.
+4. 각 콘텐츠 유형에 맞는 요소를 선택합니다:
+   - 핵심 요약 4개 내외 → `.summary-grid > .summary-item`
+   - 항목별 제목+본문 → `.spec-item`
+   - 표 형식 데이터 → `.styled-table`
+   - 체크리스트·확인 사항 → `.checklist-item` + `.check-icon`
+   - 번호 인사이트 목록 → `.insight-item`
+   - 서술형 텍스트·목록 → `<p>` 또는 `<ul><li>`
+5. 헤더의 프로젝트명·스킬명·날짜·카테고리는 이전 분석 맥락에서 추출합니다.
 
 ---
 
@@ -112,73 +122,58 @@ CSS·JavaScript·클래스명은 절대 수정하지 않습니다.
 <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">🌙 다크 모드</button>
 <div class="report-wrapper">
 
-  <!-- HEADER CARD: 프로젝트명·날짜·카테고리 배지만 교체 -->
+  <!-- ① HEADER: 이전 분석 맥락에서 추출해 채우기
+       badge 클래스: badge-analysis / badge-planning / badge-common -->
   <div class="report-header">
     <div class="header-left">
       <div class="logo">AX Skillset</div>
       <h1>[프로젝트명 또는 분석 주제]</h1>
-      <div class="subtitle">[스킬명 / 분석 유형 한 줄]</div>
+      <div class="subtitle">[사용 스킬명 / 분석 유형 한 줄]</div>
     </div>
     <div class="header-right">
-      <!-- 카테고리에 맞게 badge-analysis / badge-planning / badge-common 선택 -->
-      <span class="badge badge-analysis">Analysis</span>
+      <span class="badge badge-analysis">[Analysis]</span>
       <div class="report-date">[YYYY-MM-DD]</div>
     </div>
   </div>
 
-  <!-- SUMMARY GRID: 핵심 요약 (summary-item 개수는 분석 내용에 맞게 조정) -->
-  <div class="section-card">
-    <div class="section-title">📌 1. 핵심 요약</div>
-    <div class="summary-grid">
-      <div class="summary-item"><div class="summary-label">목적</div><div class="summary-value">[내용]</div></div>
-      <div class="summary-item"><div class="summary-label">대상</div><div class="summary-value">[내용]</div></div>
-      <div class="summary-item"><div class="summary-label">핵심 시나리오</div><div class="summary-value">[내용]</div></div>
-      <div class="summary-item"><div class="summary-label">범위</div><div class="summary-value">[포함 / 제외]</div></div>
-    </div>
-  </div>
+  <!--
+  ② 이전 분석의 각 섹션 → .section-card 하나씩 작성.
+     섹션 제목·순서는 분석 결과 그대로 따릅니다. 내용을 요약하거나 생략하지 않습니다.
 
-  <!-- SECTION CARDS: 분석 결과 섹션 수에 맞게 추가·제거 -->
-  <!-- 예시 1: Spec Items 형식 (항목별 상세 내용) -->
-  <div class="section-card">
-    <div class="section-title">📋 2. [섹션 제목]</div>
-    <div class="spec-item">
-      <div class="spec-item-title">[항목명]</div>
-      <div class="spec-item-body">[상세 내용. 추정 항목은 <span class="tag tag-estimate">[추정]</span> 태그 사용]</div>
-    </div>
-    <!-- spec-item 반복 -->
-  </div>
+     ■ 사용 가능한 레이아웃 요소 (섹션 성격에 맞게 선택):
 
-  <!-- 예시 2: Insight Items 형식 (번호 배지 + 인사이트) -->
-  <!-- <div class="section-card">
-    <div class="section-title">💡 [N]. [섹션 제목]</div>
-    <div class="insight-item">
-      <div class="insight-num">1</div>
-      <div class="insight-body"><strong>[인사이트 제목]</strong>[상세 내용]</div>
-    </div>
-  </div> -->
+     [핵심 요약 — 4개 내외 카드]
+     <div class="summary-grid">
+       <div class="summary-item"><div class="summary-label">레이블</div><div class="summary-value">값</div></div>
+     </div>
 
-  <!-- STYLED TABLE: Gap Analysis 또는 표 형식 데이터 -->
-  <div class="section-card">
-    <div class="section-title">⚠️ [N]. Gap Analysis</div>
-    <table class="styled-table">
-      <thead>
-        <tr><th style="width:36px">#</th><th style="width:110px">항목</th><th>문제 설명</th><th>결정 필요 방향</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>1</td><td>[항목]</td><td>[문제]</td><td>[방향]</td></tr>
-        <!-- 행 반복 -->
-      </tbody>
-    </table>
-  </div>
+     [항목별 제목+본문]
+     <div class="spec-item">
+       <div class="spec-item-title">항목명</div>
+       <div class="spec-item-body">상세 내용 <span class="tag tag-estimate">[추정]</span></div>
+     </div>
 
-  <!-- CHECKLIST LAYOUT: 검수 체크리스트 -->
+     [표 형식]
+     <table class="styled-table"><thead><tr><th>#</th><th>항목</th><th>내용</th></tr></thead>
+     <tbody><tr><td>1</td><td>항목</td><td>내용</td></tr></tbody></table>
+
+     [체크리스트]
+     <div class="checklist-item"><span class="check-icon status-open">🔲</span><span><strong>항목:</strong> 내용</span></div>
+     <!-- status-pass ✅ / status-warn ⚠️ / status-fail ❌ / status-open 🔲 -->
+
+     [번호 인사이트]
+     <div class="insight-item"><div class="insight-num">1</div>
+     <div class="insight-body"><strong>제목</strong>내용</div></div>
+
+     [서술·목록]
+     <p style="font-size:13px;color:var(--text2);line-height:1.75">내용</p>
+     <ul style="font-size:13px;color:var(--text2);line-height:2;padding-left:20px"><li>항목</li></ul>
+  -->
+
+  <!-- 아래 .section-card를 분석 섹션 수만큼 반복 작성 -->
   <div class="section-card">
-    <div class="section-title">✅ [N]. 검수 체크리스트</div>
-    <!-- status-open(🔲) / status-warn(⚠️) / status-pass(✅) / status-fail(❌) -->
-    <div class="checklist-item"><span class="check-icon status-open">🔲</span><span><strong>[항목]:</strong> [확인 질문]</span></div>
-    <div class="checklist-item"><span class="check-icon status-warn">⚠️</span><span><strong>[항목]:</strong> [주의 내용]</span></div>
-    <div class="checklist-item"><span class="check-icon status-pass">✅</span><span><strong>[항목]:</strong> [확인된 내용]</span></div>
-    <div class="checklist-item"><span class="check-icon status-fail">❌</span><span><strong>[항목]:</strong> [누락·문제 내용]</span></div>
+    <div class="section-title">[N]. [섹션 제목]</div>
+    <!-- 위 레이아웃 요소 중 적합한 것 사용 -->
   </div>
 
   <!-- SAVE BAR: 수정 금지 -->

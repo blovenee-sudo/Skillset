@@ -7,8 +7,24 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ─── Theme tokens ─── */
+    /* ─── Theme tokens — Light Mode (default) ─── */
     :root {
+      --bg:       #f8fafc;
+      --card:     #ffffff;
+      --card2:    #f1f5f9;
+      --border:   #e2e8f0;
+      --border2:  #e8edf4;
+      --text:     #111827;
+      --text2:    #374151;
+      --text3:    #6b7280;
+      --muted:    #9ca3af;
+      --accent:   #4f46e5;
+      --accent2:  #6366f1;
+      --spec-body:#4b5563;
+    }
+
+    /* ─── Dark Mode ─── */
+    html.dark {
       --bg:       #0f1117;
       --card:     #1a1d2e;
       --card2:    #12151f;
@@ -21,20 +37,6 @@
       --accent:   #6366f1;
       --accent2:  #818cf8;
       --spec-body:#94a3b8;
-    }
-    html.light {
-      --bg:       #f8fafc;
-      --card:     #ffffff;
-      --card2:    #f1f5f9;
-      --border:   #e2e8f0;
-      --border2:  #e2e8f0;
-      --text:     #111827;
-      --text2:    #374151;
-      --text3:    #6b7280;
-      --muted:    #9ca3af;
-      --accent:   #4f46e5;
-      --accent2:  #6366f1;
-      --spec-body:#4b5563;
     }
 
     body {
@@ -107,9 +109,11 @@
       letter-spacing: 1px;
       text-transform: uppercase;
     }
-    .badge-analysis { background: rgba(99,102,241,.15); color: var(--accent2); border: 1px solid rgba(99,102,241,.3); }
-    .badge-planning  { background: rgba(16,185,129,.12);  color: #34d399; border: 1px solid rgba(16,185,129,.25); }
-    .badge-common    { background: rgba(245,158,11,.12);  color: #fbbf24; border: 1px solid rgba(245,158,11,.25); }
+    .badge-analysis { background: rgba(99,102,241,.1); color: var(--accent2); border: 1px solid rgba(99,102,241,.25); }
+    .badge-planning  { background: rgba(16,185,129,.1);  color: #059669; border: 1px solid rgba(16,185,129,.2); }
+    .badge-common    { background: rgba(245,158,11,.1);  color: #d97706; border: 1px solid rgba(245,158,11,.2); }
+    html.dark .badge-planning { color: #34d399; }
+    html.dark .badge-common   { color: #fbbf24; }
     .report-date { font-size: 12px; color: var(--muted); margin-top: 8px; }
 
     /* ─── Section Card ─── */
@@ -156,7 +160,8 @@
     .spec-item-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
     .spec-item-body  { font-size: 13px; color: var(--spec-body); line-height: 1.75; }
     .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin: 2px 4px 2px 0; }
-    .tag-estimate { background: rgba(245,158,11,.12); color: #fbbf24; border: 1px solid rgba(245,158,11,.2); }
+    .tag-estimate { background: rgba(245,158,11,.1); color: #d97706; border: 1px solid rgba(245,158,11,.2); }
+    html.dark .tag-estimate { color: #fbbf24; }
 
     /* ─── Table ─── */
     .styled-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -212,7 +217,7 @@
     .insight-num {
       width: 26px; height: 26px;
       border-radius: 50%;
-      background: rgba(99,102,241,.15);
+      background: rgba(99,102,241,.12);
       color: var(--accent2);
       font-size: 12px; font-weight: 700;
       display: flex; align-items: center; justify-content: center;
@@ -221,30 +226,56 @@
     .insight-body { font-size: 13px; color: var(--text2); line-height: 1.7; }
     .insight-body strong { color: var(--text); display: block; margin-bottom: 3px; }
 
-    /* ─── Print Button ─── */
-    .print-bar { text-align: center; padding: 36px 0 4px; }
-    .btn-print {
+    /* ─── Save Bar ─── */
+    .save-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      padding: 36px 0 4px;
+    }
+    .save-select {
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 36px 11px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 16px;
+      transition: border-color .15s;
+    }
+    .save-select:hover, .save-select:focus { outline: none; border-color: var(--accent2); }
+    .btn-save {
       background: var(--accent);
       color: #fff;
       border: none;
-      border-radius: 10px;
-      padding: 13px 36px;
+      border-radius: 8px;
+      padding: 11px 28px;
       font-size: 14px;
       font-weight: 700;
       cursor: pointer;
       letter-spacing: 0.3px;
-      transition: background .15s;
+      transition: opacity .15s;
     }
-    .btn-print:hover { background: #4f46e5; }
+    .btn-save:hover { opacity: .88; }
 
     /* ─── Print ─── */
     @media print {
-      .theme-toggle, .print-bar { display: none; }
+      .theme-toggle, .save-bar { display: none !important; }
+      body { background: #fff !important; color: #000 !important; padding: 0; }
+      .section-card, .report-header { border: 1px solid #ddd !important; background: #fff !important; }
     }
   </style>
 </head>
 <body>
-  <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">☀️ 라이트 모드</button>
+  <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">🌙 다크 모드</button>
 
   <div class="report-wrapper">
 
@@ -257,7 +288,7 @@
       </div>
       <div class="header-right">
         <span class="badge badge-analysis">Analysis</span>
-        <div class="report-date">2026-06-12</div>
+        <div class="report-date">2026-06-16</div>
       </div>
     </div>
 
@@ -371,22 +402,130 @@
       </div>
     </div>
 
-    <!-- PRINT BUTTON -->
-    <div class="print-bar">
-      <button class="btn-print" onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>
+    <!-- SAVE BAR -->
+    <div class="save-bar">
+      <select id="saveFormat" class="save-select">
+        <option value="print">🖨️ 인쇄</option>
+        <option value="pdf">📄 PDF 저장</option>
+        <option value="md">📝 MD 저장</option>
+      </select>
+      <button class="btn-save" onclick="saveReport()">저장</button>
     </div>
 
   </div>
 
   <script>
+    /* ─── Theme ─── */
     const btn = document.getElementById('themeToggle');
     const saved = localStorage.getItem('ax-report-theme');
-    if (saved === 'light') { document.documentElement.classList.add('light'); btn.textContent = '🌙 다크 모드'; }
+    if (saved === 'dark') {
+      document.documentElement.classList.add('dark');
+      btn.textContent = '☀️ 라이트 모드';
+    }
 
     function toggleTheme() {
-      const isLight = document.documentElement.classList.toggle('light');
-      btn.textContent = isLight ? '🌙 다크 모드' : '☀️ 라이트 모드';
-      localStorage.setItem('ax-report-theme', isLight ? 'light' : 'dark');
+      const isDark = document.documentElement.classList.toggle('dark');
+      btn.textContent = isDark ? '☀️ 라이트 모드' : '🌙 다크 모드';
+      localStorage.setItem('ax-report-theme', isDark ? 'dark' : 'light');
+    }
+
+    /* ─── Save / Export ─── */
+    function saveReport() {
+      const format = document.getElementById('saveFormat').value;
+      if (format === 'print' || format === 'pdf') {
+        window.print();
+      } else if (format === 'md') {
+        exportMarkdown();
+      }
+    }
+
+    function exportMarkdown() {
+      const lines = [];
+      const title    = document.querySelector('.report-header h1')?.textContent?.trim() || '리포트';
+      const subtitle = document.querySelector('.subtitle')?.textContent?.trim() || '';
+      const badge    = document.querySelector('.badge')?.textContent?.trim() || '';
+      const date     = document.querySelector('.report-date')?.textContent?.trim() || '';
+
+      lines.push(`# ${title}`);
+      if (subtitle) lines.push(`> ${subtitle}`);
+      lines.push('');
+      if (badge)  lines.push(`**카테고리**: ${badge}`);
+      if (date)   lines.push(`**날짜**: ${date}`);
+      lines.push('', '---', '');
+
+      document.querySelectorAll('.section-card').forEach(card => {
+        const sTitle = card.querySelector('.section-title')?.textContent?.trim();
+        if (sTitle) lines.push(`## ${sTitle}`, '');
+
+        // Summary Grid
+        const summaries = card.querySelectorAll('.summary-item');
+        if (summaries.length) {
+          summaries.forEach(s => {
+            const label = s.querySelector('.summary-label')?.textContent?.trim();
+            const value = s.querySelector('.summary-value')?.textContent?.trim();
+            if (label && value) lines.push(`- **${label}**: ${value}`);
+          });
+          lines.push('');
+        }
+
+        // Spec Items
+        card.querySelectorAll('.spec-item').forEach(s => {
+          const t = s.querySelector('.spec-item-title')?.textContent?.trim();
+          const b = s.querySelector('.spec-item-body')?.innerText?.trim().replace(/\n\s+/g, '\n');
+          if (t) lines.push(`### ${t}`);
+          if (b) lines.push(b, '');
+        });
+
+        // Styled Table
+        const table = card.querySelector('.styled-table');
+        if (table) {
+          const headers = [...table.querySelectorAll('th')].map(th => th.textContent.trim());
+          if (headers.length) {
+            lines.push(`| ${headers.join(' | ')} |`);
+            lines.push(`| ${headers.map(() => '---').join(' | ')} |`);
+            table.querySelectorAll('tbody tr').forEach(tr => {
+              const cells = [...tr.querySelectorAll('td')].map(td =>
+                td.innerText.trim().replace(/[\n\r]+/g, ' ')
+              );
+              lines.push(`| ${cells.join(' | ')} |`);
+            });
+            lines.push('');
+          }
+        }
+
+        // Checklist Items
+        const checks = card.querySelectorAll('.checklist-item');
+        if (checks.length) {
+          checks.forEach(c => {
+            const icon = c.querySelector('.check-icon')?.textContent?.trim() || '';
+            const textSpan = c.querySelector('span:not(.check-icon)');
+            const text = (textSpan?.innerText || c.innerText).trim();
+            lines.push(`- ${icon} ${text}`);
+          });
+          lines.push('');
+        }
+
+        // Insight Items
+        card.querySelectorAll('.insight-item').forEach((ins, i) => {
+          const body = ins.querySelector('.insight-body');
+          if (!body) return;
+          const strong = body.querySelector('strong')?.textContent?.trim() || '';
+          const full   = body.innerText?.trim() || '';
+          const rest   = full.replace(strong, '').trim();
+          lines.push(`${i + 1}. **${strong}**${rest ? ' — ' + rest : ''}`, '');
+        });
+      });
+
+      const md = lines.join('\n').replace(/\n{3,}/g, '\n\n');
+      const slug = title.replace(/[\s·\/]+/g, '_');
+      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${slug}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
     }
   </script>
 </body>

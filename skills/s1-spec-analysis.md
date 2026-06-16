@@ -100,37 +100,6 @@ desc: 상위 기획서 분석 → 구조화된 스펙 요구사항 + 모호성 �
 
 ---
 
-## 리포트 파일 생성 지침
-
-분석 결과를 화면에 출력한 뒤, 동일 내용을 기반으로 별도 HTML 리포트 파일도 생성합니다.
-
-리포트는 사용자가 첨부한 `ux_skillset_v10.html`의 디자인 톤을 참고합니다.
-
-디자인 기준:
-- 다크 테마
-- 카드형 섹션
-- 얇은 border
-- 강조 컬러는 blue 계열
-- 표는 읽기 쉽게 구분선 적용
-- 핵심 요약은 상단 summary card로 배치
-- Gap Analysis와 Checklist는 별도 강조 섹션으로 구성
-
-리포트 HTML 섹션:
-1. Report Header — 프로젝트명 / 분석일 / 사용 스킬명: /spec-analysis
-2. Executive Summary — 목적 / 타겟 / 핵심 시나리오
-3. KPI & Goal — 비즈니스 목표 / 사용자 목표 / 예상 KPI
-4. Specification Breakdown — 모듈별 상세 요구사항
-5. IA & User Journey — 사용자 여정 / 정보구조 진단
-6. Gap Analysis — 모호성 및 확인 필요 항목 표
-7. Review Checklist — 최종 검수 질문 목록
-8. Skill Evaluation — 잘 동작한 점 / 스킬 지침 보완 필요점
-
-HTML은 단일 파일로 열 수 있도록 작성합니다.
-외부 라이브러리는 사용하지 않습니다.
-CSS는 HTML 내부 `<style>`에 포함합니다.
-
----
-
 ## Output Format
 
 ### 📌 [프로젝트명] 스펙 분석 결과

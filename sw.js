@@ -1,4 +1,4 @@
-const CACHE = 'skillset-v66';
+const CACHE = 'skillset-v67';
 
 const PRECACHE = [
   './index.html',
@@ -9,6 +9,7 @@ const PRECACHE = [
   './skills/index.json',
   './skills/report-instructions.md',
   './skills/s11-generate-report.md',
+  './skills/skill_report_template.html',
 ];
 
 self.addEventListener('install', (e) => {

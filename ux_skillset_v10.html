@@ -1176,6 +1176,17 @@
           } catch {}
         }
 
+        // /generate-report: skill_report_template.html을 동적으로 첨부
+        if (sk.slash === '/generate-report') {
+          try {
+            const res = await fetch('./skills/skill_report_template.html', { cache: 'no-cache' });
+            if (res.ok) {
+              const html = await res.text();
+              promptText += '\n\n```html\n' + html + '\n```';
+            }
+          } catch {}
+        }
+
         // 리포트 제공 체크 시: 분석 완료 후 /generate-report 스킬 복사 안내 지침 추가
         let reportAppended = false;
         if ($("detailReportEnabled").checked && sk.slash !== '/generate-report') {

@@ -1171,17 +1171,17 @@
           } catch {}
         }
 
-        // 리포트 제공 체크 시: 분석 프롬프트 + 리포트 생성 확인 지침 연결
+        // 리포트 제공 체크 시: 분석 완료 후 /generate-report 스킬 복사 안내 지침 추가
         let reportAppended = false;
         if ($("detailReportEnabled").checked && sk.slash !== '/generate-report') {
           const reportSkill = latestBaseSkills && latestBaseSkills.find(s => s.slash === '/generate-report');
-          if (reportSkill && reportSkill.prompt) {
+          if (reportSkill) {
             promptText +=
               "\n\n---\n\n" +
-              "위 분석 결과를 모두 출력한 뒤, 사용자에게 아래 질문을 합니다:\n" +
+              "위 분석을 완료한 뒤, 사용자에게 다음 질문을 합니다:\n" +
               "\"HTML 리포트도 생성할까요? (예 / 아니오)\"\n\n" +
-              "사용자가 '예' 또는 긍정 답변을 하면, 동일 분석 내용을 기반으로 아래 지침에 따라 HTML 리포트를 생성합니다.\n\n" +
-              reportSkill.prompt;
+              "사용자가 '예' 또는 긍정 답변을 하면, HTML을 직접 생성하지 말고 아래와 같이 안내합니다:\n" +
+              "\"AX 스킬셋 앱에서 [/generate-report] 스킬을 복사한 뒤 여기에 붙여넣어 주세요. 이전 분석 내용을 기반으로 리포트를 생성합니다.\"";
             reportAppended = true;
           }
         }

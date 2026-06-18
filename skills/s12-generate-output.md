@@ -20,6 +20,12 @@ category: 공통
 
 ## 실행 순서
 
+### Step 0 — 직접 산출물 지정 여부 확인
+
+사용자가 `/generate-output` 뒤에 산출물명을 함께 입력한 경우 (예: `/generate-output HTML 리포트`, `/generate-output 자료요청명세서`, `/generate-output 기능 정의서`) Step 2를 건너뛰고 해당 산출물을 즉시 생성합니다.
+
+산출물명이 없는 경우에만 Step 1 → Step 2 → Step 3 순서로 진행합니다.
+
 ### Step 1 — 이전 분석 맥락 파악
 
 대화 히스토리에서 다음을 파악합니다:

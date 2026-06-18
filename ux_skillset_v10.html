@@ -1215,6 +1215,21 @@
           } catch {}
         }
 
+        // /generate-report: GitHub raw에서 템플릿 fetch → 지침 뒤에 첨부
+        // 사내 LLM 등 웹 접근 없는 환경에서도 템플릿을 바로 사용할 수 있도록 앱이 직접 첨부
+        if (sk.slash === '/generate-report') {
+          try {
+            const res = await fetch(
+              'https://raw.githubusercontent.com/blovenee-sudo/Skillset/main/skills/skill_report_template.html',
+              { cache: 'no-cache' }
+            );
+            if (res.ok) {
+              const html = await res.text();
+              promptText += '\n\n```html\n' + html + '\n```';
+            }
+          } catch {}
+        }
+
         // 리포트 제공 체크 시: 분석 완료 후 /generate-report 스킬 복사 안내 지침 추가
         let reportAppended = false;
         if ($("detailReportEnabled").checked && sk.slash !== '/generate-report') {

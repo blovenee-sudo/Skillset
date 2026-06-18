@@ -87,7 +87,9 @@
       transition: border-color .15s;
     }
     .skill-chip:hover { border-color: var(--muted); }
-    .skill-chip.dragging { opacity: 0.5; }
+    .skill-chip.dragging { opacity: 0.4; }
+    .skill-chip.drop-before { box-shadow: 0 -3px 0 var(--accent); }
+    .skill-chip.drop-after  { box-shadow: 0  3px 0 var(--accent); }
     .skill-chip .star { flex-shrink: 0; padding: 2px; color: var(--muted); font-size: 14px; }
     .skill-chip .star.on { color: var(--warn); }
     .skill-meta { flex: 1; min-width: 0; }
@@ -784,13 +786,6 @@
           (s.desc || "").toLowerCase().includes(q)
         );
       }
-      if (sidebarTab === "skills") {
-        list.sort((a, b) => {
-          const fa = state.favorites.includes(a.id) ? 1 : 0;
-          const fb = state.favorites.includes(b.id) ? 1 : 0;
-          return fb - fa;
-        });
-      }
       return list;
     }
 
@@ -829,11 +824,43 @@
         dragSkillId = skill.id;
         chip.classList.add("dragging");
         e.dataTransfer.setData("text/skill-id", skill.id);
-        e.dataTransfer.effectAllowed = "copy";
+        e.dataTransfer.effectAllowed = "all";
       });
       chip.addEventListener("dragend", () => {
         chip.classList.remove("dragging");
+        document.querySelectorAll(".skill-chip").forEach(c =>
+          c.classList.remove("drop-before", "drop-after")
+        );
         dragSkillId = null;
+      });
+      chip.addEventListener("dragover", (e) => {
+        if (!dragSkillId || dragSkillId === skill.id) return;
+        const src = state.skills.find(s => s.id === dragSkillId);
+        if (!src || src.category !== skill.category) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = "move";
+        const mid = chip.getBoundingClientRect().top + chip.getBoundingClientRect().height / 2;
+        chip.classList.remove("drop-before", "drop-after");
+        chip.classList.add(e.clientY < mid ? "drop-before" : "drop-after");
+      });
+      chip.addEventListener("dragleave", () => {
+        chip.classList.remove("drop-before", "drop-after");
+      });
+      chip.addEventListener("drop", (e) => {
+        chip.classList.remove("drop-before", "drop-after");
+        if (!dragSkillId || dragSkillId === skill.id) return;
+        const src = state.skills.find(s => s.id === dragSkillId);
+        if (!src || src.category !== skill.category) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const isBefore = e.clientY < chip.getBoundingClientRect().top + chip.getBoundingClientRect().height / 2;
+        const fromIdx = state.skills.findIndex(s => s.id === dragSkillId);
+        const [moved] = state.skills.splice(fromIdx, 1);
+        const toIdx = state.skills.findIndex(s => s.id === skill.id);
+        state.skills.splice(isBefore ? toIdx : toIdx + 1, 0, moved);
+        saveState();
+        renderSidebar();
       });
       container.appendChild(chip);
     }

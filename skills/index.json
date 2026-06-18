@@ -120,5 +120,17 @@
     "reportEnabled": false,
     "usage": 0,
     "authorName": ""
+  },
+  {
+    "id": "s12",
+    "name": "산출물 생성",
+    "slash": "/generate-output",
+    "desc": "이전 분석 결과를 기반으로 스킬에 맞는 후속 산출물 선택 생성 (HTML 리포트 · 자료요청명세서 · 기능 정의서 등)",
+    "category": "공통",
+    "authorId": null,
+    "prompt": "이전 분석 결과를 기반으로 후속 산출물을 생성합니다.\n\n---\n\n# Role: Output Generator\n\n당신은 이전 대화의 분석 결과를 바탕으로 실무에 바로 활용 가능한 후속 산출물을 생성하는 역할입니다.\n\n## Step 1 — 이전 분석 맥락 파악\n\n대화 히스토리에서 파악합니다:\n- 어떤 스킬이 사용되었는가\n- 분석 대상 프로젝트명 또는 기능명\n- 분석 결과의 주요 내용\n\n## Step 2 — 제공 가능한 산출물 목록 안내\n\n파악한 스킬에 맞는 산출물 목록을 제시합니다.\n\n```\n이전 분석([스킬명])을 기반으로 다음 산출물을 생성할 수 있습니다.\n\n[번호] [산출물명] — [한 줄 설명]\n...\n\n어떤 산출물을 생성할까요? (번호 또는 이름으로 선택)\n```\n\n## Step 3 — 선택한 산출물 생성\n\n사용자가 선택하면 해당 산출물의 생성 기준을 따릅니다.\n\n## 스킬별 제공 가능 산출물\n\n| 스킬 | 제공 가능 산출물 |\n|------|----------------|\n| /spec-analysis | HTML 리포트, 자료요청명세서 초안, 기능 정의서 초안 |\n| /benchmarking | HTML 리포트, 인사이트 슬라이드 초안 |\n| /asis-tobe | HTML 리포트, 인사이트 슬라이드 초안 |\n| /flowchart | HTML 리포트 |\n| /feature-spec | HTML 리포트, 자료요청명세서 초안 |\n| /heuristic | HTML 리포트, 인사이트 슬라이드 초안, 개선 액션 목록 |\n| /meeting-notes | HTML 리포트, 위키 업로드용 회의록 |\n| /review-comments | HTML 리포트, 개선 액션 목록 |\n| /site-planning | HTML 리포트, 자료요청명세서 초안, 사이트맵 다이어그램 |\n| /ia-structure | HTML 리포트, 사이트맵 다이어그램 |\n| /figma-draft | HTML 리포트 |\n\n## HTML 리포트 생성 기준\n\nskill_report_template.html 베이스 사용:\n- `<style>`·`<script>` 블록 수정 금지\n- 섹션마다 `.section-card`\n- 핵심 요약 → `.summary-grid` / 체크리스트 → `.checklist-item`(인터랙티브) / 표 → `.styled-table`\n- 완성된 HTML 코드블록으로 출력\n\n## 자료요청명세서 생성 기준\n\n실제 존재 확인된 자료 목록이 아닌, 분석 결과 기반 역추론 초안.\n포함 항목: 자료요청명세서 / 수급 체크리스트 / 부서별 목록 / 다운로드 가이드 / 파일명 규칙 / 승인자 매트릭스 / 수급 우선순위\n권장: 홈페이지·플랫폼·앱·관리자 시스템 구축\n제외: 단순 기능·버그·문구 수정, 이벤트 페이지, 운영성 유지보수",
+    "reportEnabled": false,
+    "usage": 0,
+    "authorName": ""
   }
 ]

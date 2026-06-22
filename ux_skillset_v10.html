@@ -1372,8 +1372,9 @@
             const res = await fetch(`./skills/${sk.id}-${slash.slice(1)}.md`, { cache: 'no-cache' });
             if (res.ok) {
               const md = await res.text();
-              // YAML frontmatter (--- ... ---) 제거
-              const body = md.replace(/^---[\s\S]*?---\s*\n/, "").trim();
+              const noFm = md.replace(/^---[\s\S]*?---\s*\n/, "");
+              const aiIdx = noFm.indexOf("<!-- AI INSTRUCTIONS -->");
+              const body = (aiIdx >= 0 ? noFm.slice(aiIdx + "<!-- AI INSTRUCTIONS -->".length) : noFm).trim();
               if (body) promptText = body;
             }
           } catch {}

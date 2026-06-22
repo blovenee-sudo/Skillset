@@ -873,7 +873,9 @@
 
       if (sidebarTab === "skills" && !q) {
         // ── 카테고리 그룹핑 ──
-        const CATS = ["Analysis", "Planning", "공통"];
+        const CAT_ORDER = ["Phase 1", "Phase 2", "Phase 3", "Analysis", "Planning", "공통"];
+        const catSet = new Set(skills.map(s => s.category).filter(Boolean));
+        const CATS = CAT_ORDER.filter(c => catSet.has(c)).concat([...catSet].filter(c => !CAT_ORDER.includes(c)));
         CATS.forEach(cat => {
           const catSkills = skills.filter(s => s.category === cat);
           if (!catSkills.length) return;

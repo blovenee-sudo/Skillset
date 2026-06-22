@@ -240,6 +240,30 @@
     .manage-label { font-size: 13px; }
     .manage-hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
     .empty-state { color: var(--muted); font-size: 13px; text-align: center; padding: 40px 20px; }
+
+    /* ── Phase deliverables ── */
+    .phase-slots {
+      border-top: 1px solid var(--border); padding: 10px;
+      display: flex; gap: 8px; background: var(--surface);
+    }
+    .phase-slot {
+      flex: 1; border-radius: 8px; border: 1.5px dashed var(--border);
+      padding: 10px 10px 8px; cursor: pointer; min-width: 0;
+      transition: border-color .15s; position: relative;
+    }
+    .phase-slot:hover { border-color: var(--accent); }
+    .phase-slot.filled { border-style: solid; background: var(--surface2); }
+    .phase-slot .ps-label { font-size: 10px; font-weight: 700; letter-spacing: .05em; color: var(--muted); margin-bottom: 3px; }
+    .phase-slot .ps-name { font-size: 12px; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .phase-slot.empty .ps-name { color: var(--muted); font-weight: 400; }
+    .phase-slot .ps-date { font-size: 10px; color: var(--muted); }
+    .phase-slot .ps-del { position: absolute; top: 5px; right: 6px; font-size: 13px; color: var(--muted); cursor: pointer; padding: 1px 4px; border-radius: 4px; line-height: 1; }
+    .phase-slot .ps-del:hover { color: #f87171; background: rgba(248,113,113,.1); }
+    /* 산출물 보기 모달 */
+    .modal.modal-wide { max-width: 880px; height: 80vh; display: flex; flex-direction: column; padding-bottom: 14px; }
+    .modal.modal-wide .modal-body { flex: 1; overflow: auto; min-height: 0; border-radius: 8px; border: 1px solid var(--border); }
+    .modal.modal-wide iframe { width: 100%; height: 100%; border: none; background: #fff; }
+    .modal.modal-wide pre { margin: 0; padding: 14px; white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6; }
   </style>
 </head>
 <body>
@@ -397,6 +421,33 @@
       <div class="row" style="margin-top:16px">
         <button type="button" class="btn-sm" id="btnCloseManage">닫기</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 산출물 저장 모달 -->
+  <div class="modal-backdrop" id="modalDelivEdit">
+    <div class="modal" style="max-width:600px">
+      <h4 id="delivEditTitle">Phase 산출물 저장</h4>
+      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">LLM에서 받은 결과를 붙여넣으세요.</label>
+      <textarea id="delivEditArea" style="width:100%;height:220px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="여기에 붙여넣기..."></textarea>
+      <div class="row" style="margin-top:10px">
+        <button type="button" class="btn-sm" id="btnDelivEditCancel">취소</button>
+        <button type="button" class="btn-primary" id="btnDelivEditSave">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 산출물 보기 모달 -->
+  <div class="modal-backdrop" id="modalDelivView">
+    <div class="modal modal-wide">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-shrink:0">
+        <h4 id="delivViewTitle" style="margin:0;flex:1;font-size:14px"></h4>
+        <button type="button" class="btn-sm" id="btnDelivViewDownload">다운로드</button>
+        <button type="button" class="btn-sm" id="btnDelivViewEdit">수정</button>
+        <button type="button" class="btn-sm" id="btnDelivViewDelete" style="color:#fca5a5">삭제</button>
+        <button type="button" class="btn-sm" id="btnDelivViewClose">닫기</button>
+      </div>
+      <div class="modal-body" id="delivViewBody"></div>
     </div>
   </div>
 
@@ -755,9 +806,11 @@
       return d.innerHTML;
     }
 
+    const HIDDEN_SKILL_CATS = new Set(["Analysis", "Planning"]);
+
     function filteredSkills() {
       const q = ($("sidebarSearch").value || "").trim().toLowerCase();
-      let list = [...state.skills];
+      let list = [...state.skills].filter(s => !HIDDEN_SKILL_CATS.has(s.category));
       if (sidebarTab === "favorites") {
         list = list.filter(s => state.favorites.includes(s.id));
       }
@@ -940,10 +993,97 @@
       renderSidebar();
     }
 
+    // ── Phase 산출물 관리 ──
+    const PHASE_META = {
+      phase1: { label: 'Phase 1', name: 'Markdown 스펙', ext: 'md' },
+      phase2: { label: 'Phase 2', name: 'JSON Schema',   ext: 'json' },
+      phase3: { label: 'Phase 3', name: 'HTML 프로토타입', ext: 'html' }
+    };
+    let _delivEditState = null;
+    let _delivViewState = null;
+
+    function openDelivEdit(projectId, phase) {
+      const p = state.projects.find(x => x.id === projectId);
+      if (!p) return;
+      _delivEditState = { projectId, phase };
+      $("delivEditTitle").textContent = `${PHASE_META[phase].label} 산출물 저장`;
+      $("delivEditArea").value = p.deliverables?.[phase]?.content || "";
+      $("modalDelivEdit").classList.add("open");
+      setTimeout(() => $("delivEditArea").focus(), 80);
+    }
+
+    function openDelivView(projectId, phase) {
+      const p = state.projects.find(x => x.id === projectId);
+      if (!p) return;
+      const deliv = p.deliverables?.[phase];
+      if (!deliv) return;
+      _delivViewState = { projectId, phase };
+      const meta = PHASE_META[phase];
+      $("delivViewTitle").textContent = `${meta.label} — ${meta.name}`;
+      const body = $("delivViewBody");
+      body.innerHTML = "";
+      if (phase === "phase3") {
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = deliv.content;
+        iframe.style.cssText = "width:100%;height:100%;border:none;";
+        body.appendChild(iframe);
+      } else {
+        const pre = document.createElement("pre");
+        if (phase === "phase2") {
+          try { pre.textContent = JSON.stringify(JSON.parse(deliv.content), null, 2); }
+          catch { pre.textContent = deliv.content; }
+        } else {
+          pre.textContent = deliv.content;
+        }
+        body.appendChild(pre);
+      }
+      $("btnDelivViewDownload").onclick = () => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([deliv.content], { type: "text/plain;charset=utf-8" }));
+        a.download = `${p.name}-${meta.label}.${meta.ext}`;
+        a.click(); URL.revokeObjectURL(a.href);
+      };
+      $("btnDelivViewEdit").onclick = () => {
+        $("modalDelivView").classList.remove("open");
+        openDelivEdit(projectId, phase);
+      };
+      $("btnDelivViewDelete").onclick = () => {
+        if (!confirm("산출물을 삭제할까요?")) return;
+        p.deliverables[phase] = null;
+        saveState(); renderProjects();
+        $("modalDelivView").classList.remove("open");
+        toast("삭제됐습니다");
+      };
+      $("modalDelivView").classList.add("open");
+    }
+
+    (function initDelivModals() {
+      $("btnDelivEditCancel").addEventListener("click", () => {
+        $("modalDelivEdit").classList.remove("open"); _delivEditState = null;
+      });
+      $("btnDelivEditSave").addEventListener("click", () => {
+        if (!_delivEditState) return;
+        const { projectId, phase } = _delivEditState;
+        const content = $("delivEditArea").value.trim();
+        if (!content) { toast("내용을 입력해주세요"); return; }
+        const p = state.projects.find(x => x.id === projectId);
+        if (!p) return;
+        if (!p.deliverables) p.deliverables = {};
+        p.deliverables[phase] = { content, savedAt: new Date().toISOString() };
+        saveState(); renderProjects();
+        $("modalDelivEdit").classList.remove("open"); _delivEditState = null;
+        toast("저장됐습니다");
+      });
+      $("btnDelivViewClose").addEventListener("click", () => {
+        $("modalDelivView").classList.remove("open"); _delivViewState = null;
+      });
+    })();
+
     function renderProjects() {
       const grid = $("projectsGrid");
       grid.innerHTML = "";
       state.projects.forEach(p => {
+        if (!p.deliverables) p.deliverables = { phase1: null, phase2: null, phase3: null };
         const card = document.createElement("div");
         card.className = "project-card";
         card.dataset.projectId = p.id;
@@ -1022,8 +1162,35 @@
           saveState(); renderProjects();
         });
 
+        // Phase 산출물 슬롯
+        const slotsEl = document.createElement("div");
+        slotsEl.className = "phase-slots";
+        ["phase1", "phase2", "phase3"].forEach(ph => {
+          const meta = PHASE_META[ph];
+          const deliv = p.deliverables[ph];
+          const slot = document.createElement("div");
+          slot.className = "phase-slot" + (deliv ? " filled" : " empty");
+          if (deliv) {
+            const d = new Date(deliv.savedAt);
+            const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+            slot.innerHTML = `<div class="ps-label">${meta.label}</div><div class="ps-name">${meta.name}</div><div class="ps-date">${dateStr}</div><span class="ps-del" title="삭제">×</span>`;
+            slot.querySelector(".ps-del").addEventListener("click", (e) => {
+              e.stopPropagation();
+              if (!confirm("산출물을 삭제할까요?")) return;
+              p.deliverables[ph] = null; saveState(); renderProjects();
+              toast("삭제됐습니다");
+            });
+            slot.addEventListener("click", () => openDelivView(p.id, ph));
+          } else {
+            slot.innerHTML = `<div class="ps-label">${meta.label}</div><div class="ps-name">+ 산출물 저장</div>`;
+            slot.addEventListener("click", () => openDelivEdit(p.id, ph));
+          }
+          slotsEl.appendChild(slot);
+        });
+
         card.appendChild(head);
         card.appendChild(zone);
+        card.appendChild(slotsEl);
         grid.appendChild(card);
       });
     }
@@ -1524,6 +1691,8 @@
           $("modalSkill").classList.remove("open");
           $("modalManage").classList.remove("open");
           $("modalLLMPrompt").classList.remove("open");
+          $("modalDelivEdit").classList.remove("open");
+          $("modalDelivView").classList.remove("open");
         }
       });
 

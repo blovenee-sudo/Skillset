@@ -8,6 +8,10 @@ desc: Phase 2 JSON Schema + Phase 1 스펙 → 실행 가능한 HTML 단일 파�
 Phase 2 `/schema` 결과 JSON을 아래에 붙여넣으세요.
 Phase 1 스펙 Markdown도 함께 붙여넣으면 더 정확한 프로토타입이 생성됩니다.
 
+> **이 스킬이 커버하는 기존 작업**
+> `/figma-draft` 피그마 초안 자동 생성 · `/ia-structure` IA 구조 설계
+> → 피그마 대신 즉시 실행 가능한 HTML 프로토타입으로 대체, IA/네비게이션 계층은 화면 구조에 반영됩니다.
+
 입력 자료:
 
 ---

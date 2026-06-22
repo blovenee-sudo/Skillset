@@ -9,6 +9,10 @@ Phase 1 `/spec` 결과 Markdown 문서를 아래에 붙여넣으세요.
 데이터 구조(JSON Schema)를 설계합니다.
 Phase 1 스펙이 없어도 직접 요구사항을 설명하면 진행 가능합니다.
 
+> **이 스킬이 커버하는 기존 작업**
+> `/flowchart` 플로우차트·프로세스 맵 · `/feature-spec` 기능 정의서·엣지케이스
+> → `/flowchart`는 `user_flows`로, `/feature-spec`은 `entities.fields`와 `constraints`로 통합 출력됩니다.
+
 입력 자료:
 
 ---

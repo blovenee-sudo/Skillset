@@ -925,11 +925,31 @@
       const q = ($("sidebarSearch").value || "").trim();
 
       if (sidebarTab === "skills" && !q) {
-        // ── 카테고리 그룹핑 ──
-        const CAT_ORDER = ["Phase 1", "Phase 2", "Phase 3", "Analysis", "Planning", "공통"];
-        const catSet = new Set(skills.map(s => s.category).filter(Boolean));
-        const CATS = CAT_ORDER.filter(c => catSet.has(c)).concat([...catSet].filter(c => !CAT_ORDER.includes(c)));
-        CATS.forEach(cat => {
+        // ── Phase 1·2·3 통합 아코디언 ──
+        const PHASE_CATS = ["Phase 1", "Phase 2", "Phase 3"];
+        const PHASE_CAT_SET = new Set(["Phase 1", "Phase 2", "Phase 3", "Analysis", "Planning"]);
+        const phaseSkills = PHASE_CATS.flatMap(ph => skills.filter(s => s.category === ph));
+        if (phaseSkills.length) {
+          const catKey = "__cat__phase";
+          const hdr = document.createElement("div");
+          hdr.className = "group-header";
+          hdr.dataset.catKey = catKey;
+          hdr.style.cursor = "pointer";
+          const isCollapsed = collapsedGroups.has(catKey);
+          hdr.innerHTML = `<span class="group-toggle">${isCollapsed ? "▶" : "▼"}</span><span class="group-name">Phase</span><span class="group-count">${phaseSkills.length}</span>`;
+          hdr.addEventListener("click", () => {
+            if (collapsedGroups.has(catKey)) collapsedGroups.delete(catKey);
+            else collapsedGroups.add(catKey);
+            renderSidebar();
+          });
+          el.appendChild(hdr);
+          if (!isCollapsed) phaseSkills.forEach(sk => appendSkillChip(el, sk));
+        }
+        // ── 나머지 카테고리 (공통 등) ──
+        const otherCatOrder = ["공통"];
+        const otherCatSet = new Set(skills.filter(s => s.category && !PHASE_CAT_SET.has(s.category)).map(s => s.category));
+        const otherCats = otherCatOrder.filter(c => otherCatSet.has(c)).concat([...otherCatSet].filter(c => !otherCatOrder.includes(c)));
+        otherCats.forEach(cat => {
           const catSkills = skills.filter(s => s.category === cat);
           if (!catSkills.length) return;
           const catKey = `__cat__${cat}`;
@@ -1134,14 +1154,16 @@
             if (e.target.closest(".rm")) return;
             openDetail(sk.id);
           });
-          const rm = document.createElement("span");
-          rm.className = "rm"; rm.textContent = "×"; rm.title = "프로젝트에서 제거";
-          rm.addEventListener("click", (e) => {
-            e.stopPropagation();
-            p.instances = p.instances.filter(x => x.instanceId !== inst.instanceId);
-            saveState(); renderProjects();
-          });
-          pill.appendChild(rm);
+          if (!inst.isDefault) {
+            const rm = document.createElement("span");
+            rm.className = "rm"; rm.textContent = "×"; rm.title = "프로젝트에서 제거";
+            rm.addEventListener("click", (e) => {
+              e.stopPropagation();
+              p.instances = p.instances.filter(x => x.instanceId !== inst.instanceId);
+              saveState(); renderProjects();
+            });
+            pill.appendChild(rm);
+          }
           zone.appendChild(pill);
         });
 
@@ -1441,7 +1463,10 @@
       $("btnNewProject").addEventListener("click", () => {
         const name = prompt("프로젝트 이름", "새 프로젝트");
         if (!name) return;
-        state.projects.push({ id: uid(), name: name.trim(), instances: [] });
+        const defaultInstances = ['s1', 'p2', 'p3']
+          .filter(id => state.skills.find(s => s.id === id))
+          .map(id => ({ instanceId: uid(), skillId: id, isDefault: true }));
+        state.projects.push({ id: uid(), name: name.trim(), instances: defaultInstances });
         saveState(); renderProjects(); renderSidebar();
       });
 

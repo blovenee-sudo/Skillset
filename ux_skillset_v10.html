@@ -368,7 +368,7 @@
       <label>한 줄 설명</label>
       <input type="text" id="skDesc" />
       <label>가이드 <span style="font-size:10px;color:var(--muted);font-weight:400">— 상세 패널에 표시 · 복사 시 제외</span></label>
-      <textarea id="skGuide" rows="3" style="resize:vertical;min-height:60px;font-size:13px;line-height:1.5"></textarea>
+      <textarea class="prompt-area" id="skGuide" rows="3" style="resize:vertical;min-height:60px"></textarea>
       <label>프롬프트 본문</label>
       <textarea class="prompt-area" id="skPrompt" style="min-height:120px"></textarea>
       <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
@@ -1014,9 +1014,9 @@
 
     // ── Phase 산출물 관리 ──
     const PHASE_META = {
-      phase1: { label: 'Phase 1', name: 'Markdown 스펙', ext: 'md' },
-      phase2: { label: 'Phase 2', name: 'JSON Schema',   ext: 'json' },
-      phase3: { label: 'Phase 3', name: 'HTML 프로토타입', ext: 'html' }
+      phase1: { label: '/spec',   name: 'Markdown 스펙',   ext: 'md' },
+      phase2: { label: '/schema', name: 'JSON Schema',     ext: 'json' },
+      phase3: { label: '/build',  name: 'HTML 프로토타입', ext: 'html' }
     };
     let _delivEditState = null;
     let _delivViewState = null;
@@ -1138,7 +1138,15 @@
           hint.textContent = "여기로 스킬을 드래그 앤 드롭";
           zone.appendChild(hint);
         }
-        p.instances.forEach(inst => {
+        const DEFAULT_ORDER = ['s1', 'p2', 'p3'];
+        const sortedInstances = [...p.instances].sort((a, b) => {
+          const ai = DEFAULT_ORDER.indexOf(a.skillId), bi = DEFAULT_ORDER.indexOf(b.skillId);
+          if (ai >= 0 && bi >= 0) return ai - bi;
+          if (ai >= 0) return -1;
+          if (bi >= 0) return 1;
+          return 0;
+        });
+        sortedInstances.forEach(inst => {
           const sk = state.skills.find(s => s.id === inst.skillId);
           if (!sk) return;
           const pill = document.createElement("div");

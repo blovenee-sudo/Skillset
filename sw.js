@@ -1,4 +1,4 @@
-const CACHE = 'skillset-v71';
+const CACHE = 'skillset-v72';
 
 const PRECACHE = [
   './index.html',
@@ -8,6 +8,9 @@ const PRECACHE = [
   './env-config.js',
   './skills/index.json',
   './skills/s1-spec.md',
+  './skills/p2-schema.md',
+  './skills/p3-build.md',
+  './skills/qa-qa.md',
   './skills/report-instructions.md',
   './skills/s11-generate-report.md',
 ];

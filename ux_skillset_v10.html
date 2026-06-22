@@ -365,14 +365,12 @@
       <input type="text" id="skName" />
       <label>슬래시 명령어 (예: /my-skill)</label>
       <input type="text" id="skSlash" />
+      <label>한 줄 설명</label>
+      <input type="text" id="skDesc" />
       <label>가이드 <span style="font-size:10px;color:var(--muted);font-weight:400">— 상세 패널에 표시 · 복사 시 제외</span></label>
-      <textarea id="skDesc" rows="3" style="resize:vertical;min-height:60px;font-size:13px;line-height:1.5"></textarea>
+      <textarea id="skGuide" rows="3" style="resize:vertical;min-height:60px;font-size:13px;line-height:1.5"></textarea>
       <label>프롬프트 본문</label>
-      <textarea class="prompt-area" id="skPrompt" style="min-height:120px" maxlength="2000"></textarea>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px;margin-bottom:6px">
-        <span style="font-size:11px;color:var(--muted)">💡 예시(Few-shot) 최대 2개 · 확인 멘트('알겠습니다' 등) 생략 권장</span>
-        <span id="skPromptCounter" style="font-size:11px;color:var(--muted);flex-shrink:0;margin-left:8px">0 / 2,000자</span>
-      </div>
+      <textarea class="prompt-area" id="skPrompt" style="min-height:120px"></textarea>
       <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
         <button type="button" class="btn-sm" id="btnSkillDelete" style="display:none;border-color:#7f1d1d;color:#fca5a5">스킬 완전 삭제</button>
         <span style="flex:1"></span>
@@ -699,6 +697,7 @@
         `name: ${sk.name}`,
         `slash: ${sk.slash}`,
         `desc: ${sk.desc || ""}`,
+        `guide: ${sk.guide || ""}`,
         `authorName: ${sk.authorName || ""}`,
         `---`,
         ``,
@@ -1234,8 +1233,8 @@
       $("detailSlashBadge").textContent = sk.slash || sk.name;
       $("detailTitle").textContent = sk.name;
       $("detailAuthor").textContent = sk.authorName ? `작성자: ${sk.authorName}` : "";
-      $("detailPrompt").value = (sk.authorId !== null && sk.desc)
-        ? sk.desc + "\n\n━━━━━━━━━━ 지침 내용 ━━━━━━━━━━\n\n" + (sk.prompt || "")
+      $("detailPrompt").value = (sk.authorId !== null && sk.guide)
+        ? sk.guide + "\n\n━━━━━━━━━━ 지침 내용 ━━━━━━━━━━\n\n" + (sk.prompt || "")
         : (sk.prompt || "");
 
       // 편집: 로그인 사용자 모두 가능 (기본 스킬 포함 — 본인 세션에만 저장됨)
@@ -1300,13 +1299,8 @@
       $("skName").value = sk ? sk.name : "";
       $("skSlash").value = sk ? sk.slash : "/";
       $("skDesc").value = sk ? (sk.desc || "") : "";
-      // 신규 스킬(관리자): 토큰 절약 규칙 기본 포함
-      const NEW_SKILL_TEMPLATE = `(여기에 스킬 지침을 작성하세요)\n\n---\n답변 시 인사말, 중복 설명, '알겠습니다' 같은 확인 멘트는 생략하고 본론만 출력할 것.\n예시(Few-shot)는 최대 2개.`;
-      $("skPrompt").value = sk ? (sk.prompt || "") : (isAdmin() ? NEW_SKILL_TEMPLATE : "");
-      // 글자 수 카운터 초기화
-      const initLen = $("skPrompt").value.length;
-      $("skPromptCounter").textContent = `${initLen} / 2,000자`;
-      $("skPromptCounter").style.color = initLen > 1800 ? "#f87171" : "var(--muted)";
+      $("skGuide").value = sk ? (sk.guide || "") : "";
+      $("skPrompt").value = sk ? (sk.prompt || "") : "";
       $("btnSkillDelete").style.display = sk ? "inline-block" : "none";
       $("modalSkill").classList.add("open");
     }
@@ -1610,9 +1604,9 @@
         const name = $("skName").value.trim();
         const slash = normalizeSlash($("skSlash").value);
         const desc = $("skDesc").value.trim();
+        const guide = $("skGuide").value.trim();
         const prompt = $("skPrompt").value;
         if (!name) return toast("스킬명을 입력하세요");
-        if (prompt.length > 2000) return toast(`프롬프트는 2,000자 이내로 작성해 주세요 (현재 ${prompt.length}자)`);
         const isNew = !editingSkillId;
         let llmLines = [];
         if (editingSkillId) {
@@ -1620,7 +1614,7 @@
           if (!sk) return;
           // 변경 전 값 캡처 (팝업용)
           const prev = { name: sk.name, slash: sk.slash, desc: sk.desc, prompt: sk.prompt };
-          sk.name = name; sk.slash = slash; sk.desc = desc;
+          sk.name = name; sk.slash = slash; sk.desc = desc; sk.guide = guide;
           sk.prompt = prompt;
           if (sk.authorId === null) sk._editedFromBase = true; // 기본 스킬 편집 표시
           // 사용자 스킬이면 MD 파일도 업데이트
@@ -1628,7 +1622,7 @@
           // 관리자가 기본 스킬 편집: latestBaseSkills 인메모리 즉시 반영 + FS 연결 시 MD 파일 저장
           if (sk.authorId === null && isAdmin()) {
             const ref = latestBaseSkills && latestBaseSkills.find(b => b.id === sk.id);
-            if (ref) { ref.name = name; ref.slash = slash; ref.desc = desc; ref.prompt = prompt; }
+            if (ref) { ref.name = name; ref.slash = slash; ref.desc = desc; ref.guide = guide; ref.prompt = prompt; }
             if (FS_SUPPORTED && rootHandle) saveBaseSkillMdToFs(sk).catch(() => {});
           }
           // 편집 LLM 팝업 내용 구성
@@ -1645,7 +1639,7 @@
           llmLines.push(prompt || "(지침 내용 없음)");
         } else {
           const newSkill = {
-            id: uid(), name, slash, desc, prompt,
+            id: uid(), name, slash, desc, guide, prompt,
             authorId: isAdmin() ? null : (state.session.userId || null),
             authorName: isAdmin() ? "" : (state.session.displayName || ""),
             usage: 0,
@@ -1724,12 +1718,6 @@
         }
       });
 
-      // ── 스킬 프롬프트 글자 수 카운터 ──
-      $("skPrompt").addEventListener("input", () => {
-        const len = $("skPrompt").value.length;
-        $("skPromptCounter").textContent = `${len} / 2,000자`;
-        $("skPromptCounter").style.color = len > 1800 ? "#f87171" : "var(--muted)";
-      });
 
     }
 

@@ -365,8 +365,8 @@
       <input type="text" id="skName" />
       <label>슬래시 명령어 (예: /my-skill)</label>
       <input type="text" id="skSlash" />
-      <label>한 줄 설명</label>
-      <input type="text" id="skDesc" />
+      <label>가이드 <span style="font-size:10px;color:var(--muted);font-weight:400">— 상세 패널에 표시 · 복사 시 제외</span></label>
+      <textarea id="skDesc" rows="3" style="resize:vertical;min-height:60px;font-size:13px;line-height:1.5"></textarea>
       <label>프롬프트 본문</label>
       <textarea class="prompt-area" id="skPrompt" style="min-height:120px" maxlength="2000"></textarea>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px;margin-bottom:6px">
@@ -1234,7 +1234,9 @@
       $("detailSlashBadge").textContent = sk.slash || sk.name;
       $("detailTitle").textContent = sk.name;
       $("detailAuthor").textContent = sk.authorName ? `작성자: ${sk.authorName}` : "";
-      $("detailPrompt").value = sk.prompt || "";
+      $("detailPrompt").value = (sk.authorId !== null && sk.desc)
+        ? sk.desc + "\n\n━━━━━━━━━━ 지침 내용 ━━━━━━━━━━\n\n" + (sk.prompt || "")
+        : (sk.prompt || "");
 
       // 편집: 로그인 사용자 모두 가능 (기본 스킬 포함 — 본인 세션에만 저장됨)
       // 삭제: 기본 스킬은 관리자만 / 사용자 스킬은 본인만

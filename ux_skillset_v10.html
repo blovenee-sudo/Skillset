@@ -259,6 +259,9 @@
     .phase-slot .ps-date { font-size: 10px; color: var(--muted); }
     .phase-slot .ps-del { position: absolute; top: 5px; right: 6px; font-size: 13px; color: var(--muted); cursor: pointer; padding: 1px 4px; border-radius: 4px; line-height: 1; }
     .phase-slot .ps-del:hover { color: #f87171; background: rgba(248,113,113,.1); }
+    .phase-slot.changelog-slot { border-color: #a78bfa44; }
+    .phase-slot.changelog-slot .ps-label { color: #a78bfa; }
+    .phase-slot.changelog-slot:hover { border-color: #a78bfa; }
     /* 산출물 보기 모달 */
     .modal.modal-wide { max-width: 880px; height: 80vh; display: flex; flex-direction: column; padding-bottom: 14px; }
     .modal.modal-wide .modal-body { flex: 1; overflow: auto; min-height: 0; border-radius: 8px; border: 1px solid var(--border); }
@@ -995,9 +998,10 @@
 
     // ── Phase 산출물 관리 ──
     const PHASE_META = {
-      phase1: { label: '/spec',   name: 'Markdown 스펙',   ext: 'md' },
-      phase2: { label: '/schema', name: 'JSON Schema',     ext: 'json' },
-      phase3: { label: '/build',  name: 'HTML 프로토타입', ext: 'html' }
+      phase1:    { label: '/spec',   name: 'Markdown 스펙',   ext: 'md' },
+      phase2:    { label: '/schema', name: 'JSON Schema',     ext: 'json' },
+      phase3:    { label: '/build',  name: 'HTML 프로토타입', ext: 'html' },
+      changelog: { label: '변경 이력', name: '변경 결정 MD', ext: 'md' }
     };
     let _delivEditState = null;
     let _delivViewState = null;
@@ -1083,7 +1087,8 @@
       const grid = $("projectsGrid");
       grid.innerHTML = "";
       state.projects.forEach(p => {
-        if (!p.deliverables) p.deliverables = { phase1: null, phase2: null, phase3: null };
+        if (!p.deliverables) p.deliverables = { phase1: null, phase2: null, phase3: null, changelog: null };
+        if (!('changelog' in p.deliverables)) p.deliverables.changelog = null;
         const card = document.createElement("div");
         card.className = "project-card";
         card.dataset.projectId = p.id;
@@ -1175,11 +1180,12 @@
         // Phase 산출물 슬롯
         const slotsEl = document.createElement("div");
         slotsEl.className = "phase-slots";
-        ["phase1", "phase2", "phase3"].forEach(ph => {
+        ["phase1", "phase2", "phase3", "changelog"].forEach(ph => {
           const meta = PHASE_META[ph];
           const deliv = p.deliverables[ph];
           const slot = document.createElement("div");
-          slot.className = "phase-slot" + (deliv ? " filled" : " empty");
+          const extraClass = ph === "changelog" ? " changelog-slot" : "";
+          slot.className = "phase-slot" + (deliv ? " filled" : " empty") + extraClass;
           if (deliv) {
             const d = new Date(deliv.savedAt);
             const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;

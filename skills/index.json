@@ -99,16 +99,6 @@
     "reportEnabled": true
   },
   {
-    "id": "s8",
-    "name": "리뷰 코멘트 수정 목록",
-    "slash": "/review-comments",
-    "desc": "피그마 리뷰 코멘트 우선순위화",
-    "category": "공통",
-    "authorId": null,
-    "prompt": "피그마(또는 디자인 리뷰) 코멘트 목록을 우선순위와 수정 난이도로 분류하고, 수정안 초안을 제안하세요. 표: 우선순위 | 코멘트 요약 | 화면/컴포넌트 | 제안 수정안\n\n코멘트:\n\n---\n\n## 후속 산출물 안내\n\n결과 출력 후 아래 질문을 합니다:\n\n\"📄 HTML 리포트로 저장할까요? (예 / 아니오)\"\n\n- **예** → \"AX 스킬셋 앱에서 [/generate-report] 스킬을 복사해 붙여넣어 주세요. 이전 결과를 기반으로 리포트를 생성합니다.\"\n- HTML을 직접 생성하지 않음",
-    "reportEnabled": true
-  },
-  {
     "id": "p2",
     "name": "데이터 구조 설계",
     "slash": "/schema",

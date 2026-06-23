@@ -565,7 +565,7 @@
     function defaultState() {
       return {
         skills: DEFAULT_SKILLS.map(s => ({ ...s })),
-        projects: [{ id: uid(), name: "샘플 프로젝트", instances: [] }],
+        projects: [],
         favorites: [],
         session: { mode: "guest", displayName: "", admin: false },
         caseCount: 0,
@@ -1099,6 +1099,10 @@
     function renderProjects() {
       const grid = $("projectsGrid");
       grid.innerHTML = "";
+      if (!state.projects.length) {
+        grid.innerHTML = `<div class="empty-state" style="padding:80px 20px">+ 프로젝트 버튼을 눌러 프로젝트를 생성해주세요.</div>`;
+        return;
+      }
       state.projects.forEach(p => {
         if (!p.deliverables) p.deliverables = { phase1: null, phase2: null, phase3: null, changelog: null };
         if (!('changelog' in p.deliverables)) p.deliverables.changelog = null;

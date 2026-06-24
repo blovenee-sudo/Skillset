@@ -1122,11 +1122,12 @@
       body.innerHTML = "";
       const _isHtml = /^\s*<!DOCTYPE html/i.test(deliv.content) || /^\s*<html/i.test(deliv.content);
       const _isJson = phase === "phase2" || (phase.startsWith("phase") && !_isHtml && meta.ext === "json");
+      let _viewIframe = null;
       if (_isHtml) {
-        const iframe = document.createElement("iframe");
-        iframe.srcdoc = deliv.content;
-        iframe.style.cssText = "width:100%;height:100%;border:none;";
-        body.appendChild(iframe);
+        _viewIframe = document.createElement("iframe");
+        _viewIframe.srcdoc = deliv.content;
+        _viewIframe.style.cssText = "width:100%;height:100%;border:none;";
+        body.appendChild(_viewIframe);
       } else {
         const pre = document.createElement("pre");
         if (_isJson) {
@@ -1137,10 +1138,20 @@
         }
         body.appendChild(pre);
       }
-      const isHtml = /^\s*<!DOCTYPE html/i.test(deliv.content) || /^\s*<html/i.test(deliv.content);
+      const isHtml = _isHtml;
       $("btnDelivViewOpen").onclick = () => {
+        let htmlContent = deliv.content;
+        if (isHtml && _viewIframe && _viewIframe.contentDocument) {
+          try {
+            const checks = [..._viewIframe.contentDocument.querySelectorAll('input[type=checkbox]')].map(c => c.checked);
+            if (checks.length) {
+              const inj = `<script>window.__QA_CHECKS__=${JSON.stringify(checks)};(function(){function r(){document.querySelectorAll('input[type=checkbox]').forEach(function(c,i){if(__QA_CHECKS__[i]!==undefined)c.checked=__QA_CHECKS__[i]});if(typeof updateProgress==='function')updateProgress();}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',r):r();})();<\/script>`;
+              htmlContent = htmlContent.includes('</head>') ? htmlContent.replace('</head>', inj+'</head>') : inj+htmlContent;
+            }
+          } catch {}
+        }
         const mime = isHtml ? "text/html;charset=utf-8" : "text/plain;charset=utf-8";
-        window.open(URL.createObjectURL(new Blob([deliv.content], { type: mime })));
+        window.open(URL.createObjectURL(new Blob([htmlContent], { type: mime })));
       };
       $("btnDelivViewDownload").onclick = () => {
         const mime = isHtml ? "text/html;charset=utf-8" : "text/plain;charset=utf-8";

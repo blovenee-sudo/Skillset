@@ -143,15 +143,23 @@ Phase 3 검토 중 Phase 1·2 결정 변경 발생
 
 ## Step 3 — 출력 후 안내
 
-HTML 코드블록 아래에 다음 내용을 출력합니다.
+HTML 코드블록 아래에 다음 내용을 정확히 출력합니다.
+파일명은 `[실제프로젝트명]-phase[N]-qa.html` 형태로 실제 값을 채워 출력합니다.
 
-```
+---
+
 **감지된 단계:** Phase N — [단계 설명]
 **필수 항목:** N개 | **권장 항목:** N개
 
-저장: 위 코드를 복사 → [파일명].html 저장 → 브라우저에서 열기
-체크 완료 후 **③ 변경 결정 기록** 테이블에 리뷰 결과를 기입하세요.
+📥 **QA 리포트 다운로드** — 브라우저 콘솔(F12 → Console 탭)에 아래 코드를 붙여넣고 Enter:
+
+```js
+(()=>{const h=[...document.querySelectorAll('pre code')].find(e=>e.textContent.includes('<!DOCTYPE html'));if(!h)return alert('코드블록을 찾을 수 없습니다');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([h.textContent],{type:'text/html;charset=utf-8'}));a.download='[파일명].html';a.click()})()
 ```
+
+체크 완료 후 **③ 변경 결정 기록** 테이블에 리뷰 결과를 기입하세요.
+
+---
 
 ---
 

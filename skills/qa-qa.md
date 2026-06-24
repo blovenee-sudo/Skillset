@@ -77,6 +77,27 @@ Phase 1 Markdown, Phase 2 JSON, Phase 3 HTML 중 어떤 것이든 자동으로 �
 
 인터랙티브 체크박스 · 필수/권장 항목 분리 · 전체 진행률 바 포함.
 
+**진행률 바 구현 (반드시 아래 방식으로):**
+```js
+function updateProgress() {
+  var boxes = document.querySelectorAll('.checklist input[type=checkbox]');
+  var total = boxes.length;
+  var checked = Array.prototype.filter.call(boxes, function(c){ return c.checked; }).length;
+  var pct = total ? Math.round(checked / total * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = pct + '%';
+}
+// 페이지 로드 시 + 체크 변경 시 실행
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.checklist input[type=checkbox]').forEach(function(c) {
+    c.addEventListener('change', updateProgress);
+  });
+  updateProgress();
+});
+```
+- 진행률 바 HTML: `<div id="progressFill" style="width:0%;..."></div>` + `<span id="progressText">0%</span>`
+- 체크박스에 별도 `onclick` 핸들러 부여 금지 — `change` 이벤트만 사용
+
 **Phase 1 항목**
 ```
 [필수] 프로젝트 개요(목적·배경·범위)가 명시됐는가?

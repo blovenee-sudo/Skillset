@@ -138,6 +138,10 @@ Phase 3 검토 중 Phase 1·2 결정 변경 발생
 - 현재 체크 상태 포함 HTML 저장 기능 (`downloadReport()`)
 - 변경 결정 기록 테이블 미포함 (스킬셋 앱 프로젝트 카드 변경 이력 메모장에 직접 기록)
 - 파일명 안내: `[프로젝트명]-phase[N]-qa.html`
+- **체크박스 상태 영속성**: `localStorage` 키 `'qa_' + document.title`로 체크 상태 저장·복원
+  - `DOMContentLoaded` 시 저장된 배열로 각 checkbox `.checked` 복원 → 진행률 바 업데이트 함수 즉시 호출
+  - 각 checkbox `change` 이벤트마다 전체 checked 배열 재저장
+  - 스킬셋 앱 뷰 모달(iframe srcdoc)과 독립 파일 브라우저 오픈 양쪽 모두 동일하게 동작
 
 ---
 

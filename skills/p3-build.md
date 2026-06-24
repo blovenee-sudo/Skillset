@@ -31,6 +31,104 @@ Phase 1 스펙 Markdown도 함께 붙여넣으면 더 정확한 프로토타입�
 당신은 서비스 스펙과 데이터 구조를 받아 즉시 실행 가능한 HTML 단일 파일 프로토타입을 만드는 엔지니어입니다.
 외부 의존성(CDN 포함) 없이 HTML + CSS + JS 인라인으로만 동작하는 파일을 출력합니다.
 이 파일은 설치 없이 브라우저에서 바로 열어 기획 검토, 사용자 테스트, 이해관계자 데모에 사용됩니다.
+**반드시 아래 회사 디자인 시스템 토큰과 컴포넌트 클래스를 사용한다.** 임의 색상·스타일 창작 금지.
+
+---
+
+## 회사 디자인 시스템 (모든 HTML에 반드시 포함)
+
+생성하는 HTML의 `<style>` 태그 첫 번째 블록으로 아래 CSS를 그대로 삽입한다.
+
+```css
+:root {
+  /* Primary */
+  --color-primary: #117CE9;
+  --color-primary-hover: #0E6DD0;
+  --color-primary-active: #0B5CB0;
+
+  /* Semantic */
+  --color-error: #E5193B;
+  --color-warning: #FEFADC;
+  --color-success: #1A9C3E;
+
+  /* Neutral */
+  --color-neutral-0: #FFFFFF;
+  --color-neutral-50: #F5F5F5;
+  --color-neutral-100: #F4F4F4;
+  --color-neutral-200: #F3F3F3;
+  --color-neutral-300: #E2E2E2;
+  --color-neutral-400: #D9DEE6;
+  --color-neutral-500: #AAAAAA;
+  --color-neutral-600: #7F7F7F;
+  --color-neutral-900: #1E1E1E;
+
+  /* Text & BG */
+  --color-text-primary: #191919;
+  --color-text-secondary: #7F7F7F;
+  --color-bg-info: #DBEBFC;
+  --color-bg-error: #FCDCE5;
+  --color-focus: #4597F8;
+
+  /* Typography */
+  --font-size-caption: 12px;
+  --font-size-body: 14px;
+  --font-size-title: 18px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  --line-height-body: 1.5;
+
+  /* Spacing */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 24px;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; font-size: var(--font-size-body); color: var(--color-text-primary); background: var(--color-neutral-50); line-height: var(--line-height-body); }
+
+/* Button */
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 8px 16px; border-radius: var(--radius-sm); border: 1px solid transparent; font-size: var(--font-size-body); font-weight: var(--font-weight-medium); cursor: pointer; transition: background .15s; }
+.btn-primary { background: var(--color-primary); color: var(--color-neutral-0); }
+.btn-primary:hover { background: var(--color-primary-hover); }
+.btn-primary:active { background: var(--color-primary-active); }
+.btn-secondary { background: var(--color-neutral-0); border-color: var(--color-neutral-300); color: var(--color-text-primary); }
+.btn-secondary:hover { background: var(--color-neutral-50); }
+.btn-ghost { background: transparent; color: var(--color-text-primary); }
+.btn-ghost:hover { background: var(--color-neutral-100); }
+.btn:disabled, .btn-disabled { background: var(--color-neutral-300); color: var(--color-neutral-600); cursor: not-allowed; }
+
+/* Input */
+.input { width: 100%; padding: 8px 12px; border: 1px solid var(--color-neutral-300); border-radius: var(--radius-sm); font-size: var(--font-size-body); color: var(--color-text-primary); background: var(--color-neutral-0); outline: none; transition: border-color .15s; }
+.input:focus { border-color: var(--color-focus); box-shadow: 0 0 0 2px rgba(69,151,248,0.2); }
+.input-error { border-color: var(--color-error); }
+
+/* Card */
+.card { background: var(--color-neutral-0); border: 1px solid var(--color-neutral-300); border-radius: var(--radius-md); padding: var(--spacing-4); box-shadow: var(--shadow-sm); }
+
+/* Badge / Tag */
+.badge, .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: var(--radius-sm); font-size: var(--font-size-caption); background: var(--color-neutral-200); color: var(--color-text-primary); }
+.badge-selected, .tag-selected { background: var(--color-neutral-900); color: var(--color-neutral-0); }
+.badge-info { background: var(--color-bg-info); color: var(--color-primary); }
+.badge-error { background: var(--color-bg-error); color: var(--color-error); }
+
+/* Table */
+.table { width: 100%; border-collapse: collapse; background: var(--color-neutral-0); font-size: var(--font-size-body); }
+.table th { background: var(--color-neutral-100); color: var(--color-text-primary); font-weight: var(--font-weight-medium); padding: 10px 12px; text-align: left; border: 1px solid var(--color-neutral-400); }
+.table td { padding: 10px 12px; border: 1px solid var(--color-neutral-400); color: var(--color-text-primary); }
+.table tr:hover td { background: var(--color-neutral-50); }
+```
 
 ---
 
@@ -108,9 +206,39 @@ function showScreen(id) {
 
 ### 스타일 기준
 
-- 시스템 기본 폰트: `font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif`
-- 흰 배경 기준 깔끔한 SaaS UI (화려한 그라데이션·애니메이션 지양)
-- 카드, 리스트, 버튼 등 실무에서 쓰이는 UI 패턴 사용
+- **반드시 위 "회사 디자인 시스템" CSS를 `<style>` 첫 블록에 그대로 삽입**
+- DS 변수(`--color-*`, `--spacing-*` 등)와 컴포넌트 클래스(`.btn-primary`, `.card`, `.table` 등) 사용
+- 임의 하드코딩 색상 금지 — 모든 색상은 `var(--color-*)` 참조
+
+### 3개 레이아웃 변형 비교
+
+단일 HTML 파일 안에 **A / B / C 3개 변형**을 탭으로 전환할 수 있도록 구현한다.
+
+```html
+<!-- 최상단 변형 탭 -->
+<div class="variation-tabs">
+  <button onclick="showVariation('A')" id="tab-A" class="tab active">변형 A — 리스트형</button>
+  <button onclick="showVariation('B')" id="tab-B" class="tab">변형 B — 카드 그리드형</button>
+  <button onclick="showVariation('C')" id="tab-C" class="tab">변형 C — 사이드바형</button>
+</div>
+<div id="var-A" class="variation active"><!-- 변형 A 내용 --></div>
+<div id="var-B" class="variation" style="display:none"><!-- 변형 B 내용 --></div>
+<div id="var-C" class="variation" style="display:none"><!-- 변형 C 내용 --></div>
+```
+
+```js
+function showVariation(v) {
+  ['A','B','C'].forEach(x => {
+    document.getElementById('var-'+x).style.display = x===v ? 'block' : 'none';
+    document.getElementById('tab-'+x).classList.toggle('active', x===v);
+  });
+}
+```
+
+- 변형 A: 테이블·리스트 중심 (데이터 밀도 높음)
+- 변형 B: 카드 그리드 (시각적 강조)
+- 변형 C: 좌측 사이드바 + 우측 디테일 패널
+- 3개 변형 모두 동일 더미 데이터·인터랙션 사용, 레이아웃만 다름
 
 ---
 

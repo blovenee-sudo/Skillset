@@ -272,9 +272,22 @@
     .phase-slot.qa-slot { border-color: #34d39933; }
     .phase-slot.qa-slot .ps-label { color: #34d399; }
     .phase-slot.qa-slot:hover { border-color: #34d399; }
-    .phase-slot.log-slot { border-color: #a78bfa33; }
-    .phase-slot.log-slot .ps-label { color: #a78bfa; }
-    .phase-slot.log-slot:hover { border-color: #a78bfa; }
+    /* 변경 이력 메모장 */
+    .changelog-area {
+      padding: 8px 10px 10px; border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .changelog-area label {
+      font-size: 10px; font-weight: 700; letter-spacing: .05em;
+      color: var(--muted); display: block; margin-bottom: 4px;
+    }
+    .changelog-area textarea {
+      width: 100%; box-sizing: border-box; resize: vertical; min-height: 56px;
+      background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: 6px; color: var(--fg); font-size: 11px;
+      padding: 6px 8px; font-family: inherit; line-height: 1.6;
+    }
+    .changelog-area textarea:focus { border-color: var(--accent); outline: none; }
     /* 산출물 보기 모달 */
     .modal.modal-wide { max-width: 880px; height: 80vh; display: flex; flex-direction: column; padding-bottom: 14px; }
     .modal.modal-wide .modal-body { flex: 1; overflow: auto; min-height: 0; border-radius: 8px; border: 1px solid var(--border); }
@@ -789,26 +802,26 @@
 
     // 이전 Phase 슬롯 내용을 복사 프롬프트에 자동 주입
     const PHASE_INJECT = {
-      s1:  { output: null,     log: 'phase1_log' },
-      p2:  { output: 'phase1', log: 'phase1_log' },
-      p3:  { output: 'phase2', log: 'phase2_log' },
-      qa:  { output: '__auto', log: null },
+      s1:  { output: null     },
+      p2:  { output: 'phase1' },
+      p3:  { output: 'phase2' },
+      qa:  { output: '__auto' },
     };
     function buildInjection(projectId, skillId) {
       if (!projectId) return "";
       const p = state.projects.find(x => x.id === projectId);
-      if (!p || !p.deliverables) return "";
+      if (!p) return "";
       const cfg = PHASE_INJECT[skillId];
       if (!cfg) return "";
       let outputKey = cfg.output;
       if (outputKey === '__auto') {
         for (const k of ['phase3', 'phase2', 'phase1']) {
-          if (p.deliverables[k]?.content) { outputKey = k; break; }
+          if (p.deliverables?.[k]?.content) { outputKey = k; break; }
         }
         if (outputKey === '__auto') outputKey = null;
       }
-      const outputContent = outputKey ? p.deliverables[outputKey]?.content : null;
-      const logContent    = cfg.log    ? p.deliverables[cfg.log]?.content    : null;
+      const outputContent = outputKey ? p.deliverables?.[outputKey]?.content : null;
+      const logContent    = p.changeLog?.trim() || null;
       if (!outputContent && !logContent) return "";
       const phaseLabel = { phase1: 'Phase 1 (/spec)', phase2: 'Phase 2 (/schema)', phase3: 'Phase 3 (/build)' };
       let out = "\n\n---\n";
@@ -1065,20 +1078,17 @@
 
     // ── Phase 산출물 관리 ──
     const PHASE_META = {
-      phase1:     { label: '산출물', name: 'Markdown 스펙',    ext: 'md'   },
-      phase1_qa:  { label: 'QA',    name: 'QA 리포트',        ext: 'html' },
-      phase1_log: { label: '변경',  name: '변경 이력',         ext: 'html' },
-      phase2:     { label: '산출물', name: 'JSON Schema',      ext: 'json' },
-      phase2_qa:  { label: 'QA',    name: 'QA 리포트',        ext: 'html' },
-      phase2_log: { label: '변경',  name: '변경 이력',         ext: 'html' },
-      phase3:     { label: '산출물', name: 'HTML 프로토타입',  ext: 'html' },
-      phase3_qa:  { label: 'QA',    name: 'QA 리포트',        ext: 'html' },
-      phase3_log: { label: '변경',  name: '변경 이력',         ext: 'html' },
+      phase1:    { label: '산출물', name: 'Markdown 스펙',   ext: 'md'   },
+      phase1_qa: { label: 'QA',    name: 'QA 리포트',       ext: 'html' },
+      phase2:    { label: '산출물', name: 'JSON Schema',     ext: 'json' },
+      phase2_qa: { label: 'QA',    name: 'QA 리포트',       ext: 'html' },
+      phase3:    { label: '산출물', name: 'HTML 프로토타입', ext: 'html' },
+      phase3_qa: { label: 'QA',    name: 'QA 리포트',       ext: 'html' },
     };
     const PHASE_GROUPS = [
-      { key: 'phase1', label: '/spec',   slots: ['phase1', 'phase1_qa', 'phase1_log'] },
-      { key: 'phase2', label: '/schema', slots: ['phase2', 'phase2_qa', 'phase2_log'] },
-      { key: 'phase3', label: '/build',  slots: ['phase3', 'phase3_qa', 'phase3_log'] },
+      { key: 'phase1', label: '/spec',   slots: ['phase1', 'phase1_qa'] },
+      { key: 'phase2', label: '/schema', slots: ['phase2', 'phase2_qa'] },
+      { key: 'phase3', label: '/build',  slots: ['phase3', 'phase3_qa'] },
     ];
     let _delivEditState = null;
     let _delivViewState = null;
@@ -1216,10 +1226,11 @@
       dragHint.textContent = "스킬을 드래그하여 프로젝트 카드에 놓으세요.";
       grid.appendChild(dragHint);
       state.projects.forEach(p => {
-        const _allKeys = ['phase1','phase1_qa','phase1_log','phase2','phase2_qa','phase2_log','phase3','phase3_qa','phase3_log'];
+        const _allKeys = ['phase1','phase1_qa','phase2','phase2_qa','phase3','phase3_qa'];
         if (!p.deliverables) p.deliverables = {};
         _allKeys.forEach(k => { if (!(k in p.deliverables)) p.deliverables[k] = null; });
-        delete p.deliverables.changelog;
+        ['changelog','phase1_log','phase2_log','phase3_log'].forEach(k => delete p.deliverables[k]);
+        if (!('changeLog' in p)) p.changeLog = "";
         const card = document.createElement("div");
         card.className = "project-card";
         card.dataset.projectId = p.id;
@@ -1363,8 +1374,24 @@
           saveState(); renderProjects();
         });
 
+        // 변경 이력 메모장
+        const clArea = document.createElement("div");
+        clArea.className = "changelog-area";
+        const clLabel = document.createElement("label");
+        clLabel.textContent = "변경 이력 (Phase 스킬 복사 시 자동 포함)";
+        const clTa = document.createElement("textarea");
+        clTa.placeholder = "QA 리뷰 후 변경 결정 사항을 여기에 누적 기록하세요.";
+        clTa.value = p.changeLog || "";
+        clTa.addEventListener("input", () => {
+          p.changeLog = clTa.value;
+          saveState();
+        });
+        clArea.appendChild(clLabel);
+        clArea.appendChild(clTa);
+
         card.appendChild(head);
         card.appendChild(phaseColsEl);
+        card.appendChild(clArea);
         card.appendChild(zone);
         grid.appendChild(card);
       });

@@ -49,7 +49,7 @@ Phase 1 Markdown, Phase 2 JSON, Phase 3 HTML 중 어떤 것이든 자동으로 �
 
 ## Step 2 — QA 리포트 HTML 출력
 
-아래 4개 섹션을 포함한 단일 HTML 파일을 코드블록(```html ... ```)으로 출력합니다.
+아래 3개 섹션을 포함한 단일 HTML 파일을 코드블록(```html ... ```)으로 출력합니다.
 
 ---
 
@@ -106,17 +106,7 @@ Phase 1 Markdown, Phase 2 JSON, Phase 3 HTML 중 어떤 것이든 자동으로 �
 
 ---
 
-### 섹션 ③ 변경 결정 기록
-
-빈 테이블로 출력합니다. 리뷰 완료 후 사용자가 직접 기입합니다.
-
-| # | 검토 항목 | 결정 사항 | 영향 Phase | 후속 처리 |
-|---|---------|---------|-----------|---------|
-| 1 | | | | |
-
----
-
-### 섹션 ④ 후속 처리 가이드
+### 섹션 ③ 후속 처리 가이드
 
 체크리스트 결과 및 변경 결정에 따른 재작업 경로를 아래 형태로 HTML 안에 항상 포함합니다.
 
@@ -141,6 +131,7 @@ Phase 3 검토 중 Phase 1·2 결정 변경 발생
 - 외부 의존성 없음 · 인라인 CSS · 시스템 폰트 (`-apple-system` 계열)
 - 인쇄/PDF 저장 버튼 (`window.print()`) · `@media print` 버튼 숨김 처리
 - 현재 체크 상태 포함 HTML 저장 기능 (`downloadReport()`)
+- 변경 결정 기록 테이블 미포함 (스킬셋 앱 프로젝트 카드 변경 이력 메모장에 직접 기록)
 - 파일명 안내: `[프로젝트명]-phase[N]-qa.html`
 
 ---
@@ -161,7 +152,8 @@ HTML 코드블록 아래에 다음 내용을 정확히 출력합니다.
 (()=>{const h=[...document.querySelectorAll('pre code')].find(e=>e.textContent.includes('<!DOCTYPE html'));if(!h)return alert('코드블록을 찾을 수 없습니다');window.open(URL.createObjectURL(new Blob([h.textContent],{type:'text/html;charset=utf-8'})))})()
 ```
 
-체크 완료 후 **③ 변경 결정 기록** 테이블에 리뷰 결과를 기입하세요.
+체크 완료 후 변경 결정 사항을 스킬셋 프로젝트 카드의 **변경 이력** 메모장에 직접 기록하세요.
+다음 Phase 스킬 복사 시 자동으로 포함됩니다.
 
 ---
 

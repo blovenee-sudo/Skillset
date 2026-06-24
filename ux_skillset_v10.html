@@ -437,6 +437,7 @@
       </div>
       <div class="row" style="margin-top:12px">
         <button type="button" class="btn-sm" id="btnHtmlSaveCancel">취소</button>
+        <button type="button" class="btn-sm" id="btnHtmlSaveOpen">새 탭에서 열기</button>
         <button type="button" class="btn-primary" id="btnHtmlSaveDownload">다운로드</button>
       </div>
     </div>
@@ -1090,6 +1091,11 @@
     });
     $("btnHtmlSaveCancel").addEventListener("click", () => {
       $("modalHtmlSave").classList.remove("open");
+    });
+    $("btnHtmlSaveOpen").addEventListener("click", () => {
+      const html = $("htmlSaveArea").value.trim();
+      if (!html) { toast("HTML 코드를 붙여넣어 주세요"); return; }
+      window.open(URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" })));
     });
     $("btnHtmlSaveDownload").addEventListener("click", () => {
       const html = $("htmlSaveArea").value.trim();

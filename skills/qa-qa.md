@@ -146,11 +146,8 @@ HTML 코드블록 아래에 다음 내용을 정확히 출력합니다.
 **감지된 단계:** Phase N — [단계 설명]
 **필수 항목:** N개 | **권장 항목:** N개
 
-🔗 **QA 리포트 새 탭에서 열기** — 브라우저 콘솔(F12 → Console 탭)에 아래 코드를 붙여넣고 Enter:
-
-```js
-(()=>{const h=[...document.querySelectorAll('pre code')].find(e=>e.textContent.includes('<!DOCTYPE html'));if(!h)return alert('코드블록을 찾을 수 없습니다');window.open(URL.createObjectURL(new Blob([h.textContent],{type:'text/html;charset=utf-8'})))})()
-```
+위 HTML 코드를 복사하여 **스킬셋 앱 → 프로젝트 카드 → QA 슬롯**에 저장하세요.
+저장 후 슬롯 클릭 시 브라우저 새 탭에서 QA 리포트를 바로 열 수 있습니다.
 
 체크 완료 후 변경 결정 사항을 스킬셋 프로젝트 카드의 **변경 이력** 메모장에 직접 기록하세요.
 다음 Phase 스킬 복사 시 자동으로 포함됩니다.

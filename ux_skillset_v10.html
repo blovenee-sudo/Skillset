@@ -244,24 +244,34 @@
     /* ── Phase deliverables ── */
     .phase-slots {
       border-top: 1px solid var(--border); padding: 10px;
-      display: flex; gap: 8px; background: var(--surface);
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+      background: var(--surface);
+    }
+    .phase-group { display: flex; flex-direction: column; gap: 4px; }
+    .phase-group-label {
+      font-size: 10px; font-weight: 700; letter-spacing: .05em;
+      color: var(--accent); padding: 0 2px 4px;
+      border-bottom: 1px solid var(--border); margin-bottom: 2px;
     }
     .phase-slot {
-      flex: 1; border-radius: 8px; border: 1.5px dashed var(--border);
-      padding: 10px 10px 8px; cursor: pointer; min-width: 0;
+      border-radius: 6px; border: 1.5px dashed var(--border);
+      padding: 7px 8px 6px; cursor: pointer; min-width: 0;
       transition: border-color .15s; position: relative;
     }
     .phase-slot:hover { border-color: var(--accent); }
     .phase-slot.filled { border-style: solid; background: var(--surface2); }
-    .phase-slot .ps-label { font-size: 10px; font-weight: 700; letter-spacing: .05em; color: var(--muted); margin-bottom: 3px; }
-    .phase-slot .ps-name { font-size: 12px; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .phase-slot .ps-label { font-size: 9px; font-weight: 700; letter-spacing: .05em; color: var(--muted); margin-bottom: 2px; }
+    .phase-slot .ps-name { font-size: 11px; font-weight: 600; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .phase-slot.empty .ps-name { color: var(--muted); font-weight: 400; }
-    .phase-slot .ps-date { font-size: 10px; color: var(--muted); }
-    .phase-slot .ps-del { position: absolute; top: 5px; right: 6px; font-size: 13px; color: var(--muted); cursor: pointer; padding: 1px 4px; border-radius: 4px; line-height: 1; }
+    .phase-slot .ps-date { font-size: 9px; color: var(--muted); }
+    .phase-slot .ps-del { position: absolute; top: 4px; right: 5px; font-size: 12px; color: var(--muted); cursor: pointer; padding: 1px 3px; border-radius: 3px; line-height: 1; }
     .phase-slot .ps-del:hover { color: #f87171; background: rgba(248,113,113,.1); }
-    .phase-slot.changelog-slot { border-color: #a78bfa44; }
-    .phase-slot.changelog-slot .ps-label { color: #a78bfa; }
-    .phase-slot.changelog-slot:hover { border-color: #a78bfa; }
+    .phase-slot.qa-slot { border-color: #34d39933; }
+    .phase-slot.qa-slot .ps-label { color: #34d399; }
+    .phase-slot.qa-slot:hover { border-color: #34d399; }
+    .phase-slot.log-slot { border-color: #a78bfa33; }
+    .phase-slot.log-slot .ps-label { color: #a78bfa; }
+    .phase-slot.log-slot:hover { border-color: #a78bfa; }
     /* 산출물 보기 모달 */
     .modal.modal-wide { max-width: 880px; height: 80vh; display: flex; flex-direction: column; padding-bottom: 14px; }
     .modal.modal-wide .modal-body { flex: 1; overflow: auto; min-height: 0; border-radius: 8px; border: 1px solid var(--border); }
@@ -1021,11 +1031,21 @@
 
     // ── Phase 산출물 관리 ──
     const PHASE_META = {
-      phase1:    { label: '/spec',   name: 'Markdown 스펙',   ext: 'md' },
-      phase2:    { label: '/schema', name: 'JSON Schema',     ext: 'json' },
-      phase3:    { label: '/build',  name: 'HTML 프로토타입', ext: 'html' },
-      changelog: { label: '변경 이력', name: '변경 결정 MD', ext: 'md' }
+      phase1:     { label: '산출물', name: 'Markdown 스펙',    ext: 'md'   },
+      phase1_qa:  { label: 'QA',    name: 'QA 리포트',        ext: 'html' },
+      phase1_log: { label: '변경',  name: '변경 이력',         ext: 'html' },
+      phase2:     { label: '산출물', name: 'JSON Schema',      ext: 'json' },
+      phase2_qa:  { label: 'QA',    name: 'QA 리포트',        ext: 'html' },
+      phase2_log: { label: '변경',  name: '변경 이력',         ext: 'html' },
+      phase3:     { label: '산출물', name: 'HTML 프로토타입',  ext: 'html' },
+      phase3_qa:  { label: 'QA',    name: 'QA 리포트',        ext: 'html' },
+      phase3_log: { label: '변경',  name: '변경 이력',         ext: 'html' },
     };
+    const PHASE_GROUPS = [
+      { key: 'phase1', label: '/spec',   slots: ['phase1', 'phase1_qa', 'phase1_log'] },
+      { key: 'phase2', label: '/schema', slots: ['phase2', 'phase2_qa', 'phase2_log'] },
+      { key: 'phase3', label: '/build',  slots: ['phase3', 'phase3_qa', 'phase3_log'] },
+    ];
     let _delivEditState = null;
     let _delivViewState = null;
 
@@ -1049,14 +1069,16 @@
       $("delivViewTitle").textContent = `${meta.label} — ${meta.name}`;
       const body = $("delivViewBody");
       body.innerHTML = "";
-      if (phase === "phase3") {
+      const _isHtml = /^\s*<!DOCTYPE html/i.test(deliv.content) || /^\s*<html/i.test(deliv.content);
+      const _isJson = phase === "phase2" || (phase.startsWith("phase") && !_isHtml && meta.ext === "json");
+      if (_isHtml) {
         const iframe = document.createElement("iframe");
         iframe.srcdoc = deliv.content;
         iframe.style.cssText = "width:100%;height:100%;border:none;";
         body.appendChild(iframe);
       } else {
         const pre = document.createElement("pre");
-        if (phase === "phase2") {
+        if (_isJson) {
           try { pre.textContent = JSON.stringify(JSON.parse(deliv.content), null, 2); }
           catch { pre.textContent = deliv.content; }
         } else {
@@ -1160,8 +1182,10 @@
       dragHint.textContent = "스킬을 드래그하여 프로젝트 카드에 놓으세요.";
       grid.appendChild(dragHint);
       state.projects.forEach(p => {
-        if (!p.deliverables) p.deliverables = { phase1: null, phase2: null, phase3: null, changelog: null };
-        if (!('changelog' in p.deliverables)) p.deliverables.changelog = null;
+        const _allKeys = ['phase1','phase1_qa','phase1_log','phase2','phase2_qa','phase2_log','phase3','phase3_qa','phase3_log'];
+        if (!p.deliverables) p.deliverables = {};
+        _allKeys.forEach(k => { if (!(k in p.deliverables)) p.deliverables[k] = null; });
+        delete p.deliverables.changelog;
         const card = document.createElement("div");
         card.className = "project-card";
         card.dataset.projectId = p.id;
@@ -1253,28 +1277,37 @@
         // Phase 산출물 슬롯
         const slotsEl = document.createElement("div");
         slotsEl.className = "phase-slots";
-        ["phase1", "phase2", "phase3", "changelog"].forEach(ph => {
-          const meta = PHASE_META[ph];
-          const deliv = p.deliverables[ph];
-          const slot = document.createElement("div");
-          const extraClass = ph === "changelog" ? " changelog-slot" : "";
-          slot.className = "phase-slot" + (deliv ? " filled" : " empty") + extraClass;
-          if (deliv) {
-            const d = new Date(deliv.savedAt);
-            const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
-            slot.innerHTML = `<div class="ps-label">${meta.label}</div><div class="ps-name">${meta.name}</div><div class="ps-date">${dateStr}</div><span class="ps-del" title="삭제">×</span>`;
-            slot.querySelector(".ps-del").addEventListener("click", (e) => {
-              e.stopPropagation();
-              if (!confirm("산출물을 삭제할까요?")) return;
-              p.deliverables[ph] = null; saveState(); renderProjects();
-              toast("삭제됐습니다");
-            });
-            slot.addEventListener("click", () => openDelivView(p.id, ph));
-          } else {
-            slot.innerHTML = `<div class="ps-label">${meta.label}</div><div class="ps-name">+ 산출물 저장</div>`;
-            slot.addEventListener("click", () => openDelivEdit(p.id, ph));
-          }
-          slotsEl.appendChild(slot);
+        PHASE_GROUPS.forEach(group => {
+          const groupEl = document.createElement("div");
+          groupEl.className = "phase-group";
+          const labelEl = document.createElement("div");
+          labelEl.className = "phase-group-label";
+          labelEl.textContent = group.label;
+          groupEl.appendChild(labelEl);
+          group.slots.forEach(ph => {
+            const meta = PHASE_META[ph];
+            const deliv = p.deliverables[ph];
+            const slot = document.createElement("div");
+            const typeClass = ph.endsWith('_qa') ? ' qa-slot' : ph.endsWith('_log') ? ' log-slot' : '';
+            slot.className = "phase-slot" + (deliv ? " filled" : " empty") + typeClass;
+            if (deliv) {
+              const d = new Date(deliv.savedAt);
+              const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+              slot.innerHTML = `<div class="ps-label">${meta.label}</div><div class="ps-name">${meta.name}</div><div class="ps-date">${dateStr}</div><span class="ps-del" title="삭제">×</span>`;
+              slot.querySelector(".ps-del").addEventListener("click", (e) => {
+                e.stopPropagation();
+                if (!confirm("산출물을 삭제할까요?")) return;
+                p.deliverables[ph] = null; saveState(); renderProjects();
+                toast("삭제됐습니다");
+              });
+              slot.addEventListener("click", () => openDelivView(p.id, ph));
+            } else {
+              slot.innerHTML = `<div class="ps-label">${meta.label}</div><div class="ps-name">+ 저장</div>`;
+              slot.addEventListener("click", () => openDelivEdit(p.id, ph));
+            }
+            groupEl.appendChild(slot);
+          });
+          slotsEl.appendChild(groupEl);
         });
 
         card.appendChild(head);

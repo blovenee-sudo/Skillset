@@ -149,11 +149,12 @@
     .project-head h2 { margin: 0; font-size: 14px; flex: 1; }
     .project-head .mini { font-size: 11px; color: var(--muted); }
     .drop-zone {
-      min-height: 100px; padding: 10px; display: flex; flex-wrap: wrap; gap: 8px;
-      align-content: flex-start; background: rgba(0,0,0,.15);
+      min-height: 44px; padding: 6px 10px; display: flex; flex-wrap: wrap; gap: 8px;
+      align-content: flex-start; background: rgba(0,0,0,.1);
+      border-top: 1px solid var(--border);
     }
     .drop-zone.drag-over { outline: 2px dashed var(--accent); outline-offset: -4px; }
-    .drop-hint { text-align: center; color: var(--muted); font-size: 12px; padding: 20px; }
+    .drop-hint { color: var(--muted); font-size: 11px; padding: 8px 4px; }
     .instance-pill {
       display: flex; align-items: flex-start; gap: 8px; padding: 10px;
       border-radius: var(--radius); border: 1px solid var(--border);
@@ -164,6 +165,8 @@
     .instance-pill:hover { border-color: var(--accent); }
     .instance-pill .rm { color: var(--muted); padding: 2px 0 0 2px; cursor: pointer; font-size: 14px; flex-shrink: 0; }
     .instance-pill .rm:hover { color: #f87171; }
+    /* phase-col 안의 pill: 컬럼 전체 너비 */
+    .phase-group .instance-pill { width: 100%; flex-shrink: 1; margin-bottom: 2px; }
 
     /* ── Bottom detail panel ── */
     .detail-backdrop {
@@ -1243,78 +1246,46 @@
           saveState(); renderSidebar();
         });
 
-        const zone = document.createElement("div");
-        zone.className = "drop-zone";
-        zone.dataset.dropProject = p.id;
-        if (!p.instances.length) {
-          const hint = document.createElement("div");
-          hint.className = "drop-hint";
-          hint.textContent = "여기로 스킬을 드래그 앤 드롭";
-          zone.appendChild(hint);
-        }
+        // Phase 스킬(s1/p2/p3)과 나머지 분리
+        const PHASE_SKILL_MAP = { s1: 'phase1', p2: 'phase2', p3: 'phase3' };
         const DEFAULT_ORDER = ['s1', 'p2', 'p3'];
         const sortedInstances = [...p.instances].sort((a, b) => {
           const ai = DEFAULT_ORDER.indexOf(a.skillId), bi = DEFAULT_ORDER.indexOf(b.skillId);
           if (ai >= 0 && bi >= 0) return ai - bi;
-          if (ai >= 0) return -1;
-          if (bi >= 0) return 1;
-          return 0;
+          if (ai >= 0) return -1; if (bi >= 0) return 1; return 0;
         });
+        const phaseInstMap = {};
+        const otherInsts = [];
         sortedInstances.forEach(inst => {
-          const sk = state.skills.find(s => s.id === inst.skillId);
-          if (!sk) return;
-          const pill = document.createElement("div");
-          pill.className = "instance-pill";
-          pill.innerHTML = `
-            <div class="skill-meta" style="flex:1;min-width:0">
-              <div class="slash">${escapeHtml(sk.slash || "")}</div>
-              <div class="title">${escapeHtml(sk.name)}</div>
-              <div class="desc">${escapeHtml(sk.desc || "")}</div>
-            </div>`;
-          pill.addEventListener("click", (e) => {
-            if (e.target.closest(".rm")) return;
-            openDetail(sk.id, p.id);
-          });
-          if (!inst.isDefault) {
-            const rm = document.createElement("span");
-            rm.className = "rm"; rm.textContent = "×"; rm.title = "프로젝트에서 제거";
-            rm.addEventListener("click", (e) => {
-              e.stopPropagation();
-              p.instances = p.instances.filter(x => x.instanceId !== inst.instanceId);
-              saveState(); renderProjects();
-            });
-            pill.appendChild(rm);
-          }
-          zone.appendChild(pill);
+          const pk = PHASE_SKILL_MAP[inst.skillId];
+          if (pk) phaseInstMap[pk] = inst; else otherInsts.push(inst);
         });
 
-        ["dragenter", "dragover"].forEach(ev =>
-          zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add("drag-over"); })
-        );
-        zone.addEventListener("dragleave", (e) => {
-          if (!zone.contains(e.relatedTarget)) zone.classList.remove("drag-over");
-        });
-        zone.addEventListener("drop", (e) => {
-          e.preventDefault();
-          zone.classList.remove("drag-over");
-          const sid = e.dataTransfer.getData("text/skill-id") || dragSkillId;
-          if (!sid) return;
-          const proj = state.projects.find(x => x.id === p.id);
-          if (!proj) return;
-          proj.instances.push({ instanceId: uid(), skillId: sid });
-          saveState(); renderProjects();
-        });
-
-        // Phase 산출물 슬롯
-        const slotsEl = document.createElement("div");
-        slotsEl.className = "phase-slots";
+        // Phase 컬럼 그리드 (스킬 칩 + 슬롯이 같은 열에)
+        const phaseColsEl = document.createElement("div");
+        phaseColsEl.className = "phase-slots";
         PHASE_GROUPS.forEach(group => {
-          const groupEl = document.createElement("div");
-          groupEl.className = "phase-group";
-          const labelEl = document.createElement("div");
-          labelEl.className = "phase-group-label";
-          labelEl.textContent = group.label;
-          groupEl.appendChild(labelEl);
+          const col = document.createElement("div");
+          col.className = "phase-group";
+
+          // Phase 스킬 칩
+          const inst = phaseInstMap[group.key];
+          if (inst) {
+            const sk = state.skills.find(s => s.id === inst.skillId);
+            if (sk) {
+              const pill = document.createElement("div");
+              pill.className = "instance-pill";
+              pill.innerHTML = `<div class="skill-meta" style="flex:1;min-width:0">
+                <div class="slash">${escapeHtml(sk.slash || "")}</div>
+                <div class="title">${escapeHtml(sk.name)}</div>
+                <div class="desc">${escapeHtml(sk.desc || "")}</div>
+              </div>`;
+              pill.addEventListener("click", () => openDetail(sk.id, p.id));
+              col.appendChild(pill);
+            }
+          }
+
+          // 슬롯 3개
           group.slots.forEach(ph => {
             const meta = PHASE_META[ph];
             const deliv = p.deliverables[ph];
@@ -1336,14 +1307,65 @@
               slot.innerHTML = `<div class="ps-label">${meta.label}</div><div class="ps-name">+ 저장</div>`;
               slot.addEventListener("click", () => openDelivEdit(p.id, ph));
             }
-            groupEl.appendChild(slot);
+            col.appendChild(slot);
           });
-          slotsEl.appendChild(groupEl);
+
+          phaseColsEl.appendChild(col);
+        });
+
+        // 추가 스킬 드롭존 (비Phase 스킬용)
+        const zone = document.createElement("div");
+        zone.className = "drop-zone";
+        zone.dataset.dropProject = p.id;
+        const hint = document.createElement("div");
+        hint.className = "drop-hint";
+        hint.textContent = "추가 스킬 드래그 영역";
+        zone.appendChild(hint);
+        otherInsts.forEach(inst => {
+          const sk = state.skills.find(s => s.id === inst.skillId);
+          if (!sk) return;
+          const pill = document.createElement("div");
+          pill.className = "instance-pill";
+          pill.innerHTML = `<div class="skill-meta" style="flex:1;min-width:0">
+            <div class="slash">${escapeHtml(sk.slash || "")}</div>
+            <div class="title">${escapeHtml(sk.name)}</div>
+            <div class="desc">${escapeHtml(sk.desc || "")}</div>
+          </div>`;
+          pill.addEventListener("click", (e) => {
+            if (e.target.closest(".rm")) return;
+            openDetail(sk.id, p.id);
+          });
+          const rm = document.createElement("span");
+          rm.className = "rm"; rm.textContent = "×"; rm.title = "프로젝트에서 제거";
+          rm.addEventListener("click", (e) => {
+            e.stopPropagation();
+            p.instances = p.instances.filter(x => x.instanceId !== inst.instanceId);
+            saveState(); renderProjects();
+          });
+          pill.appendChild(rm);
+          zone.appendChild(pill);
+        });
+
+        ["dragenter", "dragover"].forEach(ev =>
+          zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add("drag-over"); })
+        );
+        zone.addEventListener("dragleave", (e) => {
+          if (!zone.contains(e.relatedTarget)) zone.classList.remove("drag-over");
+        });
+        zone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          zone.classList.remove("drag-over");
+          const sid = e.dataTransfer.getData("text/skill-id") || dragSkillId;
+          if (!sid) return;
+          const proj = state.projects.find(x => x.id === p.id);
+          if (!proj) return;
+          proj.instances.push({ instanceId: uid(), skillId: sid });
+          saveState(); renderProjects();
         });
 
         card.appendChild(head);
+        card.appendChild(phaseColsEl);
         card.appendChild(zone);
-        card.appendChild(slotsEl);
         grid.appendChild(card);
       });
     }

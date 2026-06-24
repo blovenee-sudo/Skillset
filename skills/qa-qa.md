@@ -62,7 +62,12 @@ Phase 1 Markdown, Phase 2 JSON, Phase 3 HTML 중 어떤 것이든 자동으로 �
 
 **하단 산출물 원문** (QA 검토 시 LLM 창으로 돌아가지 않아도 되도록):
 - Phase 1 (Markdown): Markdown을 HTML로 변환해 표시. `h1~h3` 헤더, 테이블, 코드블록, 인용구를 스타일링해 렌더링.
-- Phase 2 (JSON): `<pre>` 태그 안에 포맷된 JSON 전문을 표시. JSON 내 문자열 값은 색상 강조.
+- Phase 2 (JSON): JSON을 파싱해 사람이 읽기 편한 구조화 뷰로 렌더링. 원문 JSON은 표시하지 않음.
+  - **프로젝트 정보**: project · version · description을 헤더 카드로 표시
+  - **엔티티 목록**: 각 entity를 개별 섹션으로. 필드는 `이름 | 타입 | 필수 | 설명 | 예시값` 5열 테이블. relationships는 bullet 목록.
+  - **사용자 플로우**: flow명을 소제목으로, steps를 `단계 번호 → 행동 → 시스템 반응` 순서로 표시
+  - **제약사항**: constraints 배열을 번호 목록으로
+  - **미결 항목**: open_questions 배열을 bullet 목록으로 (없으면 섹션 생략)
 - Phase 3 (HTML): `<iframe srcdoc="[HTML 전문]">` 으로 임베드. 높이 600px, border 있음.
 
 ---

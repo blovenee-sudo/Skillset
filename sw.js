@@ -1,4 +1,4 @@
-const CACHE = 'skillset-v87';
+const CACHE = 'skillset-v88';
 
 const PRECACHE = [
   './index.html',

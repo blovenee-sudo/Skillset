@@ -781,7 +781,38 @@
     let state = loadState();
     let sidebarTab = state.sidebarTab || "skills";
     let selectedSkillId = null;
+    let selectedProjectId = null;
     let editingSkillId = null;
+
+    // 이전 Phase 슬롯 내용을 복사 프롬프트에 자동 주입
+    const PHASE_INJECT = {
+      s1:  { output: null,     log: 'phase1_log' },
+      p2:  { output: 'phase1', log: 'phase1_log' },
+      p3:  { output: 'phase2', log: 'phase2_log' },
+      qa:  { output: '__auto', log: null },
+    };
+    function buildInjection(projectId, skillId) {
+      if (!projectId) return "";
+      const p = state.projects.find(x => x.id === projectId);
+      if (!p || !p.deliverables) return "";
+      const cfg = PHASE_INJECT[skillId];
+      if (!cfg) return "";
+      let outputKey = cfg.output;
+      if (outputKey === '__auto') {
+        for (const k of ['phase3', 'phase2', 'phase1']) {
+          if (p.deliverables[k]?.content) { outputKey = k; break; }
+        }
+        if (outputKey === '__auto') outputKey = null;
+      }
+      const outputContent = outputKey ? p.deliverables[outputKey]?.content : null;
+      const logContent    = cfg.log    ? p.deliverables[cfg.log]?.content    : null;
+      if (!outputContent && !logContent) return "";
+      const phaseLabel = { phase1: 'Phase 1 (/spec)', phase2: 'Phase 2 (/schema)', phase3: 'Phase 3 (/build)' };
+      let out = "\n\n---\n";
+      if (outputContent) out += `\n입력 자료 (${phaseLabel[outputKey] || outputKey} 산출물 — 자동 포함):\n\n${outputContent}`;
+      if (logContent)    out += `\n\n---\n\n변경 결정 사항:\n\n${logContent}`;
+      return out;
+    }
 
     let dragSkillId = null;
     const collapsedGroups = new Set(state.collapsedGroups || []);
@@ -1242,7 +1273,7 @@
             </div>`;
           pill.addEventListener("click", (e) => {
             if (e.target.closest(".rm")) return;
-            openDetail(sk.id);
+            openDetail(sk.id, p.id);
           });
           if (!inst.isDefault) {
             const rm = document.createElement("span");
@@ -1324,11 +1355,12 @@
       return body;
     }
 
-    function openDetail(skillId) {
+    function openDetail(skillId, projectId = null) {
       try {
       const sk = state.skills.find(s => s.id === skillId);
       if (!sk) return;
       selectedSkillId = skillId;
+      selectedProjectId = projectId;
       $("copyHint").style.display = "none";
       $("detailSlash").textContent = sk.slash;
       $("detailSlashBadge").textContent = sk.slash || sk.name;
@@ -1390,6 +1422,7 @@
       $("detailPanel").classList.remove("open");
       $("detailBackdrop").classList.remove("open");
       selectedSkillId = null;
+      selectedProjectId = null;
     }
 
 
@@ -1477,7 +1510,8 @@
           } catch {}
         }
 
-        const copyText = (sk.slash || sk.name) + "\n\n" + promptText;
+        const injection = buildInjection(selectedProjectId, sk.id);
+        const copyText = (sk.slash || sk.name) + "\n\n" + promptText + injection;
         const ok = await copyToClipboard(copyText);
         if (ok) {
           sk.usage = (sk.usage || 0) + 1;

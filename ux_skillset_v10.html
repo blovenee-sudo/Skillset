@@ -465,6 +465,7 @@
     <div class="modal modal-wide">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-shrink:0">
         <h4 id="delivViewTitle" style="margin:0;flex:1;font-size:14px"></h4>
+        <button type="button" class="btn-sm" id="btnDelivViewOpen">새 탭에서 열기</button>
         <button type="button" class="btn-sm" id="btnDelivViewDownload">다운로드</button>
         <button type="button" class="btn-sm" id="btnDelivViewEdit">수정</button>
         <button type="button" class="btn-sm" id="btnDelivViewDelete" style="color:#fca5a5">삭제</button>
@@ -1063,9 +1064,15 @@
         }
         body.appendChild(pre);
       }
+      const isHtml = /^\s*<!DOCTYPE html/i.test(deliv.content) || /^\s*<html/i.test(deliv.content);
+      $("btnDelivViewOpen").onclick = () => {
+        const mime = isHtml ? "text/html;charset=utf-8" : "text/plain;charset=utf-8";
+        window.open(URL.createObjectURL(new Blob([deliv.content], { type: mime })));
+      };
       $("btnDelivViewDownload").onclick = () => {
+        const mime = isHtml ? "text/html;charset=utf-8" : "text/plain;charset=utf-8";
         const a = document.createElement("a");
-        a.href = URL.createObjectURL(new Blob([deliv.content], { type: "text/plain;charset=utf-8" }));
+        a.href = URL.createObjectURL(new Blob([deliv.content], { type: mime }));
         a.download = `${p.name}-${meta.label}.${meta.ext}`;
         a.click(); URL.revokeObjectURL(a.href);
       };

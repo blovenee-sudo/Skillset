@@ -274,6 +274,7 @@
     <h1>AX 스킬셋</h1>
     <div class="header-actions">
       <button type="button" class="btn-sm" id="btnRefreshSkills" style="display:none" title="skills/index.json 에서 기본 스킬 새로고침">↻ 스킬 업데이트</button>
+      <button type="button" class="btn-sm" id="btnHtmlSave">HTML 저장</button>
       <button type="button" class="btn-sm" id="btnManage">관리</button>
       <button type="button" class="btn-sm" id="btnLogin">로그인</button>
       <button type="button" class="btn-primary" id="btnNewProject">+ 프로젝트</button>
@@ -420,6 +421,23 @@
       </div>
       <div class="row" style="margin-top:16px">
         <button type="button" class="btn-sm" id="btnCloseManage">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HTML 저장 모달 -->
+  <div class="modal-backdrop" id="modalHtmlSave">
+    <div class="modal" style="max-width:600px">
+      <h4>HTML 파일 저장</h4>
+      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:8px">LLM에서 받은 HTML 코드를 붙여넣으세요.</label>
+      <textarea id="htmlSaveArea" style="width:100%;height:240px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="<!DOCTYPE html>..."></textarea>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+        <label style="font-size:12px;color:var(--muted);white-space:nowrap">파일명</label>
+        <input type="text" id="htmlSaveFilename" value="output.html" style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);font-size:12px;color:inherit">
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button type="button" class="btn-sm" id="btnHtmlSaveCancel">취소</button>
+        <button type="button" class="btn-primary" id="btnHtmlSaveDownload">다운로드</button>
       </div>
     </div>
   </div>
@@ -1063,6 +1081,28 @@
       };
       $("modalDelivView").classList.add("open");
     }
+
+    // ── HTML 저장 유틸 ──
+    $("btnHtmlSave").addEventListener("click", () => {
+      $("htmlSaveArea").value = "";
+      $("modalHtmlSave").classList.add("open");
+      setTimeout(() => $("htmlSaveArea").focus(), 80);
+    });
+    $("btnHtmlSaveCancel").addEventListener("click", () => {
+      $("modalHtmlSave").classList.remove("open");
+    });
+    $("btnHtmlSaveDownload").addEventListener("click", () => {
+      const html = $("htmlSaveArea").value.trim();
+      if (!html) { toast("HTML 코드를 붙여넣어 주세요"); return; }
+      const filename = ($("htmlSaveFilename").value.trim() || "output") + ((/\.html?$/i).test($("htmlSaveFilename").value) ? "" : ".html");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      $("modalHtmlSave").classList.remove("open");
+      toast("다운로드 시작됐습니다");
+    });
 
     (function initDelivModals() {
       $("btnDelivEditFile").addEventListener("click", () => $("delivEditFileInput").click());

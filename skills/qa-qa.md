@@ -39,7 +39,7 @@ Phase 1 Markdown, Phase 2 JSON, Phase 3 HTML 중 어떤 것이든 자동으로 �
 
 ## Step 1 — 내용 분석 (내부, 출력하지 않음)
 
-감지된 단계에 따라 산출물을 분석해 **섹션 ①(결과 요약)**에 반영할 핵심 사실을 파악합니다.
+감지된 단계에 따라 산출물을 분석해 섹션 ①에 반영할 핵심 수치를 파악합니다.
 
 - **Phase 1**: 프로젝트명 · 핵심 기능 수 · Constraints 항목 수 · KPI 명시 여부 · Gap Analysis 항목 수
 - **Phase 2**: 엔티티 수 및 목록 · 사용자 플로우 수 · Constraints 이관 여부 · open_questions 수
@@ -53,13 +53,17 @@ Phase 1 Markdown, Phase 2 JSON, Phase 3 HTML 중 어떤 것이든 자동으로 �
 
 ---
 
-### 섹션 ① 결과 요약
+### 섹션 ① 산출물 원문 + 요약
 
-Step 1에서 파악한 내용을 카드 형태로 표시합니다.
-
+**상단 요약 카드** (한 줄 수치 요약):
 - Phase 1: `프로젝트명 / 핵심 기능 N개 / Constraints N개 / KPI [명시됨·미정] / Gap N개`
 - Phase 2: `엔티티 N개 — [목록] / 플로우 N개 / Constraints 이관 [완료·누락] / 미결 N개`
 - Phase 3: `화면 N개 — [목록] / 인터랙션 [있음·없음] / 외부 의존성 [없음·있음] / 더미 데이터 N개`
+
+**하단 산출물 원문** (QA 검토 시 LLM 창으로 돌아가지 않아도 되도록):
+- Phase 1 (Markdown): Markdown을 HTML로 변환해 표시. `h1~h3` 헤더, 테이블, 코드블록, 인용구를 스타일링해 렌더링.
+- Phase 2 (JSON): `<pre>` 태그 안에 포맷된 JSON 전문을 표시. JSON 내 문자열 값은 색상 강조.
+- Phase 3 (HTML): `<iframe srcdoc="[HTML 전문]">` 으로 임베드. 높이 600px, border 있음.
 
 ---
 

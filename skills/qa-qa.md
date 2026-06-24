@@ -62,13 +62,7 @@ Phase 1 Markdown, Phase 2 JSON, Phase 3 HTML 중 어떤 것이든 자동으로 �
 
 **하단 산출물 원문** (QA 검토 시 LLM 창으로 돌아가지 않아도 되도록):
 - Phase 1 (Markdown): Markdown을 HTML로 변환해 표시. `h1~h3` 헤더, 테이블, 코드블록, 인용구를 스타일링해 렌더링.
-- Phase 2 (JSON): 입력된 JSON 전문을 HTML `<script>` 안에 `const _schema = { ...JSON 전문... };` 형태로 직접 삽입한 뒤, 아래 구조로 JavaScript DOM 렌더링:
-  - **프로젝트 카드**: `_schema.project` · `_schema.version` · `_schema.description`
-  - **엔티티**: `_schema.entities` 배열 순회 → 엔티티명 소제목 + `fields` 5열 테이블 (이름 | 타입 | 필수 | 설명 | 예시값) + `relationships` bullet 목록
-  - **사용자 플로우**: `_schema.user_flows` 배열 → flow명 소제목 + `steps` 번호 목록 (행동 → 시스템 반응)
-  - **제약사항**: `_schema.constraints` 배열 → 번호 목록
-  - **미결 항목**: `_schema.open_questions` 배열 → bullet 목록 (비어있으면 섹션 생략)
-  - 원문 JSON `<pre>` 출력 금지. `_schema` 변수 미정의 시 "JSON 데이터를 불러올 수 없습니다" 안내 표시.
+- Phase 2 (JSON): 산출물 원문 표시 생략. 상단 요약 카드만 출력.
 - Phase 3 (HTML): `<iframe srcdoc="[HTML 전문]">` 으로 임베드. 높이 600px, border 있음.
 
 ---

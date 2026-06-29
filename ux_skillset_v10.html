@@ -159,12 +159,16 @@
     }
     .project-head h2 { margin: 0; font-size: 14px; flex: 1; }
     .project-head .mini { font-size: 11px; color: var(--muted); }
-    .drop-zone {
-      min-height: 28px; padding: 6px 10px 8px; display: flex; flex-wrap: wrap; gap: 6px;
-      align-items: center; background: transparent;
+    .phase-section {
+      margin: 8px 10px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
     }
-    .drop-zone.drag-over { outline: 2px dashed var(--accent); outline-offset: -2px; border-radius: 0 0 12px 12px; }
-    .drop-hint { color: rgba(255,255,255,.2); font-size: 10px; padding: 2px 4px; }
+    .drop-zone {
+      min-height: 48px; padding: 8px 10px 10px; display: flex; flex-wrap: wrap; gap: 6px;
+      align-items: center; background: var(--bg);
+      margin: 0 10px 10px; border-radius: 10px; border: 1px solid var(--border);
+    }
+    .drop-zone.drag-over { outline: 2px dashed var(--accent); outline-offset: -2px; border-radius: 10px; }
+    .drop-hint { color: var(--muted); opacity: .5; font-size: 10px; padding: 2px 4px; }
     .instance-pill {
       display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px;
       border-radius: 8px; border: 1px solid var(--border);
@@ -1423,9 +1427,13 @@
         clArea.appendChild(clLabel);
         clArea.appendChild(clTa);
 
+        const phaseSection = document.createElement("div");
+        phaseSection.className = "phase-section";
+        phaseSection.appendChild(phaseColsEl);
+        phaseSection.appendChild(clArea);
+
         card.appendChild(head);
-        card.appendChild(phaseColsEl);
-        card.appendChild(clArea);
+        card.appendChild(phaseSection);
         card.appendChild(zone);
         grid.appendChild(card);
       });

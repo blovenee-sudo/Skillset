@@ -163,18 +163,19 @@
       margin: 8px 10px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
     }
     .drop-zone {
-      min-height: 48px; padding: 8px 10px 10px; display: flex; flex-wrap: wrap; gap: 6px;
-      align-items: center; background: var(--bg);
+      padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px;
+      background: transparent;
       margin: 0 10px 10px; border-radius: 10px; border: 1px solid var(--border);
     }
     .drop-zone.drag-over { outline: 2px dashed var(--accent); outline-offset: -2px; border-radius: 10px; }
-    .drop-hint { color: var(--muted); opacity: .5; font-size: 10px; padding: 2px 4px; }
+    .drop-label { font-size: 10px; color: var(--muted); }
+    .drop-pills { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+    .drop-hint { color: var(--muted); opacity: .4; font-size: 10px; padding: 4px 2px; }
     .instance-pill {
-      display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px;
+      display: flex; align-items: flex-start; gap: 8px; padding: 10px 10px;
       border-radius: 8px; border: 1px solid var(--border);
-      background: var(--surface2); cursor: pointer;
-      width: 240px; flex-shrink: 0; box-sizing: border-box;
-      transition: border-color .15s;
+      background: var(--surface); cursor: pointer;
+      box-sizing: border-box; transition: border-color .15s;
     }
     .instance-pill:hover { border-color: var(--accent); }
     .instance-pill .rm { color: var(--muted); padding: 1px 0 0 2px; cursor: pointer; font-size: 13px; flex-shrink: 0; }
@@ -301,7 +302,7 @@
       font-size: 10px; color: var(--muted);
     }
     .changelog-area textarea {
-      width: 100%; box-sizing: border-box; resize: none; min-height: 120px; max-height: 300px;
+      width: 100%; box-sizing: border-box; resize: none; min-height: 70px; max-height: 200px;
       background: transparent; border: 1px solid transparent;
       border-radius: 6px; color: var(--fg); font-size: 11px;
       padding: 5px 7px; font-family: inherit; line-height: 1.6;
@@ -1366,10 +1367,19 @@
         const zone = document.createElement("div");
         zone.className = "drop-zone";
         zone.dataset.dropProject = p.id;
-        const hint = document.createElement("div");
-        hint.className = "drop-hint";
-        hint.textContent = "추가 스킬 드래그 영역";
-        zone.appendChild(hint);
+        const dropLabel = document.createElement("div");
+        dropLabel.className = "drop-label";
+        dropLabel.textContent = "추가 스킬";
+        const dropPills = document.createElement("div");
+        dropPills.className = "drop-pills";
+        zone.appendChild(dropLabel);
+        zone.appendChild(dropPills);
+        if (otherInsts.length === 0) {
+          const hint = document.createElement("div");
+          hint.className = "drop-hint";
+          hint.textContent = "사이드바에서 스킬을 드래그해 추가하세요";
+          dropPills.appendChild(hint);
+        }
         otherInsts.forEach(inst => {
           const sk = state.skills.find(s => s.id === inst.skillId);
           if (!sk) return;
@@ -1392,7 +1402,7 @@
             saveState(); renderProjects();
           });
           pill.appendChild(rm);
-          zone.appendChild(pill);
+          dropPills.appendChild(pill);
         });
 
         ["dragenter", "dragover"].forEach(ev =>

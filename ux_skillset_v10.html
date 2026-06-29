@@ -26,6 +26,17 @@
       --shadow: 0 8px 32px rgba(0,0,0,.35);
       --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     }
+    html.theme-light {
+      --bg: #f0f2f5;
+      --surface: #ffffff;
+      --surface2: #f5f6f8;
+      --border: #dde1e9;
+      --text: #1a1d23;
+      --muted: #6b7280;
+      --accent: #3b6fd4;
+      --accent2: #2a58b8;
+      --shadow: 0 8px 32px rgba(0,0,0,.10);
+    }
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; font-family: var(--font); background: var(--bg); color: var(--text); }
     button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
@@ -434,6 +445,13 @@
     <div class="modal" style="max-width:440px">
       <h4>관리</h4>
       <div>
+        <div class="manage-row">
+          <div>
+            <div class="manage-label">화면 테마</div>
+            <div class="manage-hint">다크 / 라이트 모드 전환</div>
+          </div>
+          <button type="button" class="btn-sm" id="btnToggleTheme">라이트</button>
+        </div>
         <div class="manage-row">
           <div>
             <div class="manage-label">사용 건수</div>
@@ -1507,6 +1525,8 @@
 
     function openManage() {
       $("manageCaseCount").textContent = `${state.caseCount}건`;
+      const isLight = document.documentElement.classList.contains("theme-light");
+      $("btnToggleTheme").textContent = isLight ? "다크" : "라이트";
       $("modalManage").classList.add("open");
     }
 
@@ -1857,6 +1877,12 @@
       // ── Manage modal ──
       $("btnManage").addEventListener("click", openManage);
       $("btnCloseManage").addEventListener("click", () => $("modalManage").classList.remove("open"));
+      $("btnToggleTheme").addEventListener("click", () => {
+        const isLight = document.documentElement.classList.toggle("theme-light");
+        localStorage.setItem("ax_theme", isLight ? "light" : "dark");
+        $("btnToggleTheme").textContent = isLight ? "다크" : "라이트";
+      });
+      if (localStorage.getItem("ax_theme") === "light") document.documentElement.classList.add("theme-light");
       $("btnResetUsage").addEventListener("click", () => {
         if (!confirm("사용 건수를 초기화할까요?")) return;
         state.caseCount = 0;

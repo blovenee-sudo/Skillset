@@ -1244,6 +1244,7 @@
       });
       $("btnDelivEditCancel").addEventListener("click", () => {
         $("modalDelivEdit").classList.remove("open"); _delivEditState = null;
+        pendingAction = null;
       });
       $("btnDelivEditSave").addEventListener("click", () => {
         if (!_delivEditState) return;
@@ -1257,6 +1258,11 @@
         saveState(); renderProjects();
         $("modalDelivEdit").classList.remove("open"); _delivEditState = null;
         toast("저장됐습니다");
+        // 페이즈 산출물 저장 완료 → QA 스킬 패널 자동 열기
+        if (pendingAction?.type === 'deliverable' && pendingAction.projectId === projectId) {
+          pendingAction = { type: 'qa', projectId, phaseKey: phase };
+          setTimeout(() => openDetail('qa', projectId), 80);
+        }
       });
       $("btnDelivViewClose").addEventListener("click", () => {
         $("modalDelivView").classList.remove("open"); _delivViewState = null;
@@ -1653,16 +1659,19 @@
           saveState();
           renderSidebar();
           toast("스킬 복사됨 ✓");
-          // Phase/QA 스킬이면 슬롯 가이드 활성화 후 패널 닫기
           const _phaseKey = { s1:'phase1', p2:'phase2', p3:'phase3' }[sk.id];
-          if (selectedProjectId && (_phaseKey || sk.id === 'qa')) {
-            pendingAction = _phaseKey
-              ? { type: 'deliverable', projectId: selectedProjectId, phaseKey: _phaseKey }
-              : { type: 'qa', projectId: selectedProjectId };
+          if (selectedProjectId && _phaseKey) {
+            // 페이즈 스킬: 패널 닫고 산출물 저장 팝업 자동 열기
+            pendingAction = { type: 'deliverable', projectId: selectedProjectId, phaseKey: _phaseKey };
             closeDetail();
-            renderProjects();
+            openDelivEdit(selectedProjectId, _phaseKey);
+          } else if (selectedProjectId && sk.id === 'qa') {
+            // QA 스킬: 패널 닫고 QA 저장 팝업 자동 열기
+            const qaPhaseKey = pendingAction?.phaseKey;
+            pendingAction = null;
+            closeDetail();
+            if (qaPhaseKey) openDelivEdit(selectedProjectId, qaPhaseKey + '_qa');
           } else {
-            // 일반 스킬은 기존 안내 표시
             $("copyHintSlash").textContent = sk.slash || sk.name;
             $("copyHint").style.display = "block";
           }

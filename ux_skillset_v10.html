@@ -1022,7 +1022,7 @@
         return;
       }
 
-      const skills = filteredSkills();
+      const skills = filteredSkills().filter(s => s.id !== 'qa');
       const q = ($("sidebarSearch").value || "").trim();
 
       if (sidebarTab === "skills" && !q) {
@@ -1358,16 +1358,7 @@
             const slot = document.createElement("div");
             const isQaSlot = ph.endsWith('_qa');
             const typeClass = isQaSlot ? ' qa-slot' : '';
-            // pendingAction 기반 guided/dimmed 결정
-            let guideClass = '';
-            if (pendingAction && pendingAction.projectId === p.id) {
-              if (pendingAction.type === 'deliverable') {
-                guideClass = (ph === pendingAction.phaseKey) ? ' slot-guided' : ' slot-dimmed';
-              } else if (pendingAction.type === 'qa') {
-                guideClass = isQaSlot ? ' slot-guided' : ' slot-dimmed';
-              }
-            }
-            slot.className = "phase-slot" + (deliv ? " filled" : " empty") + typeClass + guideClass;
+            slot.className = "phase-slot" + (deliv ? " filled" : " empty") + typeClass;
             if (deliv) {
               const d = new Date(deliv.savedAt);
               const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
@@ -1378,10 +1369,14 @@
                 p.deliverables[ph] = null; saveState(); renderProjects();
                 toast("삭제됐습니다");
               });
-              slot.addEventListener("click", () => { pendingAction = null; openDelivView(p.id, ph); });
+              slot.addEventListener("click", () => openDelivView(p.id, ph));
+            } else if (isQaSlot) {
+              // QA 빈 슬롯: 클릭 시 QA 스킬 패널 열기
+              slot.innerHTML = `<div class="ps-label" style="color:#34d399">QA →/qa</div><div class="ps-name">+ 저장</div>`;
+              slot.addEventListener("click", () => openDetail('qa', p.id));
             } else {
               slot.innerHTML = `<div class="ps-label">${meta.label}</div><div class="ps-name">+ 저장</div>`;
-              slot.addEventListener("click", () => { pendingAction = null; openDelivEdit(p.id, ph); });
+              slot.addEventListener("click", () => openDelivEdit(p.id, ph));
             }
             slotsWrap.appendChild(slot);
           });
@@ -1469,15 +1464,6 @@
         phaseSection.appendChild(phaseColsEl);
         phaseSection.appendChild(clArea);
 
-        // QA 고정 행 (항상 표시)
-        const qaSkill = state.skills.find(s => s.id === 'qa');
-        if (qaSkill) {
-          const qaRow = document.createElement("div");
-          qaRow.className = "qa-fixed-row";
-          qaRow.innerHTML = `<div class="slash">${escapeHtml(qaSkill.slash || "")}</div><div class="title">${escapeHtml(qaSkill.name)}</div>`;
-          qaRow.addEventListener("click", () => openDetail(qaSkill.id, p.id));
-          phaseSection.appendChild(qaRow);
-        }
 
         card.appendChild(head);
         card.appendChild(phaseSection);

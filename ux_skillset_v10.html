@@ -1660,17 +1660,18 @@
           renderSidebar();
           toast("스킬 복사됨 ✓");
           const _phaseKey = { s1:'phase1', p2:'phase2', p3:'phase3' }[sk.id];
-          if (selectedProjectId && _phaseKey) {
+          const _pid = selectedProjectId; // closeDetail()이 selectedProjectId를 null로 초기화하기 전에 저장
+          if (_pid && _phaseKey) {
             // 페이즈 스킬: 패널 닫고 산출물 저장 팝업 자동 열기
-            pendingAction = { type: 'deliverable', projectId: selectedProjectId, phaseKey: _phaseKey };
+            pendingAction = { type: 'deliverable', projectId: _pid, phaseKey: _phaseKey };
             closeDetail();
-            openDelivEdit(selectedProjectId, _phaseKey);
-          } else if (selectedProjectId && sk.id === 'qa') {
+            openDelivEdit(_pid, _phaseKey);
+          } else if (_pid && sk.id === 'qa') {
             // QA 스킬: 패널 닫고 QA 저장 팝업 자동 열기
             const qaPhaseKey = pendingAction?.phaseKey;
             pendingAction = null;
             closeDetail();
-            if (qaPhaseKey) openDelivEdit(selectedProjectId, qaPhaseKey + '_qa');
+            if (qaPhaseKey) openDelivEdit(_pid, qaPhaseKey + '_qa');
           } else {
             $("copyHintSlash").textContent = sk.slash || sk.name;
             $("copyHint").style.display = "block";

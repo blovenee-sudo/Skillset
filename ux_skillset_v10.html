@@ -1117,11 +1117,11 @@
     // ── Phase 산출물 관리 ──
     const PHASE_META = {
       phase1:    { label: '산출물', name: 'Markdown 스펙',   ext: 'md'   },
-      phase1_qa: { label: 'QA',    name: 'QA 리포트',       ext: 'html' },
+      phase1_qa: { label: '/qa',   name: 'QA 리포트',       ext: 'html' },
       phase2:    { label: '산출물', name: 'JSON Schema',     ext: 'json' },
-      phase2_qa: { label: 'QA',    name: 'QA 리포트',       ext: 'html' },
+      phase2_qa: { label: '/qa',   name: 'QA 리포트',       ext: 'html' },
       phase3:    { label: '산출물', name: 'HTML 프로토타입', ext: 'html' },
-      phase3_qa: { label: 'QA',    name: 'QA 리포트',       ext: 'html' },
+      phase3_qa: { label: '/qa',   name: 'QA 리포트',       ext: 'html' },
     };
     const PHASE_GROUPS = [
       { key: 'phase1', label: '/spec',   slots: ['phase1', 'phase1_qa'] },
@@ -1372,7 +1372,7 @@
               slot.addEventListener("click", () => openDelivView(p.id, ph));
             } else if (isQaSlot) {
               // QA 빈 슬롯: 클릭 시 QA 스킬 패널 열기
-              slot.innerHTML = `<div class="ps-label" style="color:#34d399">QA →/qa</div><div class="ps-name">+ 저장</div>`;
+              slot.innerHTML = `<div class="ps-label" style="color:#34d399">/qa</div><div class="ps-name">+ 저장</div>`;
               slot.addEventListener("click", () => openDetail('qa', p.id));
             } else {
               slot.innerHTML = `<div class="ps-label">${meta.label}</div><div class="ps-name">+ 저장</div>`;

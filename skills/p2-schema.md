@@ -142,10 +142,51 @@ Phase 1(/spec) 문서 없이 진행합니다. 스펙 문서가 있다면 함께 
 
 ---
 
-## Step 3 — Mermaid 플로우 다이어그램 출력
+## Step 3 — 구조 시각화 출력
 
-JSON 출력 직후, `user_flows`를 Mermaid flowchart로 시각화합니다.
-플로우가 여러 개면 각각 별도 블록으로 출력합니다.
+JSON 출력 직후, 아래 순서로 시각화를 출력합니다.
+
+### 3-A. ER 다이어그램 (엔티티 관계도)
+
+`entities[].relationships`를 기반으로 Mermaid `erDiagram`을 출력합니다.
+각 엔티티의 `required: true` 필드만 표기합니다.
+
+````
+```mermaid
+erDiagram
+  EntityA {
+    string fieldName PK "설명"
+    number fieldName2 "설명"
+  }
+  EntityA ||--o{ EntityB : "관계 설명"
+```
+````
+
+관계 표기 기준:
+- `1:1` → `||--||`
+- `1:N` → `||--o{`
+- `N:M` → `}o--o{`
+
+### 3-B. 엔티티 필드 테이블
+
+각 엔티티를 Markdown 테이블로 출력합니다. `entities` 배열 순서대로, 각각 `### EntityName` 헤더 아래에 작성합니다.
+
+```
+### EntityName
+> 엔티티 description
+
+| 필드명 | 타입 | 필수 | 제약 조건 | 예시값 |
+|--------|------|------|----------|--------|
+| fieldName | string | ✅ | 최대 100자 | "예시" |
+| fieldName2 | number | — | 양수만 | 42 |
+```
+
+- `required: true` → ✅, `false` → —
+- `[추정]` 태그가 있는 필드는 필드명에 `*` 표시
+
+### 3-C. 사용자 플로우 다이어그램
+
+`user_flows`를 Mermaid `flowchart TD`로 시각화합니다. 플로우가 여러 개면 각각 별도 블록으로 출력합니다.
 
 - 노드 텍스트는 `steps[].action` / `steps[].result` 값을 사용합니다.
 - 분기(조건)는 `{}`, 시작/종료는 `([])`, 일반 단계는 `[]`로 표기합니다.
@@ -166,7 +207,7 @@ flowchart TD
 
 ## Step 4 — 설계 요약
 
-Mermaid 다이어그램 아래에 다음 내용을 Markdown으로 출력합니다.
+시각화 아래에 다음 내용을 Markdown으로 출력합니다.
 
 ```
 ## 설계 요약

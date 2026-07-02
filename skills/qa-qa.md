@@ -62,7 +62,10 @@ Phase 1 Markdown, Phase 2 JSON, Phase 3 HTML 중 어떤 것이든 자동으로 �
 
 **하단 산출물 원문** (QA 검토 시 LLM 창으로 돌아가지 않아도 되도록):
 - Phase 1 (Markdown): Markdown을 HTML로 변환해 표시. `h1~h3` 헤더, 테이블, 코드블록, 인용구를 스타일링해 렌더링.
-- Phase 2 (JSON): 산출물 원문 표시 생략. 상단 요약 카드만 출력.
+- Phase 2 (JSON): 원문 JSON 대신 **구조 시각화**를 HTML로 렌더링. 아래 3개 블록을 순서대로 출력:
+  1. **엔티티 카드 그리드** — 각 엔티티를 카드로 표시. 카드 상단에 엔티티명·description, 본문에 필드 테이블(필드명 / 타입 / 필수여부 / 예시값). required:true 필드는 ✅, false는 — 표시. 카드는 CSS grid(2열, 모바일 1열)로 배치.
+  2. **관계 테이블** — `relationships`를 표로 표시: 출발 엔티티 / 관계 유형 / 대상 엔티티 / 설명.
+  3. **사용자 플로우 목록** — `user_flows`를 각각 `<details><summary>플로우명</summary>` 아코디언으로 표시. 내부에 step 번호 / 사용자 행동 / 데이터 / 시스템 반응을 표로 출력.
 - Phase 3 (HTML): `<iframe srcdoc="[HTML 전문]">` 으로 임베드. 높이 600px, border 있음.
 
 ---

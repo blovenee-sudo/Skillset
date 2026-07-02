@@ -386,7 +386,6 @@
       </div>
       <div id="copyHint" style="display:none;margin-top:8px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--muted);line-height:1.6">
         <div id="copyHintText"></div>
-        <button type="button" id="btnRegComplete" style="display:none;margin-top:8px;width:100%;padding:7px;border-radius:6px;background:var(--accent);color:#fff;font-size:12px;font-weight:600;border:none;cursor:pointer">등록 완료</button>
       </div>
     </div>
   </div>
@@ -1643,9 +1642,12 @@
           const _pid = selectedProjectId;
 
           if (llmType === 'claude' && !isRegistered) {
-            // 등록용 복사 완료: 등록 확인 힌트 표시
-            $("copyHintText").innerHTML = `📋 <strong style="color:var(--text)">스킬 지침이 복사됐습니다.</strong><br>Claude Projects 지침 또는 Custom Instructions에 붙여넣으면 스킬이 등록됩니다.<br>이후에는 스킬 명령어만 복사해서 사용할 수 있습니다.`;
-            $("btnRegComplete").style.display = "block";
+            // 첫 복사: 자동으로 등록 완료 처리
+            if (!state.registeredSkills) state.registeredSkills = {};
+            state.registeredSkills[sk.id] = true;
+            saveState();
+            updateCopyBtn();
+            $("copyHintText").innerHTML = `📋 <strong style="color:var(--text)">스킬 지침이 복사됐습니다.</strong><br>Claude Projects 지침 또는 Custom Instructions에 붙여넣으면 스킬이 등록됩니다.<br>다음 복사부터는 명령어만 복사됩니다.`;
             $("copyHint").style.display = "block";
           } else if (_pid && _phaseKey) {
             // 페이즈 스킬: 패널 닫고 산출물 저장 팝업 자동 열기
@@ -1665,7 +1667,6 @@
             } else {
               $("copyHintText").innerHTML = `💡 <strong style="color:var(--text)">Claude Code · Cursor · Copilot</strong> 사용자는 ${slashCode} 명령어만 입력해도 이 지침이 즉시 실행됩니다.`;
             }
-            $("btnRegComplete").style.display = "none";
             $("copyHint").style.display = "block";
           }
         } else {
@@ -1680,18 +1681,7 @@
         updateCopyBtn();
       });
 
-      $("btnRegComplete").addEventListener("click", () => {
-        if (!selectedSkillId) return;
-        if (!state.registeredSkills) state.registeredSkills = {};
-        state.registeredSkills[selectedSkillId] = true;
-        saveState();
-        const sk = state.skills.find(s => s.id === selectedSkillId);
-        const slashCode = `<code style="font-size:11px;color:var(--accent);background:var(--bg);padding:1px 5px;border-radius:3px">${escapeHtml(sk?.slash || selectedSkillId)}</code>`;
-        $("copyHintText").innerHTML = `✅ <strong style="color:var(--text)">등록 완료!</strong> 이제 ${slashCode} 명령어만 복사해 사용하세요.`;
-        $("btnRegComplete").style.display = "none";
-        updateCopyBtn();
-        toast("등록 완료 ✓");
-      });
+
 
       $("btnEditSkill").addEventListener("click", () => {
         if (!selectedSkillId || !isLoggedIn()) return;

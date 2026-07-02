@@ -42,7 +42,7 @@ Phase 1 Markdown, Phase 2 JSON, Phase 3 HTML 중 어떤 것이든 자동으로 �
 감지된 단계에 따라 산출물을 분석해 섹션 ①에 반영할 핵심 수치를 파악합니다.
 
 - **Phase 1**: 프로젝트명 · 핵심 기능 수 · Constraints 항목 수 · KPI 명시 여부 · Gap Analysis 항목 수
-- **Phase 2**: 엔티티 수 및 목록 · 사용자 플로우 수 · Constraints 이관 여부 · open_questions 수
+- **Phase 2**: 엔티티 수 및 목록 · 기능 수(P0/P1/P2 분류) · 사용자 플로우 수 · 엣지케이스 수 · Constraints 이관 여부 · open_questions 수
 - **Phase 3**: 구현 화면 수 및 목록 · 핵심 인터랙션 포함 여부 · 외부 의존성 여부 · 더미 데이터 수
 
 ---
@@ -62,10 +62,12 @@ Phase 1 Markdown, Phase 2 JSON, Phase 3 HTML 중 어떤 것이든 자동으로 �
 
 **하단 산출물 원문** (QA 검토 시 LLM 창으로 돌아가지 않아도 되도록):
 - Phase 1 (Markdown): Markdown을 HTML로 변환해 표시. `h1~h3` 헤더, 테이블, 코드블록, 인용구를 스타일링해 렌더링.
-- Phase 2 (JSON): 원문 JSON 대신 **구조 시각화**를 HTML로 렌더링. 아래 3개 블록을 순서대로 출력:
+- Phase 2 (JSON): 원문 JSON 대신 **구조 시각화**를 HTML로 렌더링. 아래 5개 블록을 순서대로 출력:
   1. **엔티티 카드 그리드** — 각 엔티티를 카드로 표시. 카드 상단에 엔티티명·description, 본문에 필드 테이블(필드명 / 타입 / 필수여부 / 예시값). required:true 필드는 ✅, false는 — 표시. 카드는 CSS grid(2열, 모바일 1열)로 배치.
   2. **관계 테이블** — `relationships`를 표로 표시: 출발 엔티티 / 관계 유형 / 대상 엔티티 / 설명.
-  3. **사용자 플로우 목록** — `user_flows`를 각각 `<details><summary>플로우명</summary>` 아코디언으로 표시. 내부에 step 번호 / 사용자 행동 / 데이터 / 시스템 반응을 표로 출력.
+  3. **기능 정의서 테이블** — `features` 배열을 표로 표시: # / 기능명 / 설명 / 트리거 / 처리 / 출력 / 관련 엔티티 / 우선순위. P0 행은 배경색 강조(연한 노란색 또는 붉은색).
+  4. **엣지케이스 정리 테이블** — `edge_cases` 배열을 표로 표시: # / 케이스 / 발생 조건 / 기대 동작 / 관련 기능.
+  5. **사용자 플로우 목록** — `user_flows`를 각각 `<details><summary>플로우명</summary>` 아코디언으로 표시. 내부에 step 번호 / 사용자 행동 / 데이터 / 시스템 반응을 표로 출력.
 - Phase 3 (HTML): `<iframe srcdoc="[HTML 전문]">` 으로 임베드. 높이 600px, border 있음.
 
 ---
@@ -113,6 +115,9 @@ document.addEventListener('DOMContentLoaded', function() {
 [필수] 필드에 example 값이 포함됐는가?
 [필수] 엔티티 간 관계(relationships)가 정의됐는가?
 [필수] Phase 1 Constraints가 JSON constraints 배열에 이관됐는가?
+[필수] features 배열에 스펙의 모든 핵심 기능이 포함됐는가?
+[필수] P0 기능이 1개 이상 정의됐는가?
+[필수] edge_cases 배열에 각 기능당 최소 1개 이상 엣지케이스가 있는가?
 [권장] user_flows가 핵심 시나리오를 포함하는가?
 [권장] open_questions에 미결 항목이 기록됐는가?
 ```

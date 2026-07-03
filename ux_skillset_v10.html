@@ -269,9 +269,28 @@
     /* 산출물 뷰어 분할 패널 */
     .deliv-split { display:flex; flex-direction:row; height:100%; min-height:0; overflow:hidden; }
     .deliv-split-left { flex:1; min-width:0; overflow:auto; }
-    .deliv-split-right { width:272px; min-width:200px; flex-shrink:0; border-left:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+    .split-vhandle { width:4px; flex-shrink:0; cursor:ew-resize; background:transparent; transition:background .15s; }
+    .split-vhandle:hover,.split-vhandle.dragging { background:var(--accent); opacity:.6; }
+    .deliv-split-right { width:28px; min-width:0; flex-shrink:0; border-left:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; transition:width .2s; }
+    /* QA 패널 — 접힌 상태 */
+    .qa-col-strip { display:flex; flex-direction:column; align-items:center; padding:10px 0 0; gap:5px; cursor:pointer; width:28px; flex-shrink:0; }
+    .qa-col-strip:hover .qa-col-icon,.qa-col-strip:hover .qa-col-label { color:var(--fg); }
+    .qa-col-icon { font-size:12px; color:var(--muted); transition:color .15s; line-height:1; }
+    .qa-col-label { writing-mode:vertical-lr; transform:rotate(180deg); font-size:9px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); white-space:nowrap; margin-top:3px; transition:color .15s; }
+    /* QA 패널 — 열린 상태 */
+    .deliv-split-right.qa-open .qa-col-strip { display:none; }
+    .qa-panel-hd { display:none; align-items:center; justify-content:space-between; padding:7px 11px 6px; border-bottom:1px solid var(--border); flex-shrink:0; }
+    .qa-open .qa-panel-hd { display:flex; }
+    .qa-panel-title { font-size:11px; font-weight:700; color:var(--fg); }
+    .qa-col-btn { width:20px; height:20px; display:flex; align-items:center; justify-content:center; border:none; background:none; color:var(--muted); cursor:pointer; border-radius:4px; font-size:13px; transition:background .15s,color .15s; padding:0; }
+    .qa-col-btn:hover { background:var(--bg2); color:var(--fg); }
+    .qa-right-content { flex:1; min-height:0; display:none; flex-direction:column; overflow:hidden; }
+    .qa-open .qa-right-content { display:flex; }
+    /* 수평 드래그 핸들 */
+    .split-hhandle { height:4px; flex-shrink:0; cursor:ns-resize; background:transparent; transition:background .15s; }
+    .split-hhandle:hover,.split-hhandle.dragging { background:var(--accent); opacity:.6; }
     /* QA 사이드 패널 */
-    .qa-side-panel { flex:1; min-height:0; overflow:auto; padding:12px 13px; }
+    .qa-side-panel { flex:1; min-height:60px; overflow:auto; padding:12px 13px; }
     .qa-progress-wrap { margin-bottom:10px; }
     .qa-progress-label { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
     .qa-progress-title { font-size:12px; font-weight:700; }
@@ -285,11 +304,11 @@
     .qa-item input[type=checkbox] { margin-top:2px; flex-shrink:0; accent-color:var(--accent); cursor:pointer; }
     .qa-item-text { font-size:12px; line-height:1.5; color:var(--fg); transition:color .15s; }
     .qa-item.checked .qa-item-text { color:var(--muted); text-decoration:line-through; }
-    .qa-log-wrap { border-top:1px solid var(--border); padding:10px 13px; flex-shrink:0; }
-    .qa-log-label { font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.04em; text-transform:uppercase; margin-bottom:5px; }
-    .qa-log-wrap textarea { width:100%; box-sizing:border-box; resize:vertical; min-height:65px; max-height:120px; background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--fg); font-size:12px; padding:6px 8px; font-family:inherit; line-height:1.6; transition:border-color .15s; }
+    .qa-log-wrap { border-top:1px solid var(--border); padding:8px 13px; flex-shrink:0; overflow:hidden; display:flex; flex-direction:column; }
+    .qa-log-label { font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.04em; text-transform:uppercase; margin-bottom:5px; flex-shrink:0; }
+    .qa-log-wrap textarea { flex:1; width:100%; box-sizing:border-box; resize:none; min-height:0; background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--fg); font-size:12px; padding:6px 8px; font-family:inherit; line-height:1.6; transition:border-color .15s; }
     .qa-log-wrap textarea:focus { border-color:var(--accent); outline:none; }
-    .qa-save-wrap { padding:10px 13px; border-top:1px solid var(--border); flex-shrink:0; }
+    .qa-save-wrap { padding:8px 13px; border-top:1px solid var(--border); flex-shrink:0; }
     .qa-save-wrap button { width:100%; padding:7px; font-size:12px; font-weight:600; background:var(--accent); color:#fff; border:none; border-radius:7px; cursor:pointer; transition:opacity .15s; }
     .qa-save-wrap button:hover { opacity:.85; }
 
@@ -1269,13 +1288,17 @@
       const _isHtml = /^\s*<!DOCTYPE html/i.test(deliv.content) || /^\s*<html/i.test(deliv.content);
       let _viewIframe = null;
 
-      // 분할 레이아웃: 좌(뷰어) + 우(QA 패널)
+      // 분할 레이아웃: 좌(뷰어) + 수직핸들 + 우(QA 패널)
       const split = document.createElement("div");
       split.className = "deliv-split";
       body.appendChild(split);
       const leftBody = document.createElement("div");
       leftBody.className = "deliv-split-left";
       split.appendChild(leftBody);
+      const vHandle = document.createElement("div");
+      vHandle.className = "split-vhandle";
+      vHandle.style.display = 'none';
+      split.appendChild(vHandle);
       const rightBody = document.createElement("div");
       rightBody.className = "deliv-split-right";
       split.appendChild(rightBody);
@@ -1376,7 +1399,68 @@
         };
       }
 
-      // ── 우: QA 체크리스트 + 변경이력 ──
+      // ── 우: QA 패널 (기본 접힘) ──
+      let rightOpenW = 272;
+
+      const colStrip = document.createElement("div");
+      colStrip.className = "qa-col-strip";
+      colStrip.innerHTML = `<span class="qa-col-icon">‹</span><span class="qa-col-label">QA 검토</span>`;
+      rightBody.appendChild(colStrip);
+
+      const panelHd = document.createElement("div");
+      panelHd.className = "qa-panel-hd";
+      const panelTitle = document.createElement("span");
+      panelTitle.className = "qa-panel-title";
+      panelTitle.textContent = "QA 검토";
+      const colBtn = document.createElement("button");
+      colBtn.type = "button"; colBtn.className = "qa-col-btn"; colBtn.title = "접기"; colBtn.textContent = "›";
+      panelHd.appendChild(panelTitle); panelHd.appendChild(colBtn);
+      rightBody.appendChild(panelHd);
+
+      const toggleQa = () => {
+        const isOpen = rightBody.classList.toggle('qa-open');
+        if (isOpen) {
+          rightBody.style.transition = 'width .2s';
+          rightBody.style.width = rightOpenW + 'px';
+          vHandle.style.display = '';
+        } else {
+          rightOpenW = Math.max(200, rightBody.offsetWidth);
+          rightBody.style.transition = 'width .2s';
+          rightBody.style.width = '28px';
+          vHandle.style.display = 'none';
+        }
+      };
+      colStrip.addEventListener('click', toggleQa);
+      colBtn.addEventListener('click', toggleQa);
+
+      vHandle.addEventListener('mousedown', e => {
+        e.preventDefault();
+        vHandle.classList.add('dragging');
+        rightBody.style.transition = 'none';
+        const startX = e.clientX;
+        const startW = rightBody.offsetWidth;
+        const onMove = ev => {
+          document.body.style.userSelect = 'none';
+          const dx = startX - ev.clientX;
+          const newW = Math.max(200, Math.min(startW + dx, split.offsetWidth - 250));
+          rightBody.style.width = newW + 'px';
+          rightOpenW = newW;
+        };
+        const onUp = () => {
+          vHandle.classList.remove('dragging');
+          rightBody.style.transition = '';
+          document.body.style.userSelect = '';
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+
+      const rightContent = document.createElement("div");
+      rightContent.className = "qa-right-content";
+      rightBody.appendChild(rightContent);
+
       const cl = QA_CHECKLISTS[phase];
       if (cl) {
         const savedQa = deliv.qa || {};
@@ -1403,9 +1487,10 @@
           const reqChk = cl.required.filter(i => checkStates[i.id]).length;
           const recChk = cl.recommended.filter(i => checkStates[i.id]).length;
           const pct = total ? Math.round(checked / total * 100) : 0;
-          progressWrap.innerHTML = `<div class="qa-progress-label"><span class="qa-progress-title">QA 검토</span><span class="qa-progress-pct">${checked}/${total} 완료</span></div><div class="qa-progress-bar-bg"><div class="qa-progress-bar-fill" style="width:${pct}%"></div></div>`;
+          progressWrap.innerHTML = `<div class="qa-progress-label"><span class="qa-progress-title">진행률</span><span class="qa-progress-pct">${checked}/${total} 완료</span></div><div class="qa-progress-bar-bg"><div class="qa-progress-bar-fill" style="width:${pct}%"></div></div>`;
           reqHd.innerHTML = `필수 <span class="qa-badge${reqChk === cl.required.length ? ' complete' : ''}">${reqChk}/${cl.required.length}</span>`;
           recHd.innerHTML = `권장 <span class="qa-badge">${recChk}/${cl.recommended.length}</span>`;
+          panelTitle.textContent = `QA 검토 — ${checked}/${total}`;
         };
 
         const mkItem = item => {
@@ -1427,16 +1512,42 @@
         cl.required.forEach(item => qaPanel.appendChild(mkItem(item)));
         qaPanel.appendChild(recHd);
         cl.recommended.forEach(item => qaPanel.appendChild(mkItem(item)));
-        rightBody.appendChild(qaPanel);
+        rightContent.appendChild(qaPanel);
+
+        const hHandle = document.createElement("div");
+        hHandle.className = "split-hhandle";
+        rightContent.appendChild(hHandle);
 
         const logWrap = document.createElement("div");
         logWrap.className = "qa-log-wrap";
+        logWrap.style.height = '120px';
         logWrap.innerHTML = `<div class="qa-log-label">변경이력</div>`;
         const logTa = document.createElement("textarea");
         logTa.placeholder = "QA 검토 후 변경 결정 사항을 기록하세요";
         logTa.value = deliv.changeLog || "";
         logWrap.appendChild(logTa);
-        rightBody.appendChild(logWrap);
+        rightContent.appendChild(logWrap);
+
+        hHandle.addEventListener('mousedown', e => {
+          e.preventDefault();
+          hHandle.classList.add('dragging');
+          const startY = e.clientY;
+          const startH = logWrap.offsetHeight;
+          const onMove = ev => {
+            document.body.style.userSelect = 'none';
+            const dy = startY - ev.clientY;
+            const newH = Math.max(80, Math.min(startH + dy, rightContent.offsetHeight - 80));
+            logWrap.style.height = newH + 'px';
+          };
+          const onUp = () => {
+            hHandle.classList.remove('dragging');
+            document.body.style.userSelect = '';
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
 
         const saveWrap = document.createElement("div");
         saveWrap.className = "qa-save-wrap";
@@ -1449,7 +1560,7 @@
           toast("저장됐습니다");
         });
         saveWrap.appendChild(saveBtn);
-        rightBody.appendChild(saveWrap);
+        rightContent.appendChild(saveWrap);
 
         updateQaUi();
       }

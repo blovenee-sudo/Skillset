@@ -1329,7 +1329,7 @@
         if (deliv.report) {
           _rdiv = document.createElement("div");
           _rdiv.className = "md-render";
-          _rdiv.innerHTML = renderMd(prewrapMermaid(deliv.report), true);
+          _rdiv.innerHTML = renderMd(prewrapMermaid(stripPhase3Json(deliv.report)), true);
           reportPanel.appendChild(_rdiv);
         } else {
           reportPanel.innerHTML = `<div style="padding:20px;color:var(--muted);font-size:13px">저장된 설계 리포트가 없습니다.<br><small>저장 버튼 → 설계 리포트 탭에서 붙여넣기</small></div>`;
@@ -1829,6 +1829,14 @@
       body = body.replace(/---\s*\n<!--[^>]*-->\s*\n/g,
         "\n\n━━━━━━━━━━ 지침 내용 ━━━━━━━━━━\n\n");
       return body;
+    }
+
+    function stripPhase3Json(text) {
+      // JSON 코드블록 제거
+      let r = text.replace(/```json[\s\S]*?```/g, '');
+      // "Step 5" 또는 "Phase 3 저장용" 포함된 헤딩 줄 제거
+      r = r.replace(/^#{1,4}[^\n]*(?:Step\s*5|Phase\s*3\s*저장용)[^\n]*/gm, '');
+      return r.trim();
     }
 
     function prewrapMermaid(text) {

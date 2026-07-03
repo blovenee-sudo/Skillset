@@ -1432,8 +1432,11 @@ ${bodyHtml}
         };
       }
 
-      // ── 우: QA 패널 (기본 접힘) ──
+      // ── 우: QA 패널 (기본 펼침) ──
       let rightOpenW = 272;
+      rightBody.classList.add('qa-open');
+      rightBody.style.width = rightOpenW + 'px';
+      vHandle.style.display = '';
 
       const colStrip = document.createElement("div");
       colStrip.className = "qa-col-strip";

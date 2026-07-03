@@ -1891,7 +1891,8 @@
         for (const line of lines) {
           if (/^\|.+\|/.test(line)) { tRows.push(line); continue; }
           flushTable();
-          if (/^### /.test(line)) out.push(`<h3>${fmt(esc(line.slice(4)))}</h3>`);
+          if (/^#### /.test(line)) out.push(`<h4>${fmt(esc(line.slice(5)))}</h4>`);
+          else if (/^### /.test(line)) out.push(`<h3>${fmt(esc(line.slice(4)))}</h3>`);
           else if (/^## /.test(line))  out.push(`<h2>${fmt(esc(line.slice(3)))}</h2>`);
           else if (/^# /.test(line))   out.push(`<h1>${fmt(esc(line.slice(2)))}</h1>`);
           else if (/^[-*] /.test(line)) out.push(`<li>${fmt(esc(line.slice(2)))}</li>`);

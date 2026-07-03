@@ -1191,7 +1191,7 @@
       setTimeout(() => $("delivEditArea").focus(), 80);
     }
 
-    function openDelivView(projectId, phase) {
+    function openDelivView(projectId, phase, initialTab = null) {
       const p = state.projects.find(x => x.id === projectId);
       if (!p) return;
       const deliv = p.deliverables?.[phase];
@@ -1254,6 +1254,7 @@
         };
         tabJson.onclick   = () => switchTab('json');
         tabReport.onclick = () => switchTab('report');
+        if (initialTab === 'report') switchTab('report');
 
         $("btnDelivViewOpen").onclick = () => {
           const c = activeTab === 'json' ? (deliv.content || '') : (deliv.report || '');
@@ -1366,11 +1367,17 @@
           savedAt: new Date().toISOString()
         };
         saveState(); renderProjects();
+        const _savedProjectId = projectId; const _savedPhase = phase;
+        const _hasPendingQa = pendingAction?.type === 'deliverable' && pendingAction.projectId === projectId;
         $("modalDelivEdit").classList.remove("open"); _delivEditState = null;
         toast("저장됐습니다");
-        if (pendingAction?.type === 'deliverable' && pendingAction.projectId === projectId) {
-          pendingAction = { type: 'qa', projectId, phaseKey: phase };
-          setTimeout(() => openDetail('qa', projectId), 80);
+        if (_hasPendingQa) {
+          pendingAction = { type: 'qa', projectId: _savedProjectId, phaseKey: _savedPhase };
+          setTimeout(() => openDetail('qa', _savedProjectId), 80);
+        } else {
+          pendingAction = null;
+          const _initTab = _savedPhase === 'phase2' && $("tabEditReport").classList.contains('active') ? 'report' : null;
+          setTimeout(() => openDelivView(_savedProjectId, _savedPhase, _initTab), 150);
         }
       });
       $("btnDelivViewClose").addEventListener("click", () => {

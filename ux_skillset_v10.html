@@ -1659,7 +1659,9 @@ ${bodyHtml}
         p.deliverables[phase] = {
           content: content || prev.content || "",
           ...(phase === 'phase2' && { report: report || prev.report || "" }),
-          savedAt: new Date().toISOString()
+          savedAt: new Date().toISOString(),
+          ...(prev.qa && { qa: prev.qa }),
+          ...(prev.changeLog && { changeLog: prev.changeLog })
         };
         saveState(); renderProjects();
         const _savedProjectId = projectId; const _savedPhase = phase;

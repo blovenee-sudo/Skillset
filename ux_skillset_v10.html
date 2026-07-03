@@ -1553,6 +1553,7 @@
           .then(res => res.ok ? res.text() : null)
           .then(md => {
             if (!md || selectedSkillId !== skillId) return;
+            if (/^\s*<!DOCTYPE html/i.test(md) || /^\s*<html/i.test(md)) return;
             $("detailPrompt").innerHTML = renderMd(formatMdForDisplay(md));
           })
           .catch(() => {});
@@ -1654,6 +1655,7 @@
             const res = await fetch(`./skills/${sk.id}-${slash.slice(1)}.md`, { cache: 'no-cache' });
             if (res.ok) {
               const md = await res.text();
+              if (/^\s*<!DOCTYPE html/i.test(md) || /^\s*<html/i.test(md)) throw new Error("html-response");
               const noFm = md.replace(/^---[\s\S]*?---\s*\n/, "");
               const aiIdx = noFm.indexOf("<!-- AI INSTRUCTIONS -->");
               const body = (aiIdx >= 0 ? noFm.slice(aiIdx + "<!-- AI INSTRUCTIONS -->".length) : noFm).trim();
@@ -2090,6 +2092,7 @@
           const res = await fetch(`./skills/${sk.id}-${sk.slash.slice(1)}.md`, { cache: 'no-cache' });
           if (!res.ok) return;
           const md = await res.text();
+          if (/^\s*<!DOCTYPE html/i.test(md) || /^\s*<html/i.test(md)) return;
           const body = md.replace(/^---[\s\S]*?---\s*\n/, "").trim();
           if (body) sk.prompt = body;
         } catch {}

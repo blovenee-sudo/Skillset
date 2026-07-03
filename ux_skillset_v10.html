@@ -1325,24 +1325,29 @@
         jsonPanel.appendChild(pre);
         const reportPanel = document.createElement("div");
         reportPanel.style.display = "none";
+        let _rdiv = null;
         if (deliv.report) {
-          const rdiv = document.createElement("div");
-          rdiv.className = "md-render";
-          rdiv.innerHTML = renderMd(deliv.report, true);
-          reportPanel.appendChild(rdiv);
-          loadMermaidAndRender(rdiv);
+          _rdiv = document.createElement("div");
+          _rdiv.className = "md-render";
+          _rdiv.innerHTML = renderMd(prewrapMermaid(deliv.report), true);
+          reportPanel.appendChild(_rdiv);
         } else {
           reportPanel.innerHTML = `<div style="padding:20px;color:var(--muted);font-size:13px">저장된 설계 리포트가 없습니다.<br><small>저장 버튼 → 설계 리포트 탭에서 붙여넣기</small></div>`;
         }
         scroll.appendChild(jsonPanel);
         scroll.appendChild(reportPanel);
         let activeTab = 'json';
+        let _mermaidRan = false;
         const switchTab = t => {
           activeTab = t;
           jsonPanel.style.display   = t === 'json'   ? '' : 'none';
           reportPanel.style.display = t === 'report' ? '' : 'none';
           tabJson.classList.toggle('active', t === 'json');
           tabReport.classList.toggle('active', t === 'report');
+          if (t === 'report' && !_mermaidRan && _rdiv) {
+            _mermaidRan = true;
+            loadMermaidAndRender(_rdiv);
+          }
         };
         tabJson.onclick   = () => switchTab('json');
         tabReport.onclick = () => switchTab('report');
@@ -1824,6 +1829,23 @@
       body = body.replace(/---\s*\n<!--[^>]*-->\s*\n/g,
         "\n\n━━━━━━━━━━ 지침 내용 ━━━━━━━━━━\n\n");
       return body;
+    }
+
+    function prewrapMermaid(text) {
+      const START = /^(erDiagram|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|gantt|pie\b|gitGraph|graph\s+(?:LR|RL|TB|BT|TD)|flowchart\s+(?:LR|RL|TB|BT|TD))\b/i;
+      const lines = text.split('\n');
+      const out = [];
+      let i = 0, inFence = false;
+      while (i < lines.length) {
+        const line = lines[i];
+        if (/^```/.test(line)) { inFence = !inFence; out.push(line); i++; continue; }
+        if (!inFence && START.test(line.trim())) {
+          const block = [];
+          while (i < lines.length && lines[i].trim() !== '') { block.push(lines[i]); i++; }
+          out.push('```mermaid', ...block, '```');
+        } else { out.push(line); i++; }
+      }
+      return out.join('\n');
     }
 
     function renderMd(text, withMermaid = false) {

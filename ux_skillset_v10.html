@@ -240,8 +240,13 @@
     .prompt-rendered table { border-collapse:collapse; font-size:12px; width:100%; margin:.5em 0; }
     .prompt-rendered th,.prompt-rendered td { border:1px solid var(--border); padding:4px 8px; text-align:left; }
     .prompt-rendered th { background:var(--bg2); font-weight:600; }
-    /* 리포트 슬롯 */
-    .phase-slot.report-slot .ps-label { color:#7dd3fc; }
+    /* 저장 모달 탭 */
+    .tab-edit-btn { font-size:11px; font-weight:600; padding:4px 10px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; transition:background .15s,color .15s; }
+    .tab-edit-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+    /* 뷰어 탭 */
+    .view-tab-bar { display:flex; gap:2px; padding:8px 10px 0; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; }
+    .view-tab-btn { font-size:11px; font-weight:600; padding:5px 12px 6px; border-radius:6px 6px 0 0; border:1px solid transparent; cursor:pointer; background:transparent; color:var(--muted); transition:color .15s; }
+    .view-tab-btn.active { background:var(--bg); border-color:var(--border); border-bottom-color:var(--bg); color:var(--fg); margin-bottom:-1px; }
     /* 산출물 뷰어 Markdown 렌더 */
     .md-render { padding:16px 18px; font-size:13px; line-height:1.7; color:var(--fg); word-break:break-word; }
     .md-render h1 { font-size:18px; font-weight:700; margin:16px 0 8px; border-bottom:1px solid var(--border); padding-bottom:4px; }
@@ -542,7 +547,12 @@
         <button type="button" class="btn-sm" id="btnDelivEditFile">파일 첨부</button>
         <input type="file" id="delivEditFileInput" accept=".md,.json,.html,.txt" style="display:none">
       </div>
+      <div id="delivEditTabs" style="display:none;gap:4px;margin-bottom:8px">
+        <button type="button" id="tabEditJson" class="tab-edit-btn active">JSON Schema</button>
+        <button type="button" id="tabEditReport" class="tab-edit-btn">설계 리포트</button>
+      </div>
       <textarea id="delivEditArea" style="width:100%;height:220px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="여기에 붙여넣기..."></textarea>
+      <textarea id="delivEditReportArea" style="display:none;width:100%;height:220px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="/schema 전체 결과를 붙여넣으세요 (다이어그램·테이블 포함)"></textarea>
       <div class="row" style="margin-top:10px">
         <button type="button" class="btn-sm" id="btnDelivEditCancel">취소</button>
         <button type="button" class="btn-primary" id="btnDelivEditSave">저장</button>
@@ -1149,15 +1159,14 @@
     const PHASE_META = {
       phase1:    { label: '산출물', name: 'Markdown 스펙',   ext: 'md'   },
       phase1_qa: { label: '/qa',   name: 'QA 리포트',       ext: 'html' },
-      phase2:        { label: '산출물', name: 'JSON Schema',  ext: 'json' },
-      phase2_report: { label: '리포트', name: '설계 리포트', ext: 'md'   },
-      phase2_qa:     { label: '/qa',   name: 'QA 리포트',   ext: 'html' },
+      phase2:    { label: '산출물', name: 'JSON Schema',  ext: 'json' },
+      phase2_qa: { label: '/qa',   name: 'QA 리포트',   ext: 'html' },
       phase3:    { label: '산출물', name: 'HTML 프로토타입', ext: 'html' },
       phase3_qa: { label: '/qa',   name: 'QA 리포트',       ext: 'html' },
     };
     const PHASE_GROUPS = [
       { key: 'phase1', label: '/spec',   slots: ['phase1', 'phase1_qa'] },
-      { key: 'phase2', label: '/schema', slots: ['phase2', 'phase2_report', 'phase2_qa'] },
+      { key: 'phase2', label: '/schema', slots: ['phase2', 'phase2_qa'] },
       { key: 'phase3', label: '/build',  slots: ['phase3', 'phase3_qa'] },
     ];
     let _delivEditState = null;
@@ -1169,6 +1178,15 @@
       _delivEditState = { projectId, phase };
       $("delivEditTitle").textContent = `${PHASE_META[phase].label} 산출물 저장`;
       $("delivEditArea").value = p.deliverables?.[phase]?.content || "";
+      const isP2 = phase === 'phase2';
+      $("delivEditTabs").style.display = isP2 ? 'flex' : 'none';
+      if (isP2) {
+        $("delivEditReportArea").value = p.deliverables?.phase2?.report || "";
+        $("delivEditArea").style.display = '';
+        $("delivEditReportArea").style.display = 'none';
+        $("tabEditJson").classList.add('active');
+        $("tabEditReport").classList.remove('active');
+      }
       $("modalDelivEdit").classList.add("open");
       setTimeout(() => $("delivEditArea").focus(), 80);
     }
@@ -1183,48 +1201,110 @@
       $("delivViewTitle").textContent = `${meta.label} — ${meta.name}`;
       const body = $("delivViewBody");
       body.innerHTML = "";
+      body.style.cssText = "";
       const _isHtml = /^\s*<!DOCTYPE html/i.test(deliv.content) || /^\s*<html/i.test(deliv.content);
-      const _isJson = phase === "phase2" || (phase.startsWith("phase") && !_isHtml && meta.ext === "json");
       let _viewIframe = null;
-      if (_isHtml) {
+
+      if (phase === 'phase2') {
+        // 탭 뷰: JSON Schema | 설계 리포트
+        body.style.cssText = "overflow:hidden;display:flex;flex-direction:column;";
+        const tabBar = document.createElement("div");
+        tabBar.className = "view-tab-bar";
+        const tabJson = document.createElement("button");
+        tabJson.type = "button"; tabJson.className = "view-tab-btn active"; tabJson.textContent = "JSON Schema";
+        const tabReport = document.createElement("button");
+        tabReport.type = "button"; tabReport.className = "view-tab-btn"; tabReport.textContent = "설계 리포트";
+        if (!deliv.report) tabReport.style.opacity = ".45";
+        tabBar.appendChild(tabJson); tabBar.appendChild(tabReport);
+        body.appendChild(tabBar);
+
+        const scroll = document.createElement("div");
+        scroll.style.cssText = "flex:1;overflow:auto;min-height:0;";
+        body.appendChild(scroll);
+
+        // JSON 패널
+        const jsonPanel = document.createElement("div");
+        const pre = document.createElement("pre");
+        try { pre.textContent = JSON.stringify(JSON.parse(deliv.content || ""), null, 2); }
+        catch { pre.textContent = deliv.content || ""; }
+        jsonPanel.appendChild(pre);
+
+        // 리포트 패널
+        const reportPanel = document.createElement("div");
+        reportPanel.style.display = "none";
+        if (deliv.report) {
+          const rdiv = document.createElement("div");
+          rdiv.className = "md-render";
+          rdiv.innerHTML = renderMd(deliv.report, true);
+          reportPanel.appendChild(rdiv);
+          loadMermaidAndRender(rdiv);
+        } else {
+          reportPanel.innerHTML = `<div style="padding:20px;color:var(--muted);font-size:13px">저장된 설계 리포트가 없습니다.<br><small>저장 버튼 → 설계 리포트 탭에서 붙여넣기</small></div>`;
+        }
+        scroll.appendChild(jsonPanel);
+        scroll.appendChild(reportPanel);
+
+        let activeTab = 'json';
+        const switchTab = t => {
+          activeTab = t;
+          jsonPanel.style.display   = t === 'json'   ? '' : 'none';
+          reportPanel.style.display = t === 'report' ? '' : 'none';
+          tabJson.classList.toggle('active', t === 'json');
+          tabReport.classList.toggle('active', t === 'report');
+        };
+        tabJson.onclick   = () => switchTab('json');
+        tabReport.onclick = () => switchTab('report');
+
+        $("btnDelivViewOpen").onclick = () => {
+          const c = activeTab === 'json' ? (deliv.content || '') : (deliv.report || '');
+          window.open(URL.createObjectURL(new Blob([c], { type: 'text/plain;charset=utf-8' })));
+        };
+        $("btnDelivViewDownload").onclick = () => {
+          const c = activeTab === 'json' ? (deliv.content || '') : (deliv.report || '');
+          const ext = activeTab === 'json' ? 'json' : 'md';
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(new Blob([c], { type: 'text/plain;charset=utf-8' }));
+          a.download = `${p.name}-schema.${ext}`; a.click(); URL.revokeObjectURL(a.href);
+        };
+      } else if (_isHtml) {
         _viewIframe = document.createElement("iframe");
         _viewIframe.srcdoc = deliv.content;
         _viewIframe.style.cssText = "width:100%;height:100%;border:none;";
         body.appendChild(_viewIframe);
-      } else if (_isJson) {
-        const pre = document.createElement("pre");
-        try { pre.textContent = JSON.stringify(JSON.parse(deliv.content), null, 2); }
-        catch { pre.textContent = deliv.content; }
-        body.appendChild(pre);
+        $("btnDelivViewOpen").onclick = () => {
+          let htmlContent = deliv.content;
+          if (_viewIframe && _viewIframe.contentDocument) {
+            try {
+              const checks = [..._viewIframe.contentDocument.querySelectorAll('input[type=checkbox]')].map(c => c.checked);
+              if (checks.length) {
+                const inj = `<script>window.__QA_CHECKS__=${JSON.stringify(checks)};(function(){function r(){document.querySelectorAll('input[type=checkbox]').forEach(function(c,i){if(__QA_CHECKS__[i]!==undefined)c.checked=__QA_CHECKS__[i]});if(typeof updateProgress==='function')updateProgress();}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',r):r();})();<\/script>`;
+                htmlContent = htmlContent.includes('</head>') ? htmlContent.replace('</head>', inj+'</head>') : inj+htmlContent;
+              }
+            } catch {}
+          }
+          window.open(URL.createObjectURL(new Blob([htmlContent], { type: 'text/html;charset=utf-8' })));
+        };
+        $("btnDelivViewDownload").onclick = () => {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(new Blob([deliv.content], { type: 'text/html;charset=utf-8' }));
+          a.download = `${p.name}-${meta.label}.${meta.ext}`; a.click(); URL.revokeObjectURL(a.href);
+        };
       } else {
+        // Markdown (phase1 등)
         const div = document.createElement("div");
         div.className = "md-render";
         div.innerHTML = renderMd(deliv.content, true);
         body.appendChild(div);
         loadMermaidAndRender(div);
+        $("btnDelivViewOpen").onclick = () => {
+          window.open(URL.createObjectURL(new Blob([deliv.content], { type: 'text/plain;charset=utf-8' })));
+        };
+        $("btnDelivViewDownload").onclick = () => {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(new Blob([deliv.content], { type: 'text/plain;charset=utf-8' }));
+          a.download = `${p.name}-${meta.label}.${meta.ext}`; a.click(); URL.revokeObjectURL(a.href);
+        };
       }
-      const isHtml = _isHtml;
-      $("btnDelivViewOpen").onclick = () => {
-        let htmlContent = deliv.content;
-        if (isHtml && _viewIframe && _viewIframe.contentDocument) {
-          try {
-            const checks = [..._viewIframe.contentDocument.querySelectorAll('input[type=checkbox]')].map(c => c.checked);
-            if (checks.length) {
-              const inj = `<script>window.__QA_CHECKS__=${JSON.stringify(checks)};(function(){function r(){document.querySelectorAll('input[type=checkbox]').forEach(function(c,i){if(__QA_CHECKS__[i]!==undefined)c.checked=__QA_CHECKS__[i]});if(typeof updateProgress==='function')updateProgress();}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',r):r();})();<\/script>`;
-              htmlContent = htmlContent.includes('</head>') ? htmlContent.replace('</head>', inj+'</head>') : inj+htmlContent;
-            }
-          } catch {}
-        }
-        const mime = isHtml ? "text/html;charset=utf-8" : "text/plain;charset=utf-8";
-        window.open(URL.createObjectURL(new Blob([htmlContent], { type: mime })));
-      };
-      $("btnDelivViewDownload").onclick = () => {
-        const mime = isHtml ? "text/html;charset=utf-8" : "text/plain;charset=utf-8";
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(new Blob([deliv.content], { type: mime }));
-        a.download = `${p.name}-${meta.label}.${meta.ext}`;
-        a.click(); URL.revokeObjectURL(a.href);
-      };
       $("btnDelivViewEdit").onclick = () => {
         $("modalDelivView").classList.remove("open");
         openDelivEdit(projectId, phase);
@@ -1245,9 +1325,26 @@
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => { $("delivEditArea").value = ev.target.result; };
+        const isReportTab = $("delivEditReportArea").style.display !== 'none';
+        reader.onload = (ev) => {
+          (isReportTab ? $("delivEditReportArea") : $("delivEditArea")).value = ev.target.result;
+        };
         reader.readAsText(file, "UTF-8");
         e.target.value = "";
+      });
+      $("tabEditJson").addEventListener("click", () => {
+        $("delivEditArea").style.display = '';
+        $("delivEditReportArea").style.display = 'none';
+        $("tabEditJson").classList.add('active');
+        $("tabEditReport").classList.remove('active');
+        $("delivEditArea").focus();
+      });
+      $("tabEditReport").addEventListener("click", () => {
+        $("delivEditArea").style.display = 'none';
+        $("delivEditReportArea").style.display = '';
+        $("tabEditJson").classList.remove('active');
+        $("tabEditReport").classList.add('active');
+        $("delivEditReportArea").focus();
       });
       $("btnDelivEditCancel").addEventListener("click", () => {
         $("modalDelivEdit").classList.remove("open"); _delivEditState = null;
@@ -1257,15 +1354,20 @@
         if (!_delivEditState) return;
         const { projectId, phase } = _delivEditState;
         const content = $("delivEditArea").value.trim();
-        if (!content) { toast("내용을 입력해주세요"); return; }
+        const report = phase === 'phase2' ? $("delivEditReportArea").value.trim() : "";
+        if (!content && !report) { toast("내용을 입력해주세요"); return; }
         const p = state.projects.find(x => x.id === projectId);
         if (!p) return;
         if (!p.deliverables) p.deliverables = {};
-        p.deliverables[phase] = { content, savedAt: new Date().toISOString() };
+        const prev = p.deliverables[phase] || {};
+        p.deliverables[phase] = {
+          content: content || prev.content || "",
+          ...(phase === 'phase2' && { report: report || prev.report || "" }),
+          savedAt: new Date().toISOString()
+        };
         saveState(); renderProjects();
         $("modalDelivEdit").classList.remove("open"); _delivEditState = null;
         toast("저장됐습니다");
-        // 페이즈 산출물 저장 완료 → QA 스킬 패널 자동 열기
         if (pendingAction?.type === 'deliverable' && pendingAction.projectId === projectId) {
           pendingAction = { type: 'qa', projectId, phaseKey: phase };
           setTimeout(() => openDetail('qa', projectId), 80);
@@ -1273,6 +1375,8 @@
       });
       $("btnDelivViewClose").addEventListener("click", () => {
         $("modalDelivView").classList.remove("open"); _delivViewState = null;
+        const body = $("delivViewBody");
+        body.style.cssText = "";
       });
     })();
 
@@ -1284,7 +1388,7 @@
         return;
       }
       state.projects.forEach(p => {
-        const _allKeys = ['phase1','phase1_qa','phase2','phase2_report','phase2_qa','phase3','phase3_qa'];
+        const _allKeys = ['phase1','phase1_qa','phase2','phase2_qa','phase3','phase3_qa'];
         if (!p.deliverables) p.deliverables = {};
         _allKeys.forEach(k => { if (!(k in p.deliverables)) p.deliverables[k] = null; });
         ['changelog','phase1_log','phase2_log','phase3_log'].forEach(k => delete p.deliverables[k]);

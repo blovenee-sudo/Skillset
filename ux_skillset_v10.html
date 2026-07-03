@@ -2139,7 +2139,14 @@
         state.skills.forEach(sk => {
           if (sk.authorId !== null) return;
           const base = effective.find(b => b.id === sk.id);
+          if (!base) return;
           if (base && sk.category !== base.category) { sk.category = base.category; changed = true; }
+          // 프록시 HTML 오염 자동 복구 (사용자가 직접 편집하지 않은 기본 스킬만)
+          if (!sk._editedFromBase && sk.prompt &&
+              (/^\s*<!DOCTYPE html/i.test(sk.prompt) || /^\s*<html/i.test(sk.prompt))) {
+            sk.prompt = base.prompt;
+            changed = true;
+          }
         });
         // 기존 워크스페이스에 없는 새 기본 스킬 자동 추가
         const existingIds = new Set(state.skills.map(s => s.id));

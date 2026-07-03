@@ -1881,10 +1881,12 @@
           const si = tRows.findIndex(isSep);
           const heads = si > 0 ? tRows.slice(0, si) : tRows.slice(0, 1);
           const body = si >= 0 ? tRows.slice(si + 1) : tRows.slice(1);
-          const cells = r => r.split('|').slice(1, -1).map(c => c.trim());
+          const cells = r => r.replace(/\\\|/g,'\x01').split('|').slice(1,-1).map(c=>c.trim().replace(/\x01/g,'|'));
+          const headCells = heads.length ? cells(heads[0]) : [];
+          const colN = headCells.length;
           let t = '<table>';
-          if (heads.length) t += '<thead><tr>' + cells(heads[0]).map(c => `<th>${fmt(esc(c))}</th>`).join('') + '</tr></thead>';
-          if (body.length) t += '<tbody>' + body.map(r => '<tr>' + cells(r).map(c => `<td>${fmt(esc(c))}</td>`).join('') + '</tr>').join('') + '</tbody>';
+          if (heads.length) t += '<thead><tr>' + headCells.map(c => `<th>${fmt(esc(c))}</th>`).join('') + '</tr></thead>';
+          if (body.length) t += '<tbody>' + body.map(r => '<tr>' + (colN ? cells(r).slice(0,colN) : cells(r)).map(c => `<td>${fmt(esc(c))}</td>`).join('') + '</tr>').join('') + '</tbody>';
           t += '</table>';
           out.push(t); tRows = [];
         };

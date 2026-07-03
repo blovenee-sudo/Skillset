@@ -173,10 +173,12 @@ JSON 출력 직후, 아래 순서로 시각화를 출력합니다.
 
 ### 3-A. ER 다이어그램 (엔티티 관계도)
 
-`entities[].relationships`를 기반으로 Mermaid `erDiagram`을 출력합니다.
+`entities[].relationships`를 기반으로 Mermaid `erDiagram`을 **코드블록 없이 직접** 출력합니다.
+Claude 환경에서 mermaid 블록은 실제 다이어그램 이미지로 렌더링됩니다.
 각 엔티티의 `required: true` 필드만 표기합니다.
 
-````
+출력 예시 (아래 형식 그대로 출력):
+
 ```mermaid
 erDiagram
   EntityA {
@@ -185,7 +187,6 @@ erDiagram
   }
   EntityA ||--o{ EntityB : "관계 설명"
 ```
-````
 
 관계 표기 기준:
 - `1:1` → `||--||`

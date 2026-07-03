@@ -266,6 +266,32 @@
     .mermaid-wrap { margin:14px 0; text-align:center; overflow-x:auto; }
     .mermaid-wrap .mermaid svg { max-width:100%; }
     .mermaid-wrap .mermaid { display:inline-block; min-width:100px; }
+    /* 산출물 뷰어 분할 패널 */
+    .deliv-split { display:flex; flex-direction:row; height:100%; min-height:0; overflow:hidden; }
+    .deliv-split-left { flex:1; min-width:0; overflow:auto; }
+    .deliv-split-right { width:272px; min-width:200px; flex-shrink:0; border-left:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+    /* QA 사이드 패널 */
+    .qa-side-panel { flex:1; min-height:0; overflow:auto; padding:12px 13px; }
+    .qa-progress-wrap { margin-bottom:10px; }
+    .qa-progress-label { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+    .qa-progress-title { font-size:12px; font-weight:700; }
+    .qa-progress-pct { font-size:11px; color:var(--muted); }
+    .qa-progress-bar-bg { height:5px; background:var(--bg2); border-radius:3px; }
+    .qa-progress-bar-fill { height:100%; background:var(--accent); border-radius:3px; transition:width .25s; }
+    .qa-group-hd { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:12px 0 6px; display:flex; align-items:center; gap:5px; }
+    .qa-badge { font-size:10px; font-weight:600; background:var(--bg2); border:1px solid var(--border); border-radius:3px; padding:1px 5px; color:var(--muted); }
+    .qa-badge.complete { background:rgba(52,211,153,.15); border-color:#34d399; color:#34d399; }
+    .qa-item { display:flex; align-items:flex-start; gap:7px; margin:5px 0; cursor:pointer; }
+    .qa-item input[type=checkbox] { margin-top:2px; flex-shrink:0; accent-color:var(--accent); cursor:pointer; }
+    .qa-item-text { font-size:12px; line-height:1.5; color:var(--fg); transition:color .15s; }
+    .qa-item.checked .qa-item-text { color:var(--muted); text-decoration:line-through; }
+    .qa-log-wrap { border-top:1px solid var(--border); padding:10px 13px; flex-shrink:0; }
+    .qa-log-label { font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.04em; text-transform:uppercase; margin-bottom:5px; }
+    .qa-log-wrap textarea { width:100%; box-sizing:border-box; resize:vertical; min-height:65px; max-height:120px; background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--fg); font-size:12px; padding:6px 8px; font-family:inherit; line-height:1.6; transition:border-color .15s; }
+    .qa-log-wrap textarea:focus { border-color:var(--accent); outline:none; }
+    .qa-save-wrap { padding:10px 13px; border-top:1px solid var(--border); flex-shrink:0; }
+    .qa-save-wrap button { width:100%; padding:7px; font-size:12px; font-weight:600; background:var(--accent); color:#fff; border:none; border-radius:7px; cursor:pointer; transition:opacity .15s; }
+    .qa-save-wrap button:hover { opacity:.85; }
 
     /* ── Toast ── */
     .toast {
@@ -326,7 +352,7 @@
     .phase-group-head .slash { font-size: 10px; font-weight: 700; color: var(--accent); letter-spacing: .05em; margin-bottom: 3px; }
     .phase-group-head .title { font-size: 12px; font-weight: 600; line-height: 1.3; }
     /* 슬롯 영역 */
-    .phase-group-slots { padding: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    .phase-group-slots { padding: 6px; display: grid; grid-template-columns: 1fr; gap: 4px; }
     .phase-slot {
       border-radius: 6px; border: 1px dashed rgba(255,255,255,.1);
       padding: 7px 8px; cursor: pointer; min-width: 0; position: relative;
@@ -368,7 +394,7 @@
     .changelog-area textarea:hover { border-color: var(--border); }
     .changelog-area textarea:focus { border-color: var(--accent); background: var(--surface2); outline: none; overflow-y: auto; }
     /* 산출물 보기 모달 */
-    .modal.modal-wide { max-width: 880px; height: 80vh; display: flex; flex-direction: column; padding-bottom: 14px; }
+    .modal.modal-wide { max-width: min(1080px, 96vw); height: 85vh; display: flex; flex-direction: column; padding-bottom: 14px; }
     .modal.modal-wide .modal-body { flex: 1; overflow: auto; min-height: 0; border-radius: 8px; border: 1px solid var(--border); }
     .modal.modal-wide iframe { width: 100%; height: 100%; border: none; background: #fff; }
     .modal.modal-wide pre { margin: 0; padding: 14px; white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6; }
@@ -900,7 +926,7 @@
         if (outputKey === '__auto') outputKey = null;
       }
       const outputContent = outputKey ? p.deliverables?.[outputKey]?.content : null;
-      const logContent    = p.changeLog?.trim() || null;
+      const logContent    = outputKey ? p.deliverables?.[outputKey]?.changeLog?.trim() || null : null;
       if (!outputContent && !logContent) return "";
       const phaseLabel = { phase1: 'Phase 1 (/spec)', phase2: 'Phase 2 (/schema)', phase3: 'Phase 3 (/build)' };
       let out = "\n\n---\n";
@@ -1157,18 +1183,56 @@
 
     // ── Phase 산출물 관리 ──
     const PHASE_META = {
-      phase1:    { label: '산출물', name: 'Markdown 스펙',   ext: 'md'   },
-      phase1_qa: { label: '/qa',   name: 'QA 리포트',       ext: 'html' },
-      phase2:    { label: '산출물', name: 'JSON Schema',  ext: 'json' },
-      phase2_qa: { label: '/qa',   name: 'QA 리포트',   ext: 'html' },
-      phase3:    { label: '산출물', name: 'HTML 프로토타입', ext: 'html' },
-      phase3_qa: { label: '/qa',   name: 'QA 리포트',       ext: 'html' },
+      phase1: { label: '산출물', name: 'Markdown 스펙',   ext: 'md'   },
+      phase2: { label: '산출물', name: 'JSON Schema',     ext: 'json' },
+      phase3: { label: '산출물', name: 'HTML 프로토타입', ext: 'html' },
     };
     const PHASE_GROUPS = [
-      { key: 'phase1', label: '/spec',   slots: ['phase1', 'phase1_qa'] },
-      { key: 'phase2', label: '/schema', slots: ['phase2', 'phase2_qa'] },
-      { key: 'phase3', label: '/build',  slots: ['phase3', 'phase3_qa'] },
+      { key: 'phase1', label: '/spec',   slots: ['phase1'] },
+      { key: 'phase2', label: '/schema', slots: ['phase2'] },
+      { key: 'phase3', label: '/build',  slots: ['phase3'] },
     ];
+    const QA_CHECKLISTS = {
+      phase1: {
+        required: [
+          { id: 'p1_r1', text: '서비스/기능 목적이 명확히 기술됨' },
+          { id: 'p1_r2', text: '사용자 역할(Actor)이 정의됨' },
+          { id: 'p1_r3', text: '핵심 기능 목록이 포함됨' },
+          { id: 'p1_r4', text: '기능별 요구사항이 구체적으로 작성됨' },
+        ],
+        recommended: [
+          { id: 'p1_c1', text: '예외 케이스 및 엣지 케이스 언급' },
+          { id: 'p1_c2', text: '화면 또는 플로우 흐름 기술' },
+          { id: 'p1_c3', text: '비기능 요구사항 포함 (성능, 보안 등)' },
+        ],
+      },
+      phase2: {
+        required: [
+          { id: 'p2_r1', text: '주요 엔티티가 모두 정의됨' },
+          { id: 'p2_r2', text: '각 필드의 타입이 명시됨' },
+          { id: 'p2_r3', text: '엔티티 간 관계(relation)가 정의됨' },
+          { id: 'p2_r4', text: '필수/선택 필드가 구분됨' },
+        ],
+        recommended: [
+          { id: 'p2_c1', text: 'PK/FK가 명시됨' },
+          { id: 'p2_c2', text: 'enum 또는 상수값 정의 포함' },
+          { id: 'p2_c3', text: '인덱싱 전략 언급' },
+        ],
+      },
+      phase3: {
+        required: [
+          { id: 'p3_r1', text: '주요 화면이 모두 구현됨' },
+          { id: 'p3_r2', text: 'Phase 1 스펙의 핵심 기능이 반영됨' },
+          { id: 'p3_r3', text: 'Phase 2 데이터 구조가 UI에 반영됨' },
+          { id: 'p3_r4', text: '기본 인터랙션(버튼, 폼 등)이 동작함' },
+        ],
+        recommended: [
+          { id: 'p3_c1', text: '반응형 레이아웃 적용' },
+          { id: 'p3_c2', text: '로딩/에러 상태 처리' },
+          { id: 'p3_c3', text: '더미 데이터가 실제 형태와 유사함' },
+        ],
+      },
+    };
     let _delivEditState = null;
     let _delivViewState = null;
 
@@ -1201,13 +1265,24 @@
       $("delivViewTitle").textContent = `${meta.label} — ${meta.name}`;
       const body = $("delivViewBody");
       body.innerHTML = "";
-      body.style.cssText = "";
+      body.style.cssText = "overflow:hidden;";
       const _isHtml = /^\s*<!DOCTYPE html/i.test(deliv.content) || /^\s*<html/i.test(deliv.content);
       let _viewIframe = null;
 
+      // 분할 레이아웃: 좌(뷰어) + 우(QA 패널)
+      const split = document.createElement("div");
+      split.className = "deliv-split";
+      body.appendChild(split);
+      const leftBody = document.createElement("div");
+      leftBody.className = "deliv-split-left";
+      split.appendChild(leftBody);
+      const rightBody = document.createElement("div");
+      rightBody.className = "deliv-split-right";
+      split.appendChild(rightBody);
+
+      // ── 좌: 뷰어 콘텐츠 ──
       if (phase === 'phase2') {
-        // 탭 뷰: JSON Schema | 설계 리포트
-        body.style.cssText = "overflow:hidden;display:flex;flex-direction:column;";
+        leftBody.style.cssText = "overflow:hidden;display:flex;flex-direction:column;";
         const tabBar = document.createElement("div");
         tabBar.className = "view-tab-bar";
         const tabJson = document.createElement("button");
@@ -1216,20 +1291,15 @@
         tabReport.type = "button"; tabReport.className = "view-tab-btn"; tabReport.textContent = "설계 리포트";
         if (!deliv.report) tabReport.style.opacity = ".45";
         tabBar.appendChild(tabJson); tabBar.appendChild(tabReport);
-        body.appendChild(tabBar);
-
+        leftBody.appendChild(tabBar);
         const scroll = document.createElement("div");
         scroll.style.cssText = "flex:1;overflow:auto;min-height:0;";
-        body.appendChild(scroll);
-
-        // JSON 패널
+        leftBody.appendChild(scroll);
         const jsonPanel = document.createElement("div");
         const pre = document.createElement("pre");
         try { pre.textContent = JSON.stringify(JSON.parse(deliv.content || ""), null, 2); }
         catch { pre.textContent = deliv.content || ""; }
         jsonPanel.appendChild(pre);
-
-        // 리포트 패널
         const reportPanel = document.createElement("div");
         reportPanel.style.display = "none";
         if (deliv.report) {
@@ -1243,7 +1313,6 @@
         }
         scroll.appendChild(jsonPanel);
         scroll.appendChild(reportPanel);
-
         let activeTab = 'json';
         const switchTab = t => {
           activeTab = t;
@@ -1255,7 +1324,6 @@
         tabJson.onclick   = () => switchTab('json');
         tabReport.onclick = () => switchTab('report');
         if (initialTab === 'report') switchTab('report');
-
         $("btnDelivViewOpen").onclick = () => {
           const c = activeTab === 'json' ? (deliv.content || '') : (deliv.report || '');
           window.open(URL.createObjectURL(new Blob([c], { type: 'text/plain;charset=utf-8' })));
@@ -1268,10 +1336,11 @@
           a.download = `${p.name}-schema.${ext}`; a.click(); URL.revokeObjectURL(a.href);
         };
       } else if (_isHtml) {
+        leftBody.style.cssText = "overflow:hidden;";
         _viewIframe = document.createElement("iframe");
         _viewIframe.srcdoc = deliv.content;
-        _viewIframe.style.cssText = "width:100%;height:100%;border:none;";
-        body.appendChild(_viewIframe);
+        _viewIframe.style.cssText = "width:100%;height:100%;border:none;display:block;";
+        leftBody.appendChild(_viewIframe);
         $("btnDelivViewOpen").onclick = () => {
           let htmlContent = deliv.content;
           if (_viewIframe && _viewIframe.contentDocument) {
@@ -1291,11 +1360,11 @@
           a.download = `${p.name}-${meta.label}.${meta.ext}`; a.click(); URL.revokeObjectURL(a.href);
         };
       } else {
-        // Markdown (phase1 등)
+        // Markdown (phase1)
         const div = document.createElement("div");
         div.className = "md-render";
         div.innerHTML = renderMd(deliv.content, true);
-        body.appendChild(div);
+        leftBody.appendChild(div);
         loadMermaidAndRender(div);
         $("btnDelivViewOpen").onclick = () => {
           window.open(URL.createObjectURL(new Blob([deliv.content], { type: 'text/plain;charset=utf-8' })));
@@ -1306,6 +1375,85 @@
           a.download = `${p.name}-${meta.label}.${meta.ext}`; a.click(); URL.revokeObjectURL(a.href);
         };
       }
+
+      // ── 우: QA 체크리스트 + 변경이력 ──
+      const cl = QA_CHECKLISTS[phase];
+      if (cl) {
+        const savedQa = deliv.qa || {};
+        const allItems = [...cl.required, ...cl.recommended];
+        const checkStates = { ...savedQa };
+
+        const qaPanel = document.createElement("div");
+        qaPanel.className = "qa-side-panel";
+
+        const progressWrap = document.createElement("div");
+        progressWrap.className = "qa-progress-wrap";
+        qaPanel.appendChild(progressWrap);
+
+        const reqHd = document.createElement("div");
+        reqHd.className = "qa-group-hd req";
+        qaPanel.appendChild(reqHd);
+
+        const recHd = document.createElement("div");
+        recHd.className = "qa-group-hd rec";
+
+        const updateQaUi = () => {
+          const total = allItems.length;
+          const checked = allItems.filter(i => checkStates[i.id]).length;
+          const reqChk = cl.required.filter(i => checkStates[i.id]).length;
+          const recChk = cl.recommended.filter(i => checkStates[i.id]).length;
+          const pct = total ? Math.round(checked / total * 100) : 0;
+          progressWrap.innerHTML = `<div class="qa-progress-label"><span class="qa-progress-title">QA 검토</span><span class="qa-progress-pct">${checked}/${total} 완료</span></div><div class="qa-progress-bar-bg"><div class="qa-progress-bar-fill" style="width:${pct}%"></div></div>`;
+          reqHd.innerHTML = `필수 <span class="qa-badge${reqChk === cl.required.length ? ' complete' : ''}">${reqChk}/${cl.required.length}</span>`;
+          recHd.innerHTML = `권장 <span class="qa-badge">${recChk}/${cl.recommended.length}</span>`;
+        };
+
+        const mkItem = item => {
+          const row = document.createElement("label");
+          row.className = "qa-item" + (checkStates[item.id] ? " checked" : "");
+          const cb = document.createElement("input");
+          cb.type = "checkbox"; cb.checked = !!checkStates[item.id];
+          cb.addEventListener("change", () => {
+            checkStates[item.id] = cb.checked;
+            row.classList.toggle("checked", cb.checked);
+            updateQaUi();
+          });
+          const span = document.createElement("span");
+          span.className = "qa-item-text"; span.textContent = item.text;
+          row.appendChild(cb); row.appendChild(span);
+          return row;
+        };
+
+        cl.required.forEach(item => qaPanel.appendChild(mkItem(item)));
+        qaPanel.appendChild(recHd);
+        cl.recommended.forEach(item => qaPanel.appendChild(mkItem(item)));
+        rightBody.appendChild(qaPanel);
+
+        const logWrap = document.createElement("div");
+        logWrap.className = "qa-log-wrap";
+        logWrap.innerHTML = `<div class="qa-log-label">변경이력</div>`;
+        const logTa = document.createElement("textarea");
+        logTa.placeholder = "QA 검토 후 변경 결정 사항을 기록하세요";
+        logTa.value = deliv.changeLog || "";
+        logWrap.appendChild(logTa);
+        rightBody.appendChild(logWrap);
+
+        const saveWrap = document.createElement("div");
+        saveWrap.className = "qa-save-wrap";
+        const saveBtn = document.createElement("button");
+        saveBtn.type = "button"; saveBtn.textContent = "저장";
+        saveBtn.addEventListener("click", () => {
+          deliv.qa = { ...checkStates };
+          deliv.changeLog = logTa.value;
+          saveState(); renderProjects();
+          toast("저장됐습니다");
+        });
+        saveWrap.appendChild(saveBtn);
+        rightBody.appendChild(saveWrap);
+
+        updateQaUi();
+      }
+
       $("btnDelivViewEdit").onclick = () => {
         $("modalDelivView").classList.remove("open");
         openDelivEdit(projectId, phase);
@@ -1368,17 +1516,11 @@
         };
         saveState(); renderProjects();
         const _savedProjectId = projectId; const _savedPhase = phase;
-        const _hasPendingQa = pendingAction?.type === 'deliverable' && pendingAction.projectId === projectId;
         $("modalDelivEdit").classList.remove("open"); _delivEditState = null;
+        pendingAction = null;
         toast("저장됐습니다");
-        if (_hasPendingQa) {
-          pendingAction = { type: 'qa', projectId: _savedProjectId, phaseKey: _savedPhase };
-          setTimeout(() => openDetail('qa', _savedProjectId), 80);
-        } else {
-          pendingAction = null;
-          const _initTab = _savedPhase === 'phase2' && $("tabEditReport").classList.contains('active') ? 'report' : null;
-          setTimeout(() => openDelivView(_savedProjectId, _savedPhase, _initTab), 150);
-        }
+        const _initTab = _savedPhase === 'phase2' && $("tabEditReport").classList.contains('active') ? 'report' : null;
+        setTimeout(() => openDelivView(_savedProjectId, _savedPhase, _initTab), 150);
       });
       $("btnDelivViewClose").addEventListener("click", () => {
         $("modalDelivView").classList.remove("open"); _delivViewState = null;
@@ -1395,11 +1537,10 @@
         return;
       }
       state.projects.forEach(p => {
-        const _allKeys = ['phase1','phase1_qa','phase2','phase2_qa','phase3','phase3_qa'];
+        const _allKeys = ['phase1','phase2','phase3'];
         if (!p.deliverables) p.deliverables = {};
         _allKeys.forEach(k => { if (!(k in p.deliverables)) p.deliverables[k] = null; });
-        ['changelog','phase1_log','phase2_log','phase3_log'].forEach(k => delete p.deliverables[k]);
-        if (!('changeLog' in p)) p.changeLog = "";
+        ['changelog','phase1_log','phase2_log','phase3_log','phase1_qa','phase2_qa','phase3_qa'].forEach(k => delete p.deliverables[k]);
         const card = document.createElement("div");
         card.className = "project-card";
         card.dataset.projectId = p.id;
@@ -1470,14 +1611,14 @@
             const meta = PHASE_META[ph];
             const deliv = p.deliverables[ph];
             const slot = document.createElement("div");
-            const isQaSlot = ph.endsWith('_qa');
-            const isReportSlot = ph.endsWith('_report');
-            const typeClass = isQaSlot ? ' qa-slot' : isReportSlot ? ' report-slot' : '';
-            slot.className = "phase-slot" + (deliv ? " filled" : " empty") + typeClass;
+            slot.className = "phase-slot" + (deliv ? " filled" : " empty");
             if (deliv) {
               const d = new Date(deliv.savedAt);
               const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
-              slot.innerHTML = `<div class="ps-label">${meta.label}</div><div class="ps-name">${meta.name}</div><div class="ps-date">${dateStr}</div><span class="ps-del" title="삭제">×</span>`;
+              const qaChecked = deliv.qa ? Object.values(deliv.qa).filter(Boolean).length : 0;
+              const qaTotal = QA_CHECKLISTS[ph] ? QA_CHECKLISTS[ph].required.length + QA_CHECKLISTS[ph].recommended.length : 0;
+              const qaStr = qaTotal ? ` · QA ${qaChecked}/${qaTotal}` : '';
+              slot.innerHTML = `<div class="ps-label">${meta.label}</div><div class="ps-name">${meta.name}</div><div class="ps-date">${dateStr}${qaStr}</div><span class="ps-del" title="삭제">×</span>`;
               slot.querySelector(".ps-del").addEventListener("click", (e) => {
                 e.stopPropagation();
                 if (!confirm("산출물을 삭제할까요?")) return;
@@ -1485,13 +1626,6 @@
                 toast("삭제됐습니다");
               });
               slot.addEventListener("click", () => openDelivView(p.id, ph));
-            } else if (isQaSlot) {
-              // QA 빈 슬롯: 클릭 시 QA 스킬 패널 열기
-              slot.innerHTML = `<div class="ps-label" style="color:#34d399">/qa</div><div class="ps-name">+ 저장</div>`;
-              slot.addEventListener("click", () => {
-                pendingAction = { type: 'qa', projectId: p.id, phaseKey: ph.replace('_qa', '') };
-                openDetail('qa', p.id);
-              });
             } else {
               slot.innerHTML = `<div class="ps-label">${meta.label}</div><div class="ps-name">+ 저장</div>`;
               slot.addEventListener("click", () => openDelivEdit(p.id, ph));
@@ -1562,25 +1696,9 @@
           saveState(); renderProjects();
         });
 
-        // 변경 이력 메모장
-        const clArea = document.createElement("div");
-        clArea.className = "changelog-area";
-        const clLabel = document.createElement("label");
-        clLabel.textContent = "변경 이력 (Phase 스킬 복사 시 자동 포함)";
-        const clTa = document.createElement("textarea");
-        clTa.placeholder = "QA 리뷰 후 변경 결정 사항을 여기에 누적 기록하세요.";
-        clTa.value = p.changeLog || "";
-        clTa.addEventListener("input", () => {
-          p.changeLog = clTa.value;
-          saveState();
-        });
-        clArea.appendChild(clLabel);
-        clArea.appendChild(clTa);
-
         const phaseSection = document.createElement("div");
         phaseSection.className = "phase-section";
         phaseSection.appendChild(phaseColsEl);
-        phaseSection.appendChild(clArea);
 
 
         card.appendChild(head);
@@ -1875,12 +1993,6 @@
             pendingAction = { type: 'deliverable', projectId: _pid, phaseKey: _phaseKey };
             closeDetail();
             openDelivEdit(_pid, _phaseKey);
-          } else if (_pid && sk.id === 'qa') {
-            // QA 스킬: 패널 닫고 QA 저장 팝업 자동 열기
-            const qaPhaseKey = pendingAction?.phaseKey;
-            pendingAction = null;
-            closeDetail();
-            openDelivEdit(_pid, (qaPhaseKey || 'phase1') + '_qa');
           } else {
             const slashCode = `<code style="font-size:11px;color:var(--accent);background:var(--bg);padding:1px 5px;border-radius:3px">${escapeHtml(sk.slash || sk.name)}</code>`;
             if (llmType === 'claude') {

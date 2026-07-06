@@ -515,10 +515,10 @@
   <div class="modal-backdrop" id="modalSkill">
     <div class="modal">
       <h4 id="skillModalTitle">스킬</h4>
-      <label>스킬명</label>
-      <input type="text" id="skName" />
       <label>슬래시 명령어 (예: /my-skill)</label>
       <input type="text" id="skSlash" />
+      <label>스킬명</label>
+      <input type="text" id="skName" />
       <label>한 줄 설명</label>
       <input type="text" id="skDesc" />
       <label>가이드 <span style="font-size:10px;color:var(--muted);font-weight:400">— 상세 패널에 표시 · 복사 시 제외</span></label>
@@ -538,7 +538,7 @@
   <div class="modal-backdrop" id="modalLLMPrompt">
     <div class="modal" style="max-width:480px">
       <h4 id="llmPromptTitle">LLM에서 스킬 생성하기</h4>
-      <p id="llmPromptDesc" style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.6">아래 내용을 복사해 Claude, ChatGPT 등에 붙여넣으면 스킬로 활용할 수 있습니다.</p>
+      <p id="llmPromptDesc" style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.6">아래 내용을 복사해 Claude, Cursor Ai, Codex 등에 붙여넣으면 스킬로 활용할 수 있습니다.</p>
       <textarea class="prompt-area" id="llmPromptText" readonly style="min-height:180px;background:var(--bg2);cursor:text;font-family:monospace;font-size:12px"></textarea>
       <div class="row">
         <button type="button" class="btn-sm" id="btnLLMPromptClose">닫기</button>
@@ -1092,7 +1092,11 @@
       el.innerHTML = "";
 
       if (sidebarTab === "projects") {
-        state.projects.forEach(p => {
+        const q = ($("sidebarSearch").value || "").trim().toLowerCase();
+        const filtered = q
+          ? state.projects.filter(p => p.name.toLowerCase().includes(q))
+          : state.projects;
+        filtered.forEach(p => {
           const row = document.createElement("button");
           row.type = "button";
           row.className = "skill-chip";
@@ -1104,7 +1108,7 @@
           });
           el.appendChild(row);
         });
-        if (!state.projects.length) el.innerHTML = `<div class="empty-state">프로젝트가 없습니다.</div>`;
+        if (!filtered.length) el.innerHTML = `<div class="empty-state">${q ? "검색 결과가 없습니다." : "프로젝트가 없습니다."}</div>`;
         return;
       }
 
@@ -1259,7 +1263,7 @@
       const p = state.projects.find(x => x.id === projectId);
       if (!p) return;
       _delivEditState = { projectId, phase };
-      $("delivEditTitle").textContent = `${PHASE_META[phase].label} 산출물 저장`;
+      $("delivEditTitle").textContent = `${PHASE_META[phase].label} 스킬 결과 저장`;
       $("delivEditArea").value = p.deliverables?.[phase]?.content || "";
       const isP2 = phase === 'phase2';
       $("delivEditTabs").style.display = isP2 ? 'flex' : 'none';
@@ -2448,7 +2452,7 @@ ${bodyHtml}
         renderSidebar(); toast("저장됨");
         $("llmPromptTitle").textContent = isNew ? "LLM에서 스킬 생성하기" : "LLM에서 스킬 수정하기";
         $("llmPromptDesc").textContent  = isNew
-          ? "아래 내용을 복사해 Claude, ChatGPT 등에 붙여넣으면 스킬로 활용할 수 있습니다."
+          ? "아래 내용을 복사해 Claude, Cursor Ai, Codex 등에 붙여넣으면 스킬로 활용할 수 있습니다."
           : "아래 내용을 복사해 Claude, ChatGPT 등에 붙여넣으면 스킬 내용을 수정할 수 있습니다.";
         $("llmPromptText").value = llmLines.join("\n");
         $("modalLLMPrompt").classList.add("open");

@@ -1907,6 +1907,9 @@ ${bodyHtml}
           if (withMermaid && lang === 'mermaid') {
             return `<div class="mermaid-wrap"><pre class="mermaid">${body}</pre></div>`;
           }
+          if (lang === 'md' || lang === 'markdown') {
+            return renderMd(body, false);
+          }
           return `<pre><code>${esc(body)}</code></pre>`;
         }
         const lines = part.split('\n');

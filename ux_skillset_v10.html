@@ -592,12 +592,7 @@
         <button type="button" class="btn-sm" id="btnDelivEditFile">파일 첨부</button>
         <input type="file" id="delivEditFileInput" accept=".md,.json,.html,.txt" style="display:none">
       </div>
-      <div id="delivEditTabs" style="display:none;gap:4px;margin-bottom:8px">
-        <button type="button" id="tabEditJson" class="tab-edit-btn active">JSON Schema</button>
-        <button type="button" id="tabEditReport" class="tab-edit-btn">설계 리포트</button>
-      </div>
       <textarea id="delivEditArea" style="width:100%;height:220px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="여기에 붙여넣기..."></textarea>
-      <textarea id="delivEditReportArea" style="display:none;width:100%;height:220px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="/schema 전체 결과를 붙여넣으세요 (다이어그램·테이블 포함)"></textarea>
       <div class="row" style="margin-top:10px">
         <button type="button" class="btn-sm" id="btnDelivEditCancel">취소</button>
         <button type="button" class="btn-primary" id="btnDelivEditSave">저장</button>
@@ -1207,7 +1202,7 @@
     // ── Phase 산출물 관리 ──
     const PHASE_META = {
       phase1: { label: '산출물', name: 'Markdown 스펙',   ext: 'md'   },
-      phase2: { label: '산출물', name: 'JSON Schema',     ext: 'json' },
+      phase2: { label: '산출물', name: '설계 시각화',      ext: 'md'   },
       phase3: { label: '산출물', name: 'HTML 프로토타입', ext: 'html' },
     };
     const PHASE_GROUPS = [
@@ -1265,20 +1260,11 @@
       _delivEditState = { projectId, phase };
       $("delivEditTitle").textContent = `${PHASE_META[phase].label} 스킬 결과 저장`;
       $("delivEditArea").value = p.deliverables?.[phase]?.content || "";
-      const isP2 = phase === 'phase2';
-      $("delivEditTabs").style.display = isP2 ? 'flex' : 'none';
-      if (isP2) {
-        $("delivEditReportArea").value = p.deliverables?.phase2?.report || "";
-        $("delivEditArea").style.display = '';
-        $("delivEditReportArea").style.display = 'none';
-        $("tabEditJson").classList.add('active');
-        $("tabEditReport").classList.remove('active');
-      }
       $("modalDelivEdit").classList.add("open");
       setTimeout(() => $("delivEditArea").focus(), 80);
     }
 
-    function openDelivView(projectId, phase, initialTab = null) {
+    function openDelivView(projectId, phase) {
       const p = state.projects.find(x => x.id === projectId);
       if (!p) return;
       const deliv = p.deliverables?.[phase];
@@ -1309,61 +1295,17 @@
 
       // ── 좌: 뷰어 콘텐츠 ──
       if (phase === 'phase2') {
-        leftBody.style.cssText = "overflow:hidden;display:flex;flex-direction:column;";
-        const tabBar = document.createElement("div");
-        tabBar.className = "view-tab-bar";
-        const tabJson = document.createElement("button");
-        tabJson.type = "button"; tabJson.className = "view-tab-btn active"; tabJson.textContent = "JSON Schema";
-        const tabReport = document.createElement("button");
-        tabReport.type = "button"; tabReport.className = "view-tab-btn"; tabReport.textContent = "설계 리포트";
-        if (!deliv.report) tabReport.style.opacity = ".45";
-        tabBar.appendChild(tabJson); tabBar.appendChild(tabReport);
-        leftBody.appendChild(tabBar);
-        const scroll = document.createElement("div");
-        scroll.style.cssText = "flex:1;overflow:auto;min-height:0;";
-        leftBody.appendChild(scroll);
-        const jsonPanel = document.createElement("div");
-        const pre = document.createElement("pre");
-        try { pre.textContent = JSON.stringify(JSON.parse(deliv.content || ""), null, 2); }
-        catch { pre.textContent = deliv.content || ""; }
-        jsonPanel.appendChild(pre);
-        const reportPanel = document.createElement("div");
-        reportPanel.style.display = "none";
-        let _rdiv = null;
-        if (deliv.report) {
-          _rdiv = document.createElement("div");
-          _rdiv.className = "md-render";
-          _rdiv.innerHTML = renderMd(prewrapMermaid(stripPhase3Json(deliv.report)), true);
-          reportPanel.appendChild(_rdiv);
-        } else {
-          reportPanel.innerHTML = `<div style="padding:20px;color:var(--muted);font-size:13px">저장된 설계 리포트가 없습니다.<br><small>저장 버튼 → 설계 리포트 탭에서 붙여넣기</small></div>`;
-        }
-        scroll.appendChild(jsonPanel);
-        scroll.appendChild(reportPanel);
-        let activeTab = 'json';
-        let _mermaidRan = false;
-        const switchTab = t => {
-          activeTab = t;
-          jsonPanel.style.display   = t === 'json'   ? '' : 'none';
-          reportPanel.style.display = t === 'report' ? '' : 'none';
-          tabJson.classList.toggle('active', t === 'json');
-          tabReport.classList.toggle('active', t === 'report');
-          if (t === 'report' && !_mermaidRan && _rdiv) {
-            _mermaidRan = true;
-            loadMermaidAndRender(_rdiv);
-          }
-        };
-        tabJson.onclick   = () => switchTab('json');
-        tabReport.onclick = () => switchTab('report');
-        if (initialTab === 'report') switchTab('report');
+        const rdiv = document.createElement("div");
+        rdiv.className = "md-render";
+        rdiv.style.padding = "16px";
+        rdiv.innerHTML = renderMd(prewrapMermaid(deliv.content), true);
+        leftBody.appendChild(rdiv);
+        loadMermaidAndRender(rdiv);
         $("btnDelivViewOpen").onclick = () => {
-          if (activeTab === 'json') {
-            window.open(URL.createObjectURL(new Blob([deliv.content || ''], { type: 'text/plain;charset=utf-8' })));
-          } else {
-            const dk = !document.documentElement.classList.contains('theme-light');
-            const bodyHtml = renderMd(prewrapMermaid(stripPhase3Json(deliv.report || '')), true);
-            const page = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
-<title>${p.name} — 설계 리포트</title>
+          const dk = !document.documentElement.classList.contains('theme-light');
+          const bodyHtml = renderMd(prewrapMermaid(deliv.content), true);
+          const page = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<title>${p.name} — 설계 시각화</title>
 <style>
 *{box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:960px;margin:40px auto;padding:0 24px;line-height:1.65;color:${dk?'#e0e0e0':'#1a1a1a'};background:${dk?'#1e1e1e':'#fff'}}
@@ -1385,15 +1327,12 @@ ${bodyHtml}
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"><\/script>
 <script>mermaid.initialize({startOnLoad:true,theme:'${dk?'dark':'default'}',securityLevel:'loose'});<\/script>
 </body></html>`;
-            window.open(URL.createObjectURL(new Blob([page], { type: 'text/html;charset=utf-8' })));
-          }
+          window.open(URL.createObjectURL(new Blob([page], { type: 'text/html;charset=utf-8' })));
         };
         $("btnDelivViewDownload").onclick = () => {
-          const c = activeTab === 'json' ? (deliv.content || '') : (deliv.report || '');
-          const ext = activeTab === 'json' ? 'json' : 'md';
           const a = document.createElement("a");
-          a.href = URL.createObjectURL(new Blob([c], { type: 'text/plain;charset=utf-8' }));
-          a.download = `${p.name}-schema.${ext}`; a.click(); URL.revokeObjectURL(a.href);
+          a.href = URL.createObjectURL(new Blob([deliv.content], { type: 'text/plain;charset=utf-8' }));
+          a.download = `${p.name}-schema.md`; a.click(); URL.revokeObjectURL(a.href);
         };
       } else if (_isHtml) {
         leftBody.style.cssText = "overflow:hidden;";
@@ -1625,26 +1564,9 @@ ${bodyHtml}
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        const isReportTab = $("delivEditReportArea").style.display !== 'none';
-        reader.onload = (ev) => {
-          (isReportTab ? $("delivEditReportArea") : $("delivEditArea")).value = ev.target.result;
-        };
+        reader.onload = (ev) => { $("delivEditArea").value = ev.target.result; };
         reader.readAsText(file, "UTF-8");
         e.target.value = "";
-      });
-      $("tabEditJson").addEventListener("click", () => {
-        $("delivEditArea").style.display = '';
-        $("delivEditReportArea").style.display = 'none';
-        $("tabEditJson").classList.add('active');
-        $("tabEditReport").classList.remove('active');
-        $("delivEditArea").focus();
-      });
-      $("tabEditReport").addEventListener("click", () => {
-        $("delivEditArea").style.display = 'none';
-        $("delivEditReportArea").style.display = '';
-        $("tabEditJson").classList.remove('active');
-        $("tabEditReport").classList.add('active');
-        $("delivEditReportArea").focus();
       });
       $("btnDelivEditCancel").addEventListener("click", () => {
         $("modalDelivEdit").classList.remove("open"); _delivEditState = null;
@@ -1654,15 +1576,13 @@ ${bodyHtml}
         if (!_delivEditState) return;
         const { projectId, phase } = _delivEditState;
         const content = $("delivEditArea").value.trim();
-        const report = phase === 'phase2' ? stripPhase3Json($("delivEditReportArea").value.trim()) : "";
-        if (!content && !report) { toast("내용을 입력해주세요"); return; }
+        if (!content) { toast("내용을 입력해주세요"); return; }
         const p = state.projects.find(x => x.id === projectId);
         if (!p) return;
         if (!p.deliverables) p.deliverables = {};
         const prev = p.deliverables[phase] || {};
         p.deliverables[phase] = {
           content: content || prev.content || "",
-          ...(phase === 'phase2' && { report: report || prev.report || "" }),
           savedAt: new Date().toISOString(),
           ...(prev.qa && { qa: prev.qa }),
           ...(prev.changeLog && { changeLog: prev.changeLog })
@@ -1672,8 +1592,7 @@ ${bodyHtml}
         $("modalDelivEdit").classList.remove("open"); _delivEditState = null;
         pendingAction = null;
         toast("저장됐습니다");
-        const _initTab = _savedPhase === 'phase2' && $("tabEditReport").classList.contains('active') ? 'report' : null;
-        setTimeout(() => openDelivView(_savedProjectId, _savedPhase, _initTab), 150);
+        setTimeout(() => openDelivView(_savedProjectId, _savedPhase), 150);
       });
       $("btnDelivViewClose").addEventListener("click", () => {
         $("modalDelivView").classList.remove("open"); _delivViewState = null;

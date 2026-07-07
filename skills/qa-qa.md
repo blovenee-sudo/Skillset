@@ -6,7 +6,7 @@ desc: Phase 1·2·3 산출물 자동 감지 → 결과 요약 + 체크리스트 
 ---
 
 검토할 산출물을 아래에 붙여넣으세요.
-Phase 1 Markdown, Phase 2 JSON, Phase 3 HTML 중 어떤 것이든 자동으로 감지해 QA 리포트를 생성합니다.
+Phase 1 Markdown, Phase 2 설계 시각화, Phase 3 HTML 중 어떤 것이든 자동으로 감지해 QA 리포트를 생성합니다.
 
 > **이 지침에 포함된 작업**
 > 휴리스틱 평가, 리뷰 코멘트 정리, 결과 요약, 변경 결정 기록
@@ -31,7 +31,7 @@ Phase 1 Markdown, Phase 2 JSON, Phase 3 HTML 중 어떤 것이든 자동으로 �
 | 판단 기준 | Phase |
 |---------|-------|
 | `# 📋` 헤더 포함 또는 `## 1. 프로젝트 개요` + `## 4. ❌ Constraints` 섹션 포함 | **Phase 1** |
-| `{` 로 시작하고 `"entities"` 또는 `"phase": "Phase 2"` 키 포함 | **Phase 2** |
+| `erDiagram` 포함 또는 `## 기능 정의서` 또는 `## 엣지케이스 정리` 또는 `## 설계 요약` 포함 | **Phase 2** |
 | `<!DOCTYPE html` 또는 `<html` 로 시작 | **Phase 3** |
 | 판단 불가 | → 사용자에게 한 줄 확인 요청 후 진행 |
 
@@ -42,7 +42,7 @@ Phase 1 Markdown, Phase 2 JSON, Phase 3 HTML 중 어떤 것이든 자동으로 �
 감지된 단계에 따라 산출물을 분석해 섹션 ①에 반영할 핵심 수치를 파악합니다.
 
 - **Phase 1**: 프로젝트명 · 핵심 기능 수 · Constraints 항목 수 · KPI 명시 여부 · Gap Analysis 항목 수
-- **Phase 2**: 엔티티 수 및 목록 · 기능 수(P0/P1/P2 분류) · 사용자 플로우 수 · 엣지케이스 수 · Constraints 이관 여부 · open_questions 수
+- **Phase 2**: 엔티티 수 및 목록(엔티티 테이블에서 추출) · 기능 수(기능 정의서 테이블, P0/P1/P2 분류) · 플로우 수 · 엣지케이스 수 · Constraints 이관 여부
 - **Phase 3**: 구현 화면 수 및 목록 · 핵심 인터랙션 포함 여부 · 외부 의존성 여부 · 더미 데이터 수
 
 ---

@@ -587,6 +587,7 @@
   <div class="modal-backdrop" id="modalDelivEdit">
     <div class="modal" style="max-width:600px">
       <h4 id="delivEditTitle">Phase 산출물 저장</h4>
+      <p id="delivEditGuide" style="display:none;margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.5">LLM이 출력한 HTML 코드 전체(<code style="font-size:11px">&lt;!DOCTYPE html&gt;</code> 부터 <code style="font-size:11px">&lt;/html&gt;</code> 까지)를 복사해 붙여넣으세요.</p>
       <div class="row" style="margin-bottom:8px;align-items:center">
         <label style="font-size:12px;color:var(--muted)">LLM 결과를 붙여넣거나 파일을 불러오세요.</label>
         <button type="button" class="btn-sm" id="btnDelivEditFile">파일 첨부</button>
@@ -1260,6 +1261,7 @@
       _delivEditState = { projectId, phase };
       $("delivEditTitle").textContent = `${PHASE_META[phase].label} 스킬 결과 저장`;
       $("delivEditArea").value = p.deliverables?.[phase]?.content || "";
+      $("delivEditGuide").style.display = phase === 'phase3' ? '' : 'none';
       $("modalDelivEdit").classList.add("open");
       setTimeout(() => $("delivEditArea").focus(), 80);
     }

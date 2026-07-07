@@ -286,6 +286,10 @@
     .qa-col-btn:hover { background:var(--bg2); color:var(--fg); }
     .qa-right-content { flex:1; min-height:0; display:none; flex-direction:column; overflow:hidden; }
     .qa-open .qa-right-content { display:flex; }
+    .qa-side-tab-bar { display:none; flex-shrink:0; border-bottom:1px solid var(--border); }
+    .qa-open .qa-side-tab-bar { display:flex; }
+    .qa-side-tab { flex:1; padding:6px 4px; font-size:11px; font-weight:500; border:none; background:transparent; cursor:pointer; border-bottom:2px solid transparent; color:var(--muted); transition:color .15s; }
+    .qa-side-tab.active { border-bottom-color:var(--accent); color:var(--fg); }
     /* 수평 드래그 핸들 */
     .split-hhandle { height:4px; flex-shrink:0; cursor:ns-resize; background:transparent; transition:background .15s; }
     .split-hhandle:hover,.split-hhandle.dragging { background:var(--accent); opacity:.6; }
@@ -1374,8 +1378,10 @@ ${bodyHtml}
         });
         setActive(0);
         $("btnDelivViewOpen").onclick = () => {
-          const optsJson = JSON.stringify(opts.map(o => ({ title: o.title, ux: o.ux, html: o.html })));
-          const page = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(p.name)} — 프로토타입 3안 비교</title>
+          const optsJson = JSON.stringify(opts.map(o => ({title:o.title,ux:o.ux,html:o.html})))
+            .replace(/<\//g, '<\\/');
+          const page = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<title>${escapeHtml(p.name)} — 프로토타입 3안 비교</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;flex-direction:column;height:100vh;background:#f5f5f5}
@@ -1384,18 +1390,58 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:
 .opt-btn.active{border-color:#117CE9;background:#DBEBFC}
 .opt-btn .t{font-size:13px;font-weight:600;margin-bottom:4px;line-height:1.3}
 .opt-btn .u{font-size:11px;color:#7F7F7F;line-height:1.45}
-#preview{flex:1;border:none;width:100%}
+.main{display:flex;flex:1;min-height:0}
+#preview{flex:1;border:none;width:100%;min-width:0}
+.cp{width:0;flex-shrink:0;border-left:1px solid #e2e2e2;display:flex;flex-direction:column;overflow:hidden;transition:width .2s;background:#fff}
+.cp.open{width:300px}
+.cp-hd{display:flex;align-items:center;padding:8px 10px;border-bottom:1px solid #e2e2e2;flex-shrink:0;gap:6px}
+.cp-tag{flex:1;font-size:11px;color:#7F7F7F;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cp-copy{padding:2px 7px;font-size:10px;background:#f5f5f5;border:1px solid #e2e2e2;border-radius:4px;cursor:pointer}
+.cp-close{padding:0 4px;font-size:16px;background:none;border:none;cursor:pointer;color:#aaa;line-height:1}
+.cp-pre{flex:1;margin:0;padding:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;word-break:break-all;overflow:auto}
 </style></head><body>
 <div class="opt-bar" id="optBar"></div>
+<div class="main">
 <iframe id="preview"></iframe>
+<div class="cp" id="cp">
+<div class="cp-hd"><span class="cp-tag" id="cpTag">요소</span><button class="cp-copy" id="cpCopy">복사</button><button class="cp-close" id="cpClose">✕</button></div>
+<pre class="cp-pre" id="cpPre"></pre>
+</div>
+</div>
 <script>
 const OPTIONS=${optsJson};
 let active=${_activeOptIdx};
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+const cp=document.getElementById('cp'),cpPre=document.getElementById('cpPre'),cpTag=document.getElementById('cpTag');
+document.getElementById('cpClose').onclick=()=>cp.classList.remove('open');
+document.getElementById('cpCopy').onclick=()=>navigator.clipboard?.writeText(cpPre.textContent);
+function showCode(html){
+  cpPre.textContent=html;
+  cpTag.textContent=html.match(/^<([a-zA-Z][^\s>/]*)/)?.[1]||'요소';
+  cp.classList.add('open');
+}
+function injectInspector(iframe){
+  try{
+    const doc=iframe.contentDocument||iframe.contentWindow?.document;
+    if(!doc||!doc.body||doc.__axInj__)return;
+    doc.__axInj__=true;
+    const s=doc.createElement('style');
+    s.textContent='.__ax-sel{outline:2px solid #117CE9!important;outline-offset:2px!important}';
+    (doc.head||doc.body).appendChild(s);
+    doc.addEventListener('click',(e)=>{
+      doc.querySelectorAll('.__ax-sel').forEach(el=>el.classList.remove('__ax-sel'));
+      e.target.classList.add('__ax-sel');
+      showCode(e.target.outerHTML);
+    },true);
+  }catch{}
+}
+const preview=document.getElementById('preview');
+preview.addEventListener('load',()=>setTimeout(()=>injectInspector(preview),50));
 function showOpt(i){
   active=i;
-  document.getElementById('preview').srcdoc=OPTIONS[i].html;
+  preview.srcdoc=OPTIONS[i].html;
   document.querySelectorAll('.opt-btn').forEach((b,j)=>b.classList.toggle('active',j===i));
+  cp.classList.remove('open');
 }
 const bar=document.getElementById('optBar');
 OPTIONS.forEach((opt,i)=>{
@@ -1405,7 +1451,7 @@ OPTIONS.forEach((opt,i)=>{
   btn.onclick=()=>showOpt(i);
   bar.appendChild(btn);
 });
-document.getElementById('preview').srcdoc=OPTIONS[active].html;
+preview.srcdoc=OPTIONS[active].html;
 <\/script></body></html>`;
           window.open(URL.createObjectURL(new Blob([page], { type: 'text/html;charset=utf-8' })));
         };
@@ -1517,9 +1563,59 @@ document.getElementById('preview').srcdoc=OPTIONS[active].html;
         document.addEventListener('mouseup', onUp);
       });
 
+      // 코드 인스펙터 탭 (iframe이 있는 Phase에만)
+      let showCode = null, _tabQaBtn = null, _tabCodeBtn = null;
+      if (_viewIframe) {
+        const sideTabBar = document.createElement("div");
+        sideTabBar.className = "qa-side-tab-bar";
+        _tabQaBtn = document.createElement("button");
+        _tabQaBtn.type = "button"; _tabQaBtn.className = "qa-side-tab active"; _tabQaBtn.textContent = "QA 검토";
+        _tabCodeBtn = document.createElement("button");
+        _tabCodeBtn.type = "button"; _tabCodeBtn.className = "qa-side-tab"; _tabCodeBtn.textContent = "코드";
+        sideTabBar.appendChild(_tabQaBtn); sideTabBar.appendChild(_tabCodeBtn);
+        rightBody.appendChild(sideTabBar);
+      }
+
       const rightContent = document.createElement("div");
       rightContent.className = "qa-right-content";
       rightBody.appendChild(rightContent);
+
+      if (_viewIframe) {
+        const codeContent = document.createElement("div");
+        codeContent.style.cssText = "flex:1;min-height:0;flex-direction:column;overflow:hidden;display:none;";
+        rightBody.appendChild(codeContent);
+        const codeInfoBar = document.createElement("div");
+        codeInfoBar.style.cssText = "padding:8px 10px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:6px;";
+        const codeTagSpan = document.createElement("span");
+        codeTagSpan.style.cssText = "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+        codeTagSpan.textContent = "요소를 클릭하면 코드가 표시됩니다";
+        const codeCopyBtn2 = document.createElement("button");
+        codeCopyBtn2.type = "button";
+        codeCopyBtn2.style.cssText = "flex-shrink:0;padding:2px 7px;font-size:10px;background:var(--hover);border:1px solid var(--border);border-radius:4px;cursor:pointer;display:none;";
+        codeCopyBtn2.textContent = "복사";
+        codeInfoBar.appendChild(codeTagSpan); codeInfoBar.appendChild(codeCopyBtn2);
+        const codePre2 = document.createElement("pre");
+        codePre2.style.cssText = "flex:1;margin:0;padding:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;word-break:break-all;overflow:auto;";
+        codeContent.appendChild(codeInfoBar); codeContent.appendChild(codePre2);
+        let _sideTab = 'qa';
+        const switchSideTab = (tab) => {
+          _sideTab = tab;
+          rightContent.style.display = tab === 'qa' ? '' : 'none';
+          codeContent.style.display = tab === 'code' ? 'flex' : 'none';
+          _tabQaBtn.classList.toggle('active', tab === 'qa');
+          _tabCodeBtn.classList.toggle('active', tab === 'code');
+        };
+        _tabQaBtn.addEventListener('click', () => switchSideTab('qa'));
+        _tabCodeBtn.addEventListener('click', () => switchSideTab('code'));
+        showCode = (html) => {
+          codePre2.textContent = html;
+          codeTagSpan.textContent = html.match(/^<([a-zA-Z][^\s>/]*)/)?.[1] || '요소';
+          codeCopyBtn2.style.display = '';
+          codeCopyBtn2.onclick = () => { navigator.clipboard?.writeText(html); toast('복사됐습니다'); };
+          if (_sideTab !== 'code') switchSideTab('code');
+          if (!rightBody.classList.contains('qa-open')) toggleQa();
+        };
+      }
 
       const cl = QA_CHECKLISTS[phase];
       if (cl) {
@@ -1623,6 +1719,26 @@ document.getElementById('preview').srcdoc=OPTIONS[active].html;
         rightContent.appendChild(saveWrap);
 
         updateQaUi();
+      }
+
+      if (_viewIframe && showCode) {
+        const injectInspector = () => {
+          try {
+            const doc = _viewIframe.contentDocument || _viewIframe.contentWindow?.document;
+            if (!doc || !doc.body || doc.__axInj__) return;
+            doc.__axInj__ = true;
+            const s = doc.createElement('style');
+            s.textContent = '.__ax-sel{outline:2px solid #117CE9!important;outline-offset:2px!important}';
+            (doc.head || doc.body).appendChild(s);
+            doc.addEventListener('click', (e) => {
+              doc.querySelectorAll('.__ax-sel').forEach(el => el.classList.remove('__ax-sel'));
+              e.target.classList.add('__ax-sel');
+              showCode(e.target.outerHTML);
+            }, true);
+          } catch {}
+        };
+        _viewIframe.addEventListener('load', injectInspector);
+        setTimeout(injectInspector, 100);
       }
 
       $("btnDelivViewEdit").onclick = () => {

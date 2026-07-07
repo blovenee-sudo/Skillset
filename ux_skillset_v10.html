@@ -1404,7 +1404,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:
 <div class="main">
 <iframe id="preview"></iframe>
 <div class="cp" id="cp">
-<div class="cp-hd"><span class="cp-tag" id="cpTag">요소</span><button class="cp-copy" id="cpCopy">복사</button><button class="cp-close" id="cpClose">✕</button></div>
+<div class="cp-hd"><span class="cp-tag" id="cpTag">요소</span><button class="cp-copy" id="cpFull">전체</button><button class="cp-copy" id="cpCopy">복사</button><button class="cp-close" id="cpClose">✕</button></div>
 <pre class="cp-pre" id="cpPre"></pre>
 </div>
 </div>
@@ -1415,6 +1415,7 @@ function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 const cp=document.getElementById('cp'),cpPre=document.getElementById('cpPre'),cpTag=document.getElementById('cpTag');
 document.getElementById('cpClose').onclick=()=>cp.classList.remove('open');
 document.getElementById('cpCopy').onclick=()=>navigator.clipboard?.writeText(cpPre.textContent);
+document.getElementById('cpFull').onclick=()=>showCode(OPTIONS[active].html);
 function showCode(html){
   cpPre.textContent=html;
   cpTag.textContent=html.match(/^<([a-zA-Z][^\s>/]*)/)?.[1]||'요소';
@@ -1593,7 +1594,12 @@ preview.srcdoc=OPTIONS[active].html;
         codeCopyBtn2.type = "button";
         codeCopyBtn2.style.cssText = "flex-shrink:0;padding:2px 7px;font-size:10px;background:var(--hover);border:1px solid var(--border);border-radius:4px;cursor:pointer;display:none;";
         codeCopyBtn2.textContent = "복사";
-        codeInfoBar.appendChild(codeTagSpan); codeInfoBar.appendChild(codeCopyBtn2);
+        const codeFullBtn = document.createElement("button");
+        codeFullBtn.type = "button";
+        codeFullBtn.style.cssText = "flex-shrink:0;padding:2px 7px;font-size:10px;background:var(--hover);border:1px solid var(--border);border-radius:4px;cursor:pointer;";
+        codeFullBtn.textContent = "전체";
+        codeFullBtn.onclick = () => { if (_viewIframe.srcdoc) showCode(_viewIframe.srcdoc); };
+        codeInfoBar.appendChild(codeTagSpan); codeInfoBar.appendChild(codeCopyBtn2); codeInfoBar.appendChild(codeFullBtn);
         const codePre2 = document.createElement("pre");
         codePre2.style.cssText = "flex:1;margin:0;padding:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;word-break:break-all;overflow:auto;";
         codeContent.appendChild(codeInfoBar); codeContent.appendChild(codePre2);

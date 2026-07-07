@@ -246,33 +246,50 @@ function showScreen(id) {
 
 ### 3개 레이아웃 변형 비교
 
-단일 HTML 파일 안에 **A / B / C 3개 변형**을 탭으로 전환할 수 있도록 구현한다.
+각 변형을 **완성된 독립 HTML 파일**로 출력한다.
+스킬셋 앱이 아래 마커를 파싱해 뷰어 바깥에 안 전환 버튼으로 표시한다.
 
-```html
-<!-- 최상단 변형 탭 -->
-<div class="variation-tabs">
-  <button onclick="showVariation('A')" id="tab-A" class="tab active">변형 A — 리스트형</button>
-  <button onclick="showVariation('B')" id="tab-B" class="tab">변형 B — 카드 그리드형</button>
-  <button onclick="showVariation('C')" id="tab-C" class="tab">변형 C — 사이드바형</button>
-</div>
-<div id="var-A" class="variation active"><!-- 변형 A 내용 --></div>
-<div id="var-B" class="variation" style="display:none"><!-- 변형 B 내용 --></div>
-<div id="var-C" class="variation" style="display:none"><!-- 변형 C 내용 --></div>
+출력 형식:
+
+```
+<!-- AX_OPTION
+n: 1
+title: 변형 A — 리스트형
+ux: 테이블·리스트 중심으로 데이터 밀도를 높여 빠른 탐색과 비교가 필요한 관리자 관점에 최적화한 안.
+-->
+<!DOCTYPE html>
+<html lang="ko">
+...변형 A 전체 HTML...
+</html>
+<!-- AX_OPTION_END -->
+<!-- AX_OPTION
+n: 2
+title: 변형 B — 카드 그리드형
+ux: 카드 그리드로 항목을 시각적으로 강조해 탐색·발견 중심 사용 흐름에 적합한 안.
+-->
+<!DOCTYPE html>
+<html lang="ko">
+...변형 B 전체 HTML...
+</html>
+<!-- AX_OPTION_END -->
+<!-- AX_OPTION
+n: 3
+title: 변형 C — 사이드바형
+ux: 좌측 목록 + 우측 디테일 패널 구조로 선택 → 세부보기 워크플로에 최적화한 안.
+-->
+<!DOCTYPE html>
+<html lang="ko">
+...변형 C 전체 HTML...
+</html>
+<!-- AX_OPTION_END -->
 ```
 
-```js
-function showVariation(v) {
-  ['A','B','C'].forEach(x => {
-    document.getElementById('var-'+x).style.display = x===v ? 'block' : 'none';
-    document.getElementById('tab-'+x).classList.toggle('active', x===v);
-  });
-}
-```
-
+- 3개 변형 모두 동일 더미 데이터·인터랙션 사용, 레이아웃만 다름
 - 변형 A: 테이블·리스트 중심 (데이터 밀도 높음)
 - 변형 B: 카드 그리드 (시각적 강조)
 - 변형 C: 좌측 사이드바 + 우측 디테일 패널
-- 3개 변형 모두 동일 더미 데이터·인터랙션 사용, 레이아웃만 다름
+- `ux:` 항목은 실제 설계 결정 기준에 맞게 각 변형마다 내용을 다르게 작성한다
+- 각 변형은 `<!DOCTYPE html>`부터 `</html>`까지 단독으로 브라우저에서 열 수 있는 완성 파일이어야 한다
 
 ---
 

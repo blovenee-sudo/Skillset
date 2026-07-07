@@ -1654,7 +1654,7 @@ ${bodyHtml}
         if (!_delivEditState) return;
         const { projectId, phase } = _delivEditState;
         const content = $("delivEditArea").value.trim();
-        const report = phase === 'phase2' ? $("delivEditReportArea").value.trim() : "";
+        const report = phase === 'phase2' ? stripPhase3Json($("delivEditReportArea").value.trim()) : "";
         if (!content && !report) { toast("내용을 입력해주세요"); return; }
         const p = state.projects.find(x => x.id === projectId);
         if (!p) return;

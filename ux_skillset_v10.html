@@ -918,18 +918,23 @@
       if (ws && rootHandle) saveToFs(ws, state).catch(() => {});
     }
 
-    const ACT_LOG_KEY = 'skillset_act_log';
+    const ACT_LOG_PREFIX = 'skillset_act_log';
+    function wsLogKey() {
+      const ws = (state && state.session && state.session.workspace) || '_guest';
+      return `${ACT_LOG_PREFIX}_${ws}`;
+    }
     function appendLog(type, detail) {
       const actor = (state && state.session && state.session.displayName) || '비로그인';
       const isAdmin = !!(state && state.session && state.session.admin);
+      const key = wsLogKey();
       let log = [];
-      try { log = JSON.parse(localStorage.getItem(ACT_LOG_KEY) || '[]'); } catch {}
+      try { log = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
       log.unshift({ ts: new Date().toISOString(), type, actor, isAdmin, detail });
       if (log.length > 1000) log = log.slice(0, 1000);
-      try { localStorage.setItem(ACT_LOG_KEY, JSON.stringify(log)); } catch {}
+      try { localStorage.setItem(key, JSON.stringify(log)); } catch {}
     }
     function getLog() {
-      try { return JSON.parse(localStorage.getItem(ACT_LOG_KEY) || '[]'); } catch { return []; }
+      try { return JSON.parse(localStorage.getItem(wsLogKey()) || '[]'); } catch { return []; }
     }
 
     let state = loadState();
@@ -2660,12 +2665,12 @@ preview.srcdoc=OPTIONS[active].html;
         if (!confirm("모든 데이터를 삭제하고 초기 상태로 돌아갑니다. 계속할까요?")) return;
         // localStorage — 모든 워크스페이스 키 + 기본 키 제거
         const prefix = `${STORAGE_KEY}_ws_`;
+        const logPrefix = `${ACT_LOG_PREFIX}_`;
         const toRemove = [];
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
-          if (k && (k === STORAGE_KEY || k.startsWith(prefix))) toRemove.push(k);
+          if (k && (k === STORAGE_KEY || k.startsWith(prefix) || k.startsWith(logPrefix))) toRemove.push(k);
         }
-        localStorage.removeItem(ACT_LOG_KEY);
         toRemove.forEach(k => localStorage.removeItem(k));
         // File system — session/ 폴더 전체 삭제 (모든 세션 JSON 일괄 제거)
         if (rootHandle) {

@@ -575,6 +575,13 @@
         </div>
         <div class="manage-row">
           <div>
+            <div class="manage-label">활동 히스토리</div>
+            <div class="manage-hint">스킬 생성·수정·삭제·사용 등 이력 조회</div>
+          </div>
+          <button type="button" class="btn-sm" id="btnViewHistory">조회</button>
+        </div>
+        <div class="manage-row">
+          <div>
             <div class="manage-label" style="color:#fca5a5">기기 데이터 전체 삭제</div>
             <div class="manage-hint">현재 세션 스킬·프로젝트·설정 및 skills 폴더 초기화</div>
           </div>
@@ -584,6 +591,33 @@
       <div class="row" style="margin-top:16px">
         <button type="button" class="btn-sm" id="btnCloseManage">닫기</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 활동 히스토리 modal -->
+  <div class="modal-backdrop" id="modalHistory">
+    <div class="modal" style="max-width:520px;max-height:85vh;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h4 style="margin:0">활동 히스토리</h4>
+        <button type="button" class="btn-sm" id="btnCloseHistory">닫기</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input type="text" id="historySearch" placeholder="스킬명, 사용자 검색..." style="flex:1;min-width:0;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font-size:13px">
+        <select id="historyTypeFilter" style="flex-shrink:0;width:110px;padding:6px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font-size:12px">
+          <option value="">전체 유형</option>
+          <option value="skill_add">스킬 생성</option>
+          <option value="skill_edit">스킬 수정</option>
+          <option value="skill_delete">스킬 삭제</option>
+          <option value="skill_use">스킬 사용</option>
+          <option value="project_add">프로젝트 생성</option>
+          <option value="project_delete">프로젝트 삭제</option>
+          <option value="admin_login">관리자 로그인</option>
+          <option value="user_login">사용자 로그인</option>
+          <option value="data_clear">데이터 삭제</option>
+        </select>
+      </div>
+      <div id="historyList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;text-align:right" id="historyCount"></div>
     </div>
   </div>
 
@@ -915,6 +949,20 @@
       }
       // File system (연결된 경우 skills/session/{ws}.json 에도 저장)
       if (ws && rootHandle) saveToFs(ws, state).catch(() => {});
+    }
+
+    const ACT_LOG_KEY = 'skillset_act_log';
+    function appendLog(type, detail) {
+      const actor = (state && state.session && state.session.displayName) || '비로그인';
+      const isAdmin = !!(state && state.session && state.session.admin);
+      let log = [];
+      try { log = JSON.parse(localStorage.getItem(ACT_LOG_KEY) || '[]'); } catch {}
+      log.unshift({ ts: new Date().toISOString(), type, actor, isAdmin, detail });
+      if (log.length > 1000) log = log.slice(0, 1000);
+      try { localStorage.setItem(ACT_LOG_KEY, JSON.stringify(log)); } catch {}
+    }
+    function getLog() {
+      try { return JSON.parse(localStorage.getItem(ACT_LOG_KEY) || '[]'); } catch { return []; }
     }
 
     let state = loadState();
@@ -1832,6 +1880,7 @@ preview.srcdoc=OPTIONS[active].html;
         del.addEventListener("click", () => {
           if (!confirm("프로젝트를 삭제할까요?")) return;
           state.projects = state.projects.filter(x => x.id !== p.id);
+          appendLog('project_delete', p.name);
           saveState(); renderProjects(); renderSidebar();
         });
         head.appendChild(del);
@@ -2192,6 +2241,46 @@ preview.srcdoc=OPTIONS[active].html;
       $("modalManage").classList.add("open");
     }
 
+    function renderHistoryList() {
+      const q = ($("historySearch").value || "").toLowerCase();
+      const typeF = $("historyTypeFilter").value;
+      let log = getLog();
+      if (typeF) log = log.filter(e => e.type === typeF);
+      if (q) log = log.filter(e =>
+        (e.detail || "").toLowerCase().includes(q) ||
+        (e.actor || "").toLowerCase().includes(q)
+      );
+      $("historyCount").textContent = `${log.length}건`;
+      const LIST = $("historyList");
+      LIST.innerHTML = "";
+      if (!log.length) {
+        LIST.innerHTML = '<div style="text-align:center;color:var(--muted);padding:32px 0;font-size:13px">기록이 없습니다</div>';
+        return;
+      }
+      const TYPE_ICON = { skill_add:'＋', skill_edit:'✎', skill_delete:'✕', skill_use:'⊕', project_add:'📁', project_delete:'🗑', admin_login:'🔑', user_login:'👤', data_clear:'⚠' };
+      const TYPE_LABEL = { skill_add:'스킬 생성', skill_edit:'스킬 수정', skill_delete:'스킬 삭제', skill_use:'스킬 사용', project_add:'프로젝트 생성', project_delete:'프로젝트 삭제', admin_login:'관리자 로그인', user_login:'로그인', data_clear:'데이터 삭제' };
+      let lastDate = "";
+      log.forEach(e => {
+        const d = new Date(e.ts);
+        const dateStr = d.toLocaleDateString("ko-KR", { year:"numeric", month:"long", day:"numeric", weekday:"short" });
+        if (dateStr !== lastDate) {
+          lastDate = dateStr;
+          const sep = document.createElement("div");
+          sep.style.cssText = "font-size:11px;font-weight:600;color:var(--muted);padding:10px 0 4px;border-top:1px solid var(--border);margin-top:2px";
+          if (LIST.children.length === 0) sep.style.borderTop = "none";
+          sep.textContent = dateStr;
+          LIST.appendChild(sep);
+        }
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px";
+        const timeStr = d.toLocaleTimeString("ko-KR", { hour:"2-digit", minute:"2-digit" });
+        const icon = TYPE_ICON[e.type] || "·";
+        const label = TYPE_LABEL[e.type] || e.type;
+        row.innerHTML = `<span style="color:var(--muted);flex-shrink:0;font-size:11px;padding-top:1px;min-width:40px">${timeStr}</span><span style="flex-shrink:0;font-size:13px;line-height:1.3">${icon}</span><div style="flex:1;min-width:0"><span style="color:var(--muted);font-size:10px;margin-right:4px">[${label}]</span><span>${escapeHtml(e.detail || "")}</span></div><span style="color:var(--muted);flex-shrink:0;font-size:11px">${escapeHtml(e.actor || "")}</span>`;
+        LIST.appendChild(row);
+      });
+    }
+
     function toast(msg) {
       const t = $("toast");
       t.textContent = msg;
@@ -2280,6 +2369,7 @@ preview.srcdoc=OPTIONS[active].html;
         if (ok) {
           sk.usage = (sk.usage || 0) + 1;
           state.caseCount = (state.caseCount || 0) + 1;
+          appendLog('skill_use', `${sk.name}${sk.slash ? ' (' + sk.slash + ')' : ''}`);
           saveState();
           renderSidebar();
           toast("스킬 복사됨 ✓");
@@ -2379,6 +2469,7 @@ preview.srcdoc=OPTIONS[active].html;
           .filter(id => state.skills.find(s => s.id === id))
           .map(id => ({ instanceId: uid(), skillId: id, isDefault: true }));
         state.projects.push({ id: uid(), name: name.trim(), instances: defaultInstances });
+        appendLog('project_add', name.trim());
         saveState(); renderProjects(); renderSidebar();
       });
 
@@ -2487,6 +2578,7 @@ preview.srcdoc=OPTIONS[active].html;
         state = newState;
         applyWorkspaceState();
         saveState();
+        appendLog(isAdminMode ? 'admin_login' : 'user_login', msg);
         $("modalSession").classList.remove("open");
         $("roleLabel").textContent = roleLabelText();
         updateLoginBtn();
@@ -2510,6 +2602,7 @@ preview.srcdoc=OPTIONS[active].html;
         state.skills = state.skills.filter(s => s.id !== sk.id);
         state.favorites = state.favorites.filter(fid => fid !== sk.id);
         state.projects.forEach(p => { p.instances = p.instances.filter(i => i.skillId !== sk.id); });
+        appendLog('skill_delete', `${sk.name}${sk.slash ? ' (' + sk.slash + ')' : ''}`);
         saveState();
         $("modalSkill").classList.remove("open");
         closeDetail(); renderSidebar(); renderProjects(); toast("삭제됨");
@@ -2572,6 +2665,7 @@ preview.srcdoc=OPTIONS[active].html;
           llmLines.push(`지침:`);
           llmLines.push(prompt || "(지침 내용 없음)");
         }
+        appendLog(isNew ? 'skill_add' : 'skill_edit', `${name}${slash ? ' (' + slash + ')' : ''}`);
         saveState();
         $("modalSkill").classList.remove("open");
         renderSidebar(); toast("저장됨");
@@ -2586,6 +2680,16 @@ preview.srcdoc=OPTIONS[active].html;
       // ── Manage modal ──
       $("btnManage").addEventListener("click", openManage);
       $("btnCloseManage").addEventListener("click", () => $("modalManage").classList.remove("open"));
+      $("btnViewHistory").addEventListener("click", () => {
+        $("historySearch").value = "";
+        $("historyTypeFilter").value = "";
+        renderHistoryList();
+        $("modalManage").classList.remove("open");
+        $("modalHistory").classList.add("open");
+      });
+      $("btnCloseHistory").addEventListener("click", () => $("modalHistory").classList.remove("open"));
+      $("historySearch").addEventListener("input", renderHistoryList);
+      $("historyTypeFilter").addEventListener("change", renderHistoryList);
       $("btnToggleTheme").addEventListener("click", () => {
         const isLight = document.documentElement.classList.toggle("theme-light");
         localStorage.setItem("ax_theme", isLight ? "light" : "dark");
@@ -2610,6 +2714,7 @@ preview.srcdoc=OPTIONS[active].html;
           const k = localStorage.key(i);
           if (k && (k === STORAGE_KEY || k.startsWith(prefix))) toRemove.push(k);
         }
+        localStorage.removeItem(ACT_LOG_KEY);
         toRemove.forEach(k => localStorage.removeItem(k));
         // File system — session/ 폴더 전체 삭제 (모든 세션 JSON 일괄 제거)
         if (rootHandle) {
@@ -2633,6 +2738,7 @@ preview.srcdoc=OPTIONS[active].html;
           $("modalSession").classList.remove("open");
           $("modalSkill").classList.remove("open");
           $("modalManage").classList.remove("open");
+          $("modalHistory").classList.remove("open");
           $("modalLLMPrompt").classList.remove("open");
           $("modalDelivEdit").classList.remove("open");
           $("modalDelivView").classList.remove("open");

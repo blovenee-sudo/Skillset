@@ -454,6 +454,18 @@
     /* AI 커스텀 QA */
     .qa-custom-divider { margin: 10px 0 8px; border: none; border-top: 1px dashed var(--border); }
     .qa-group-hd.custom { color: var(--accent); }
+    /* 리뷰 아코디언 */
+    .ax-accordion { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; }
+    .ax-acc-sec { flex-shrink:0; border-bottom:1px solid var(--border); }
+    .ax-acc-hd { display:flex; align-items:center; gap:6px; padding:9px 10px; cursor:pointer; user-select:none; font-size:12px; font-weight:600; color:var(--text); transition:background .15s; }
+    .ax-acc-hd:hover { background:var(--hover); }
+    .ax-acc-hd.active { color:var(--accent); }
+    .ax-acc-title { flex:1; }
+    .ax-acc-badge { font-size:10px; font-weight:400; color:var(--muted); background:var(--hover); border-radius:10px; padding:1px 6px; }
+    .ax-acc-chevron { font-size:12px; color:var(--muted); transition:transform .2s; line-height:1; }
+    .ax-acc-hd.active .ax-acc-chevron { transform:rotate(90deg); }
+    .ax-acc-body { display:none; flex-direction:column; padding:8px 10px 12px; gap:6px; }
+    .ax-acc-body textarea { width:100%; padding:7px 9px; border:1px solid var(--border); border-radius:6px; background:var(--bg); font-size:12px; font-family:inherit; line-height:1.5; box-sizing:border-box; resize:vertical; }
   </style>
   <style>
     /* 디자인 시스템 입력 */
@@ -1486,7 +1498,7 @@
       body.style.cssText = "overflow:hidden;";
       const opts = parseDesignOptions(deliv.content);
       const _isHtml = opts.length > 0 || /^\s*<!DOCTYPE html/i.test(deliv.content) || /^\s*<html/i.test(deliv.content);
-      let _viewIframe = null;
+      let _viewIframe = null, _annOverlay = null, _annLayer = null;
 
       // 분할 레이아웃: 좌(뷰어) + 수직핸들 + 우(QA 패널)
       const split = document.createElement("div");
@@ -1657,11 +1669,17 @@ preview.srcdoc=OPTIONS[active].html;
           a.download = `${p.name}-prototype-${opt.n}.html`; a.click(); URL.revokeObjectURL(a.href);
         };
       } else if (_isHtml) {
-        leftBody.style.cssText = "overflow:hidden;";
+        leftBody.style.cssText = "overflow:hidden;position:relative;";
         _viewIframe = document.createElement("iframe");
         _viewIframe.srcdoc = deliv.content;
         _viewIframe.style.cssText = "width:100%;height:100%;border:none;display:block;";
         leftBody.appendChild(_viewIframe);
+        _annOverlay = document.createElement("div");
+        _annOverlay.className = "rev-ann-overlay";
+        _annLayer = document.createElement("div");
+        _annLayer.className = "rev-ann-layer";
+        leftBody.appendChild(_annOverlay);
+        leftBody.appendChild(_annLayer);
         $("btnDelivViewOpen").onclick = () => {
           let htmlContent = deliv.content;
           if (_viewIframe && _viewIframe.contentDocument) {
@@ -1680,10 +1698,6 @@ preview.srcdoc=OPTIONS[active].html;
           a.href = URL.createObjectURL(new Blob([deliv.content], { type: 'text/html;charset=utf-8' }));
           a.download = `${p.name}-${meta.label}.${meta.ext}`; a.click(); URL.revokeObjectURL(a.href);
         };
-        if (phase === 'phase3') {
-          $("btnDelivViewReview").style.display = '';
-          $("btnDelivViewReview").onclick = () => openReviewModal(projectId, phase);
-        }
       } else {
         // Markdown (phase1)
         const div = document.createElement("div");
@@ -1701,7 +1715,7 @@ preview.srcdoc=OPTIONS[active].html;
         };
       }
 
-      // ── 우: QA 패널 (기본 펼침) ──
+      // ── 우: 아코디언 리뷰 패널 ──
       let rightOpenW = 272;
       rightBody.classList.add('qa-open');
       rightBody.style.width = rightOpenW + 'px';
@@ -1709,20 +1723,20 @@ preview.srcdoc=OPTIONS[active].html;
 
       const colStrip = document.createElement("div");
       colStrip.className = "qa-col-strip";
-      colStrip.innerHTML = `<span class="qa-col-icon">‹</span><span class="qa-col-label">QA 검토</span>`;
+      colStrip.innerHTML = `<span class="qa-col-icon">‹</span><span class="qa-col-label">리뷰 패널</span>`;
       rightBody.appendChild(colStrip);
 
       const panelHd = document.createElement("div");
       panelHd.className = "qa-panel-hd";
       const panelTitle = document.createElement("span");
       panelTitle.className = "qa-panel-title";
-      panelTitle.textContent = "QA 검토";
+      panelTitle.textContent = "리뷰 패널";
       const colBtn = document.createElement("button");
       colBtn.type = "button"; colBtn.className = "qa-col-btn"; colBtn.title = "접기"; colBtn.textContent = "›";
       panelHd.appendChild(panelTitle); panelHd.appendChild(colBtn);
       rightBody.appendChild(panelHd);
 
-      const toggleQa = () => {
+      const togglePanel = () => {
         const isOpen = rightBody.classList.toggle('qa-open');
         if (isOpen) {
           rightBody.style.transition = 'width .2s';
@@ -1735,8 +1749,8 @@ preview.srcdoc=OPTIONS[active].html;
           vHandle.style.display = 'none';
         }
       };
-      colStrip.addEventListener('click', toggleQa);
-      colBtn.addEventListener('click', toggleQa);
+      colStrip.addEventListener('click', togglePanel);
+      colBtn.addEventListener('click', togglePanel);
 
       vHandle.addEventListener('mousedown', e => {
         e.preventDefault();
@@ -1762,29 +1776,145 @@ preview.srcdoc=OPTIONS[active].html;
         document.addEventListener('mouseup', onUp);
       });
 
-      // 코드 인스펙터 탭 (iframe이 있는 Phase에만)
-      let showCode = null, _tabQaBtn = null, _tabCodeBtn = null;
-      if (_viewIframe) {
-        const sideTabBar = document.createElement("div");
-        sideTabBar.className = "qa-side-tab-bar";
-        _tabQaBtn = document.createElement("button");
-        _tabQaBtn.type = "button"; _tabQaBtn.className = "qa-side-tab active"; _tabQaBtn.textContent = "QA 검토";
-        _tabCodeBtn = document.createElement("button");
-        _tabCodeBtn.type = "button"; _tabCodeBtn.className = "qa-side-tab"; _tabCodeBtn.textContent = "코드";
-        sideTabBar.appendChild(_tabQaBtn); sideTabBar.appendChild(_tabCodeBtn);
-        rightBody.appendChild(sideTabBar);
+      // 아코디언 컨테이너
+      const accordion = document.createElement("div");
+      accordion.className = "ax-accordion";
+      rightBody.appendChild(accordion);
+
+      function mkAccSection(title) {
+        const sec = document.createElement("div");
+        sec.className = "ax-acc-sec";
+        const hd = document.createElement("div");
+        hd.className = "ax-acc-hd";
+        const titleEl = document.createElement("span");
+        titleEl.className = "ax-acc-title";
+        titleEl.textContent = title;
+        const badgeEl = document.createElement("span");
+        badgeEl.className = "ax-acc-badge";
+        badgeEl.style.display = "none";
+        const chevron = document.createElement("span");
+        chevron.className = "ax-acc-chevron";
+        chevron.textContent = "›";
+        hd.appendChild(titleEl); hd.appendChild(badgeEl); hd.appendChild(chevron);
+        const body = document.createElement("div");
+        body.className = "ax-acc-body";
+        sec.appendChild(hd); sec.appendChild(body);
+        accordion.appendChild(sec);
+        hd.addEventListener("click", () => {
+          const isOpen = hd.classList.contains("active");
+          accordion.querySelectorAll(".ax-acc-hd").forEach(h => h.classList.remove("active"));
+          accordion.querySelectorAll(".ax-acc-body").forEach(b => { b.style.display = "none"; });
+          if (!isOpen) { hd.classList.add("active"); body.style.display = "flex"; }
+        });
+        return { hd, body, badgeEl };
       }
 
-      const rightContent = document.createElement("div");
-      rightContent.className = "qa-right-content";
-      rightBody.appendChild(rightContent);
+      // ── 1. QA 검토 ──
+      const { hd: qaHd, body: qaBody, badgeEl: qaBadge } = mkAccSection("QA 검토");
+      qaHd.classList.add("active");
+      qaBody.style.display = "flex";
 
+      const cl = QA_CHECKLISTS[phase];
+      if (cl) {
+        const savedQa = deliv.qa || {};
+        const allItems = [...cl.required, ...cl.recommended];
+        const checkStates = { ...savedQa };
+        const customQaItems = deliv.customQa || [];
+        const customQaStates = { ...(deliv.customQaState || {}) };
+
+        const progressWrap = document.createElement("div");
+        progressWrap.className = "qa-progress-wrap";
+        qaBody.appendChild(progressWrap);
+
+        const reqHd2 = document.createElement("div");
+        reqHd2.className = "qa-group-hd req";
+        qaBody.appendChild(reqHd2);
+
+        const recHd2 = document.createElement("div");
+        recHd2.className = "qa-group-hd rec";
+
+        const updateQaUi = () => {
+          const total = allItems.length + customQaItems.length;
+          const checked = allItems.filter(i => checkStates[i.id]).length
+                        + customQaItems.filter(i => customQaStates[i.id]).length;
+          const reqChk = cl.required.filter(i => checkStates[i.id]).length;
+          const recChk = cl.recommended.filter(i => checkStates[i.id]).length;
+          const pct = total ? Math.round(checked / total * 100) : 0;
+          progressWrap.innerHTML = `<div class="qa-progress-label"><span class="qa-progress-title">진행률</span><span class="qa-progress-pct">${checked}/${total} 완료</span></div><div class="qa-progress-bar-bg"><div class="qa-progress-bar-fill" style="width:${pct}%"></div></div>`;
+          reqHd2.innerHTML = `필수 <span class="qa-badge${reqChk === cl.required.length ? ' complete' : ''}">${reqChk}/${cl.required.length}</span>`;
+          recHd2.innerHTML = `권장 <span class="qa-badge">${recChk}/${cl.recommended.length}</span>`;
+          qaBadge.style.display = "";
+          qaBadge.textContent = `${checked}/${total}`;
+        };
+
+        const mkQaItem = (item, states) => {
+          const row = document.createElement("label");
+          row.className = "qa-item" + (states[item.id] ? " checked" : "");
+          const cb = document.createElement("input");
+          cb.type = "checkbox"; cb.checked = !!states[item.id];
+          cb.addEventListener("change", () => {
+            states[item.id] = cb.checked;
+            row.classList.toggle("checked", cb.checked);
+            updateQaUi();
+          });
+          const span = document.createElement("span");
+          span.className = "qa-item-text"; span.textContent = item.text;
+          row.appendChild(cb); row.appendChild(span);
+          return row;
+        };
+
+        cl.required.forEach(item => qaBody.appendChild(mkQaItem(item, checkStates)));
+        qaBody.appendChild(recHd2);
+        cl.recommended.forEach(item => qaBody.appendChild(mkQaItem(item, checkStates)));
+
+        if (customQaItems.length > 0) {
+          const divider = document.createElement('hr');
+          divider.className = 'qa-custom-divider';
+          qaBody.appendChild(divider);
+          const customHd = document.createElement('div');
+          customHd.className = 'qa-group-hd custom';
+          customHd.textContent = 'AI 검토 항목';
+          qaBody.appendChild(customHd);
+          customQaItems.forEach(item => qaBody.appendChild(mkQaItem(item, customQaStates)));
+        }
+
+        const logLabel = document.createElement("div");
+        logLabel.className = "qa-log-label";
+        logLabel.textContent = "변경이력";
+        qaBody.appendChild(logLabel);
+        const logTa = document.createElement("textarea");
+        logTa.placeholder = "QA 검토 후 변경 결정 사항을 기록하세요";
+        logTa.value = deliv.changeLog || "";
+        logTa.style.minHeight = "72px";
+        qaBody.appendChild(logTa);
+
+        const qaSaveBtn = document.createElement("button");
+        qaSaveBtn.type = "button"; qaSaveBtn.textContent = "저장";
+        qaSaveBtn.className = "btn-sm";
+        qaSaveBtn.style.cssText = "width:100%;flex-shrink:0;";
+        qaSaveBtn.addEventListener("click", () => {
+          deliv.qa = { ...checkStates };
+          deliv.changeLog = logTa.value;
+          if (customQaItems.length > 0) deliv.customQaState = { ...customQaStates };
+          saveState(); renderProjects();
+          toast("저장됐습니다");
+        });
+        qaBody.appendChild(qaSaveBtn);
+
+        updateQaUi();
+      } else {
+        const noQaP = document.createElement("p");
+        noQaP.style.cssText = "font-size:11px;color:var(--muted);margin:0;";
+        noQaP.textContent = "이 페이즈는 QA 체크리스트가 없습니다.";
+        qaBody.appendChild(noQaP);
+      }
+
+      // ── 2. 코드 ── (iframe인 경우만)
+      let showCode = null;
       if (_viewIframe) {
-        const codeContent = document.createElement("div");
-        codeContent.style.cssText = "flex:1;min-height:0;flex-direction:column;overflow:hidden;display:none;";
-        rightBody.appendChild(codeContent);
+        const { hd: codeHd, body: codeBody } = mkAccSection("코드");
         const codeInfoBar = document.createElement("div");
-        codeInfoBar.style.cssText = "padding:8px 10px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:6px;";
+        codeInfoBar.style.cssText = "font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-shrink:0;";
         const codeTagSpan = document.createElement("span");
         codeTagSpan.style.cssText = "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
         codeTagSpan.textContent = "요소를 클릭하면 코드가 표시됩니다";
@@ -1799,164 +1929,22 @@ preview.srcdoc=OPTIONS[active].html;
         codeFullBtn.onclick = () => { if (_viewIframe.srcdoc) showCode(_viewIframe.srcdoc); };
         codeInfoBar.appendChild(codeTagSpan); codeInfoBar.appendChild(codeCopyBtn2); codeInfoBar.appendChild(codeFullBtn);
         const codePre2 = document.createElement("pre");
-        codePre2.style.cssText = "flex:1;margin:0;padding:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;word-break:break-all;overflow:auto;";
-        codeContent.appendChild(codeInfoBar); codeContent.appendChild(codePre2);
-        let _sideTab = 'qa';
-        const switchSideTab = (tab) => {
-          _sideTab = tab;
-          rightContent.style.display = tab === 'qa' ? '' : 'none';
-          codeContent.style.display = tab === 'code' ? 'flex' : 'none';
-          _tabQaBtn.classList.toggle('active', tab === 'qa');
-          _tabCodeBtn.classList.toggle('active', tab === 'code');
-        };
-        _tabQaBtn.addEventListener('click', () => switchSideTab('qa'));
-        _tabCodeBtn.addEventListener('click', () => switchSideTab('code'));
+        codePre2.style.cssText = "margin:0;padding:8px;font-size:11px;font-family:monospace;white-space:pre-wrap;word-break:break-all;overflow:auto;background:var(--hover);border-radius:4px;min-height:80px;max-height:320px;";
+        codeBody.appendChild(codeInfoBar);
+        codeBody.appendChild(codePre2);
+
         showCode = (html) => {
           codePre2.textContent = html;
           codeTagSpan.textContent = html.match(/^<([a-zA-Z][^\s>/]*)/)?.[1] || '요소';
           codeCopyBtn2.style.display = '';
           codeCopyBtn2.onclick = () => { navigator.clipboard?.writeText(html); toast('복사됐습니다'); };
-          if (_sideTab !== 'code') switchSideTab('code');
-          if (!rightBody.classList.contains('qa-open')) toggleQa();
-        };
-      }
-
-      const cl = QA_CHECKLISTS[phase];
-      if (cl) {
-        const savedQa = deliv.qa || {};
-        const allItems = [...cl.required, ...cl.recommended];
-        const checkStates = { ...savedQa };
-
-        const qaPanel = document.createElement("div");
-        qaPanel.className = "qa-side-panel";
-
-        const progressWrap = document.createElement("div");
-        progressWrap.className = "qa-progress-wrap";
-        qaPanel.appendChild(progressWrap);
-
-        const reqHd = document.createElement("div");
-        reqHd.className = "qa-group-hd req";
-        qaPanel.appendChild(reqHd);
-
-        const recHd = document.createElement("div");
-        recHd.className = "qa-group-hd rec";
-
-        const customQaItems = deliv.customQa || [];
-        const customQaStates = { ...(deliv.customQaState || {}) };
-
-        const updateQaUi = () => {
-          const total = allItems.length + customQaItems.length;
-          const checked = allItems.filter(i => checkStates[i.id]).length
-                        + customQaItems.filter(i => customQaStates[i.id]).length;
-          const reqChk = cl.required.filter(i => checkStates[i.id]).length;
-          const recChk = cl.recommended.filter(i => checkStates[i.id]).length;
-          const pct = total ? Math.round(checked / total * 100) : 0;
-          progressWrap.innerHTML = `<div class="qa-progress-label"><span class="qa-progress-title">진행률</span><span class="qa-progress-pct">${checked}/${total} 완료</span></div><div class="qa-progress-bar-bg"><div class="qa-progress-bar-fill" style="width:${pct}%"></div></div>`;
-          reqHd.innerHTML = `필수 <span class="qa-badge${reqChk === cl.required.length ? ' complete' : ''}">${reqChk}/${cl.required.length}</span>`;
-          recHd.innerHTML = `권장 <span class="qa-badge">${recChk}/${cl.recommended.length}</span>`;
-          panelTitle.textContent = `QA 검토 — ${checked}/${total}`;
+          accordion.querySelectorAll(".ax-acc-hd").forEach(h => h.classList.remove("active"));
+          accordion.querySelectorAll(".ax-acc-body").forEach(b => { b.style.display = "none"; });
+          codeHd.classList.add("active");
+          codeBody.style.display = "flex";
+          if (!rightBody.classList.contains('qa-open')) togglePanel();
         };
 
-        const mkItem = item => {
-          const row = document.createElement("label");
-          row.className = "qa-item" + (checkStates[item.id] ? " checked" : "");
-          const cb = document.createElement("input");
-          cb.type = "checkbox"; cb.checked = !!checkStates[item.id];
-          cb.addEventListener("change", () => {
-            checkStates[item.id] = cb.checked;
-            row.classList.toggle("checked", cb.checked);
-            updateQaUi();
-          });
-          const span = document.createElement("span");
-          span.className = "qa-item-text"; span.textContent = item.text;
-          row.appendChild(cb); row.appendChild(span);
-          return row;
-        };
-
-        cl.required.forEach(item => qaPanel.appendChild(mkItem(item)));
-        qaPanel.appendChild(recHd);
-        cl.recommended.forEach(item => qaPanel.appendChild(mkItem(item)));
-
-        if (customQaItems.length > 0) {
-          const divider = document.createElement('hr');
-          divider.className = 'qa-custom-divider';
-          qaPanel.appendChild(divider);
-          const customHd = document.createElement('div');
-          customHd.className = 'qa-group-hd custom';
-          customHd.textContent = 'AI 검토 항목';
-          qaPanel.appendChild(customHd);
-          customQaItems.forEach(item => {
-            const row = document.createElement('label');
-            row.className = 'qa-item' + (customQaStates[item.id] ? ' checked' : '');
-            const cb = document.createElement('input');
-            cb.type = 'checkbox'; cb.checked = !!customQaStates[item.id];
-            cb.addEventListener('change', () => {
-              customQaStates[item.id] = cb.checked;
-              row.classList.toggle('checked', cb.checked);
-              updateQaUi();
-            });
-            const span = document.createElement('span');
-            span.className = 'qa-item-text'; span.textContent = item.text;
-            row.appendChild(cb); row.appendChild(span);
-            qaPanel.appendChild(row);
-          });
-        }
-
-        rightContent.appendChild(qaPanel);
-
-        const hHandle = document.createElement("div");
-        hHandle.className = "split-hhandle";
-        rightContent.appendChild(hHandle);
-
-        const logWrap = document.createElement("div");
-        logWrap.className = "qa-log-wrap";
-        logWrap.style.height = '120px';
-        logWrap.innerHTML = `<div class="qa-log-label">변경이력</div>`;
-        const logTa = document.createElement("textarea");
-        logTa.placeholder = "QA 검토 후 변경 결정 사항을 기록하세요";
-        logTa.value = deliv.changeLog || "";
-        logWrap.appendChild(logTa);
-        rightContent.appendChild(logWrap);
-
-        hHandle.addEventListener('mousedown', e => {
-          e.preventDefault();
-          hHandle.classList.add('dragging');
-          const startY = e.clientY;
-          const startH = logWrap.offsetHeight;
-          const onMove = ev => {
-            document.body.style.userSelect = 'none';
-            const dy = startY - ev.clientY;
-            const newH = Math.max(80, Math.min(startH + dy, rightContent.offsetHeight - 80));
-            logWrap.style.height = newH + 'px';
-          };
-          const onUp = () => {
-            hHandle.classList.remove('dragging');
-            document.body.style.userSelect = '';
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-          };
-          document.addEventListener('mousemove', onMove);
-          document.addEventListener('mouseup', onUp);
-        });
-
-        const saveWrap = document.createElement("div");
-        saveWrap.className = "qa-save-wrap";
-        const saveBtn = document.createElement("button");
-        saveBtn.type = "button"; saveBtn.textContent = "저장";
-        saveBtn.addEventListener("click", () => {
-          deliv.qa = { ...checkStates };
-          deliv.changeLog = logTa.value;
-          if (customQaItems.length > 0) deliv.customQaState = { ...customQaStates };
-          saveState(); renderProjects();
-          toast("저장됐습니다");
-        });
-        saveWrap.appendChild(saveBtn);
-        rightContent.appendChild(saveWrap);
-
-        updateQaUi();
-      }
-
-      if (_viewIframe && showCode) {
         const injectInspector = () => {
           try {
             const doc = _viewIframe.contentDocument || _viewIframe.contentWindow?.document;
@@ -1975,6 +1963,208 @@ preview.srcdoc=OPTIONS[active].html;
         _viewIframe.addEventListener('load', injectInspector);
         setTimeout(injectInspector, 100);
       }
+
+      // ── 3. 주석 ── (HTML 산출물인 경우만)
+      if (_annOverlay && _annLayer && _viewIframe) {
+        const { hd: annHd, body: annBody, badgeEl: annBadge } = mkAccSection("주석");
+        let _localAnn = (p.annotations?.[phase] || []).map(a => ({ ...a }));
+        let _localAnnActive = null;
+        let _annModeOn = false;
+
+        const annSave = () => {
+          if (!p.annotations) p.annotations = {};
+          p.annotations[phase] = _localAnn.map(a => ({ ...a }));
+          saveState();
+        };
+
+        const renderAnnPins = () => {
+          _annLayer.innerHTML = "";
+          _localAnn.forEach((ann, i) => {
+            const pin = document.createElement("div");
+            pin.className = "rev-pin" + (ann.id === _localAnnActive ? " highlighted" : "");
+            pin.style.left = (ann.xPct * _viewIframe.offsetWidth) + "px";
+            pin.style.top  = (ann.yPct * _viewIframe.offsetHeight) + "px";
+            pin.textContent = i + 1;
+            pin.addEventListener("click", (e2) => { e2.stopPropagation(); highlightAnn(ann.id); });
+            _annLayer.appendChild(pin);
+          });
+        };
+
+        const annModeBtn = document.createElement("button");
+        annModeBtn.type = "button";
+        annModeBtn.className = "btn-sm";
+        annModeBtn.style.cssText = "width:100%;flex-shrink:0;";
+        annModeBtn.textContent = "+ 주석 추가";
+
+        const annEmptyEl = document.createElement("p");
+        annEmptyEl.style.cssText = "font-size:11px;color:var(--muted);margin:0;line-height:1.5;";
+        annEmptyEl.textContent = '"+ 주석 추가" 버튼을 누른 뒤 목업을 클릭하세요.';
+
+        const renderAnnList = () => {
+          annBody.querySelectorAll(".rev-ann-item").forEach(el => el.remove());
+          annBadge.style.display = "";
+          annBadge.textContent = `${_localAnn.length}개`;
+          annEmptyEl.style.display = _localAnn.length ? "none" : "";
+          annModeBtn.textContent = _annModeOn ? "주석 완료" : "+ 주석 추가";
+          annModeBtn.classList.toggle("active", _annModeOn);
+          _localAnn.forEach((ann, i) => {
+            const item = document.createElement("div");
+            item.className = "rev-ann-item" + (ann.id === _localAnnActive ? " highlighted" : "");
+            item.id = "delivAnnItem_" + ann.id;
+            const hd2 = document.createElement("div");
+            hd2.className = "rev-ann-item-hd";
+            const badge2 = document.createElement("span");
+            badge2.className = "rev-ann-badge";
+            badge2.textContent = i + 1;
+            badge2.addEventListener("click", (e2) => { e2.stopPropagation(); highlightAnn(ann.id); });
+            const del = document.createElement("span");
+            del.className = "rev-ann-del";
+            del.textContent = "×";
+            del.addEventListener("click", (e2) => {
+              e2.stopPropagation();
+              _localAnn = _localAnn.filter(a => a.id !== ann.id);
+              if (_localAnnActive === ann.id) _localAnnActive = null;
+              annSave(); renderAnnPins(); renderAnnList();
+            });
+            const ta = document.createElement("textarea");
+            ta.className = "rev-ann-ta";
+            ta.value = ann.note || "";
+            ta.placeholder = `주석 ${i + 1}`;
+            let st = null;
+            ta.addEventListener("input", () => {
+              ann.note = ta.value;
+              clearTimeout(st); st = setTimeout(annSave, 800);
+            });
+            hd2.appendChild(badge2); hd2.appendChild(del);
+            item.appendChild(hd2); item.appendChild(ta);
+            item.addEventListener("click", (e2) => { if (e2.target !== del && e2.target !== ta) highlightAnn(ann.id); });
+            annBody.insertBefore(item, annEmptyEl);
+          });
+        };
+
+        const highlightAnn = (id) => {
+          _localAnnActive = id;
+          renderAnnPins();
+          annBody.querySelectorAll(".rev-ann-item").forEach(el => {
+            el.classList.toggle("highlighted", el.id === "delivAnnItem_" + id);
+          });
+          const el = document.getElementById("delivAnnItem_" + id);
+          if (el) { el.scrollIntoView({ behavior: "smooth", block: "nearest" }); el.querySelector(".rev-ann-ta")?.focus(); }
+        };
+
+        annModeBtn.addEventListener("click", () => {
+          _annModeOn = !_annModeOn;
+          _annOverlay.classList.toggle("active", _annModeOn);
+          renderAnnList();
+        });
+
+        _annOverlay.addEventListener("click", (e) => {
+          if (!_annModeOn) return;
+          const iframeRect = _viewIframe.getBoundingClientRect();
+          const ann = {
+            id: Date.now().toString(36),
+            xPct: (e.clientX - iframeRect.left) / iframeRect.width,
+            yPct: (e.clientY - iframeRect.top) / iframeRect.height,
+            note: ""
+          };
+          _localAnn.push(ann);
+          _localAnnActive = ann.id;
+          annSave(); renderAnnPins(); renderAnnList();
+          setTimeout(() => {
+            const el = document.getElementById("delivAnnItem_" + ann.id);
+            if (el) { el.scrollIntoView({ behavior: "smooth", block: "nearest" }); el.querySelector(".rev-ann-ta")?.focus(); }
+          }, 50);
+        });
+
+        _viewIframe.addEventListener('load', renderAnnPins);
+        annBody.appendChild(annModeBtn);
+        annBody.appendChild(annEmptyEl);
+        renderAnnPins();
+        renderAnnList();
+      }
+
+      // ── 4. 검수 메모 ──
+      const { body: memoBody, badgeEl: memoBadge } = mkAccSection("검수 메모");
+      const memoTa = document.createElement("textarea");
+      memoTa.placeholder = "검수 내용, 이슈, 수정 요청 사항...";
+      memoTa.value = p.reviewNotes || "";
+      memoTa.style.minHeight = "100px";
+      if (p.reviewNotes) { memoBadge.style.display = ""; memoBadge.textContent = "●"; }
+      const memoSaveBtn = document.createElement("button");
+      memoSaveBtn.type = "button"; memoSaveBtn.textContent = "저장";
+      memoSaveBtn.className = "btn-sm";
+      memoSaveBtn.style.cssText = "width:100%;flex-shrink:0;";
+      memoSaveBtn.addEventListener("click", () => {
+        p.reviewNotes = memoTa.value;
+        saveState();
+        memoBadge.style.display = ""; memoBadge.textContent = "●";
+        toast("저장됐습니다");
+      });
+      memoBody.appendChild(memoTa);
+      memoBody.appendChild(memoSaveBtn);
+
+      // ── 5. AI 핸드오프 ──
+      const { body: handoffBody, badgeEl: handoffBadge } = mkAccSection("AI 핸드오프");
+      const existingH4 = p.deliverables?.phase4;
+      const handoffInfoP = document.createElement("p");
+      handoffInfoP.style.cssText = "font-size:11px;color:var(--muted);line-height:1.5;margin:0;flex-shrink:0;";
+      handoffInfoP.textContent = "/handoff 프롬프트를 복사해 AI에 붙여넣으면 핸드오프 리포트가 생성됩니다.";
+      const handoffCopyBtn = document.createElement("button");
+      handoffCopyBtn.type = "button"; handoffCopyBtn.textContent = "↗ /handoff 프롬프트 복사";
+      handoffCopyBtn.className = "btn-sm";
+      handoffCopyBtn.style.cssText = "width:100%;flex-shrink:0;";
+      handoffCopyBtn.addEventListener("click", async () => {
+        const handoffSkill = state.skills.find(s => s.id === 'p4');
+        const basePrompt = handoffSkill?.prompt || '/handoff 스킬 프롬프트를 찾을 수 없습니다.';
+        const notes = memoTa.value.trim();
+        let full = basePrompt + '\n\n---\n\n**[Phase 3 HTML 목업 — 자동 포함]**\n\n```html\n' + deliv.content + '\n```';
+        if (notes) full += '\n\n**[검수 메모]**\n' + notes;
+        try {
+          await navigator.clipboard.writeText(full);
+          toast("프롬프트가 복사됐습니다. AI에 붙여넣으세요.");
+        } catch { toast("복사 실패 — 브라우저 권한 확인"); }
+      });
+      const handoffPasteTa = document.createElement("textarea");
+      handoffPasteTa.style.minHeight = "80px";
+      if (existingH4?.content) {
+        const d4 = new Date(existingH4.savedAt);
+        const ds4 = `${d4.getMonth()+1}/${d4.getDate()} ${String(d4.getHours()).padStart(2,'0')}:${String(d4.getMinutes()).padStart(2,'0')}`;
+        handoffPasteTa.placeholder = `저장된 리포트 있음 (${ds4})\n덮어쓰려면 새 HTML을 붙여넣으세요.`;
+        handoffBadge.style.display = ""; handoffBadge.textContent = "●";
+      } else {
+        handoffPasteTa.placeholder = 'AI가 생성한 핸드오프 HTML을 붙여넣으세요...';
+      }
+      const handoffSaveBtn = document.createElement("button");
+      handoffSaveBtn.type = "button"; handoffSaveBtn.textContent = "저장";
+      handoffSaveBtn.className = "btn-sm";
+      handoffSaveBtn.style.cssText = "width:100%;flex-shrink:0;";
+      const handoffViewBtn = document.createElement("button");
+      handoffViewBtn.type = "button"; handoffViewBtn.textContent = "리포트 보기";
+      handoffViewBtn.className = "btn-sm";
+      handoffViewBtn.style.cssText = "width:100%;flex-shrink:0;" + (existingH4 ? "" : "display:none;");
+      handoffSaveBtn.addEventListener("click", () => {
+        const html = handoffPasteTa.value.trim();
+        if (!html) { toast("저장할 내용이 없습니다"); return; }
+        if (!p.deliverables) p.deliverables = {};
+        p.deliverables.phase4 = { content: html, savedAt: new Date().toISOString() };
+        saveState(); renderProjects();
+        handoffViewBtn.style.display = '';
+        handoffBadge.style.display = ""; handoffBadge.textContent = "●";
+        handoffPasteTa.value = '';
+        const d4s = new Date();
+        const ds4s = `${d4s.getMonth()+1}/${d4s.getDate()} ${String(d4s.getHours()).padStart(2,'0')}:${String(d4s.getMinutes()).padStart(2,'0')}`;
+        handoffPasteTa.placeholder = `저장된 리포트 있음 (${ds4s})\n덮어쓰려면 새 HTML을 붙여넣으세요.`;
+        toast("핸드오프 리포트가 저장됐습니다");
+      });
+      handoffViewBtn.addEventListener("click", () => {
+        const h4saved = p.deliverables?.phase4;
+        if (h4saved?.content) window.open(URL.createObjectURL(new Blob([h4saved.content], { type: 'text/html;charset=utf-8' })));
+      });
+      handoffBody.appendChild(handoffInfoP);
+      handoffBody.appendChild(handoffCopyBtn);
+      handoffBody.appendChild(handoffPasteTa);
+      handoffBody.appendChild(handoffSaveBtn);
+      handoffBody.appendChild(handoffViewBtn);
 
       $("btnDelivViewEdit").onclick = () => {
         $("modalDelivView").classList.remove("open");

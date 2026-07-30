@@ -428,7 +428,21 @@
     .rev-left { flex: 1; min-width: 0; overflow: hidden; display: flex; flex-direction: column; border-right: 1px solid var(--border); }
     .rev-dev-bar { padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; flex-shrink: 0; background: var(--surface); }
     .rev-dev-bar .rev-dev-btn-active { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .rev-iframe-wrap { flex: 1; overflow: auto; display: flex; align-items: flex-start; justify-content: center; }
+    .rev-iframe-wrap { flex: 1; overflow: auto; display: flex; align-items: flex-start; justify-content: center; position: relative; }
+    /* 주석(Annotation) */
+    .rev-ann-overlay { position:absolute; inset:0; cursor:crosshair; z-index:10; display:none; }
+    .rev-ann-overlay.active { display:block; }
+    .rev-ann-layer { position:absolute; inset:0; pointer-events:none; z-index:11; }
+    .rev-pin { position:absolute; width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; transform:translate(-50%,-50%); box-shadow:0 2px 8px rgba(0,0,0,.45); pointer-events:all; user-select:none; border:2px solid #fff; transition:transform .15s,box-shadow .15s; }
+    .rev-pin.highlighted { transform:translate(-50%,-50%) scale(1.3); box-shadow:0 0 0 4px var(--accent),0 2px 8px rgba(0,0,0,.4); }
+    .rev-ann-item { border:1.5px solid var(--border); border-radius:6px; padding:8px 10px; transition:border-color .2s,box-shadow .2s; }
+    .rev-ann-item.highlighted { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
+    .rev-ann-item-hd { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+    .rev-ann-badge { width:20px; height:20px; border-radius:50%; background:var(--accent); color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer; }
+    .rev-ann-ta { font-size:12px; color:var(--text); background:transparent; border:none; outline:none; resize:none; font-family:inherit; line-height:1.5; min-height:40px; width:100%; padding:2px 0; }
+    .rev-ann-del { margin-left:auto; color:var(--muted); cursor:pointer; font-size:18px; line-height:1; }
+    .rev-ann-del:hover { color:var(--text); }
+    .rev-ann-mode-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
     .rev-iframe-wrap.desktop-mode #reviewIframe { width: 100%; height: 100%; border: none; flex-shrink: 0; }
     .rev-iframe-wrap.mobile-mode { background: #555; padding: 20px; }
     .rev-iframe-wrap.mobile-mode #reviewIframe { width: 375px; height: 812px; border: none; flex-shrink: 0; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,.4); }
@@ -669,12 +683,24 @@
             <span style="font-size:11px;color:var(--muted);margin-right:4px">디바이스</span>
             <button type="button" class="btn-sm rev-dev-btn-active" id="btnRevDesktop" style="font-size:11px">데스크톱</button>
             <button type="button" class="btn-sm" id="btnRevMobile" style="font-size:11px">모바일 (375)</button>
+            <button type="button" class="btn-sm rev-ann-mode-btn" id="btnRevAnnMode" style="font-size:11px;margin-left:auto">+ 주석</button>
           </div>
           <div class="rev-iframe-wrap desktop-mode" id="reviewIframeWrap">
             <iframe id="reviewIframe"></iframe>
+            <div id="revAnnOverlay" class="rev-ann-overlay"></div>
+            <div id="revAnnLayer" class="rev-ann-layer"></div>
           </div>
         </div>
         <div class="rev-panel">
+          <div id="revAnnSection">
+            <div class="rev-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <span>주석</span>
+              <span id="revAnnCount" style="font-size:10px;font-weight:400;color:var(--muted)">0개</span>
+            </div>
+            <div id="revAnnList" style="display:flex;flex-direction:column;gap:6px">
+              <p id="revAnnEmpty" style="font-size:11px;color:var(--muted);margin:0;line-height:1.5">"+ 주석" 버튼 활성화 후 목업을 클릭하세요.</p>
+            </div>
+          </div>
           <div>
             <div class="rev-section-title">검수 메모</div>
             <textarea id="reviewNotes" placeholder="검수 내용, 이슈, 수정 요청 사항..."></textarea>
@@ -2012,6 +2038,89 @@ preview.srcdoc=OPTIONS[active].html;
     })();
 
     let _reviewState = null;
+    let _revAnnotations = [];
+    let _revAnnActive = null;
+
+    function _revAnnSave() {
+      if (!_reviewState) return;
+      const p = state.projects.find(x => x.id === _reviewState.projectId);
+      if (!p) return;
+      if (!p.annotations) p.annotations = {};
+      p.annotations[_reviewState.phase] = _revAnnotations.map(a => ({ ...a }));
+      saveState();
+    }
+
+    function _revRenderPins() {
+      const layer = $("revAnnLayer");
+      if (!layer) return;
+      layer.innerHTML = "";
+      const iframe = $("reviewIframe");
+      _revAnnotations.forEach((ann, i) => {
+        const pin = document.createElement("div");
+        pin.className = "rev-pin" + (ann.id === _revAnnActive ? " highlighted" : "");
+        pin.style.left = (iframe.offsetLeft + ann.xPct * iframe.offsetWidth) + "px";
+        pin.style.top  = (iframe.offsetTop  + ann.yPct * iframe.offsetHeight) + "px";
+        pin.textContent = i + 1;
+        pin.addEventListener("click", () => _revAnnHighlight(ann.id));
+        layer.appendChild(pin);
+      });
+    }
+
+    function _revRenderList() {
+      const list = $("revAnnList");
+      const empty = $("revAnnEmpty");
+      const count = $("revAnnCount");
+      if (!list) return;
+      count.textContent = _revAnnotations.length ? `${_revAnnotations.length}개` : "0개";
+      list.innerHTML = "";
+      if (_revAnnotations.length === 0) { list.appendChild(empty); return; }
+      _revAnnotations.forEach((ann, i) => {
+        const item = document.createElement("div");
+        item.className = "rev-ann-item" + (ann.id === _revAnnActive ? " highlighted" : "");
+        item.id = "revAnnItem_" + ann.id;
+        const hd = document.createElement("div");
+        hd.className = "rev-ann-item-hd";
+        const badge = document.createElement("div");
+        badge.className = "rev-ann-badge";
+        badge.textContent = i + 1;
+        badge.addEventListener("click", (e) => { e.stopPropagation(); _revAnnHighlight(ann.id); });
+        const del = document.createElement("span");
+        del.className = "rev-ann-del";
+        del.textContent = "×";
+        del.addEventListener("click", (e) => {
+          e.stopPropagation();
+          _revAnnotations = _revAnnotations.filter(a => a.id !== ann.id);
+          if (_revAnnActive === ann.id) _revAnnActive = null;
+          _revAnnSave(); _revRenderPins(); _revRenderList();
+        });
+        hd.appendChild(badge); hd.appendChild(del);
+        const ta = document.createElement("textarea");
+        ta.className = "rev-ann-ta";
+        ta.placeholder = "주석 내용을 입력하세요...";
+        ta.value = ann.note || "";
+        let saveTimer;
+        ta.addEventListener("input", () => {
+          ann.note = ta.value;
+          clearTimeout(saveTimer);
+          saveTimer = setTimeout(_revAnnSave, 800);
+        });
+        item.appendChild(hd); item.appendChild(ta);
+        item.addEventListener("click", (e) => { if (e.target !== del && e.target !== ta) _revAnnHighlight(ann.id); });
+        list.appendChild(item);
+      });
+    }
+
+    function _revAnnHighlight(id) {
+      _revAnnActive = id;
+      document.querySelectorAll(".rev-pin").forEach((pin, i) => {
+        pin.classList.toggle("highlighted", _revAnnotations[i]?.id === id);
+      });
+      document.querySelectorAll(".rev-ann-item").forEach(el => {
+        el.classList.toggle("highlighted", el.id === "revAnnItem_" + id);
+      });
+      const el = $("revAnnItem_" + id);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
 
     function openReviewModal(projectId, phase) {
       const p = state.projects.find(x => x.id === projectId);
@@ -2038,6 +2147,14 @@ preview.srcdoc=OPTIONS[active].html;
       wrap.className = 'rev-iframe-wrap desktop-mode';
       $("btnRevDesktop").classList.add('rev-dev-btn-active');
       $("btnRevMobile").classList.remove('rev-dev-btn-active');
+      // 주석 초기화
+      _revAnnotations = (p.annotations?.[phase] || []).map(a => ({ ...a }));
+      _revAnnActive = null;
+      $("btnRevAnnMode").classList.remove("active");
+      $("revAnnOverlay").classList.remove("active");
+      _revRenderList();
+      // iframe 로드 후 핀 렌더
+      $("reviewIframe").onload = () => _revRenderPins();
       $("backdropReview").classList.add("open");
     }
 
@@ -2047,12 +2164,44 @@ preview.srcdoc=OPTIONS[active].html;
         wrap.className = 'rev-iframe-wrap desktop-mode';
         $("btnRevDesktop").classList.add('rev-dev-btn-active');
         $("btnRevMobile").classList.remove('rev-dev-btn-active');
+        setTimeout(_revRenderPins, 50);
       });
       $("btnRevMobile").addEventListener("click", () => {
         const wrap = $("reviewIframeWrap");
         wrap.className = 'rev-iframe-wrap mobile-mode';
         $("btnRevMobile").classList.add('rev-dev-btn-active');
         $("btnRevDesktop").classList.remove('rev-dev-btn-active');
+        setTimeout(_revRenderPins, 50);
+      });
+
+      // 주석 모드 토글
+      $("btnRevAnnMode").addEventListener("click", () => {
+        const overlay = $("revAnnOverlay");
+        const isActive = overlay.classList.toggle("active");
+        $("btnRevAnnMode").classList.toggle("active", isActive);
+        $("btnRevAnnMode").textContent = isActive ? "주석 중..." : "+ 주석";
+      });
+
+      // 오버레이 클릭 → 핀 생성
+      $("revAnnOverlay").addEventListener("click", (e) => {
+        const iframe = $("reviewIframe");
+        const wrap = $("reviewIframeWrap");
+        const wrapRect = wrap.getBoundingClientRect();
+        const scrollLeft = wrap.scrollLeft;
+        const scrollTop = wrap.scrollTop;
+        const clickX = e.clientX - wrapRect.left + scrollLeft;
+        const clickY = e.clientY - wrapRect.top + scrollTop;
+        const iLeft = iframe.offsetLeft, iTop = iframe.offsetTop;
+        const iW = iframe.offsetWidth, iH = iframe.offsetHeight;
+        if (clickX < iLeft || clickX > iLeft + iW || clickY < iTop || clickY > iTop + iH) return;
+        const ann = { id: Date.now().toString(36), xPct: (clickX - iLeft) / iW, yPct: (clickY - iTop) / iH, note: "" };
+        _revAnnotations.push(ann);
+        _revAnnActive = ann.id;
+        _revAnnSave(); _revRenderPins(); _revRenderList();
+        setTimeout(() => {
+          const el = $("revAnnItem_" + ann.id);
+          if (el) { el.scrollIntoView({ behavior: "smooth", block: "nearest" }); el.querySelector(".rev-ann-ta")?.focus(); }
+        }, 50);
       });
       $("btnReviewSaveNotes").addEventListener("click", () => {
         if (!_reviewState) return;
@@ -2106,7 +2255,11 @@ preview.srcdoc=OPTIONS[active].html;
       $("btnReviewClose").addEventListener("click", () => {
         $("backdropReview").classList.remove("open");
         $("reviewIframe").srcdoc = '';
-        _reviewState = null;
+        $("revAnnLayer").innerHTML = '';
+        $("revAnnOverlay").classList.remove("active");
+        $("btnRevAnnMode").classList.remove("active");
+        $("btnRevAnnMode").textContent = "+ 주석";
+        _reviewState = null; _revAnnotations = []; _revAnnActive = null;
       });
     })();
 

@@ -437,6 +437,14 @@
     #reviewNotes, #reviewHandoffPaste { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); font-size: 12px; resize: vertical; box-sizing: border-box; font-family: inherit; line-height: 1.5; }
     #reviewNotes { height: 150px; }
     #reviewHandoffPaste { height: 100px; }
+    /* 디자인 시스템 입력 */
+    .ds-section { border-top: 1px solid var(--border); }
+    .ds-toggle { display: flex; align-items: center; gap: 6px; padding: 6px 8px; font-size: 11px; color: var(--muted); cursor: pointer; user-select: none; }
+    .ds-toggle input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
+    .ds-toggle span { flex: 1; }
+    .ds-body { padding: 0 8px 8px; display: flex; flex-direction: column; gap: 4px; }
+    .ds-body textarea { width: 100%; height: 72px; font-size: 11px; padding: 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); font-family: inherit; resize: vertical; box-sizing: border-box; color: var(--text); }
+    .ds-hint { font-size: 10px; color: var(--muted); line-height: 1.4; }
   </style>
 </head>
 <body>
@@ -1026,11 +1034,14 @@
       }
       const outputContent = outputKey ? p.deliverables?.[outputKey]?.content : null;
       const logContent    = outputKey ? p.deliverables?.[outputKey]?.changeLog?.trim() || null : null;
-      if (!outputContent && !logContent) return "";
+      const dsContent = (['p2', 'p3'].includes(skillId) && p.designSystem?.exists && p.designSystem?.content?.trim())
+        ? p.designSystem.content.trim() : null;
+      if (!outputContent && !logContent && !dsContent) return "";
       const phaseLabel = { phase1: 'Phase 1 (/spec)', phase2: 'Phase 2 (/token)', phase3: 'Phase 3 (/mockup)', phase4: 'Phase 4 (/handoff)' };
       let out = "\n\n---\n";
       if (outputContent) out += `\n입력 자료 (${phaseLabel[outputKey] || outputKey} 산출물 — 자동 포함):\n\n${outputContent}`;
       if (logContent)    out += `\n\n---\n\n변경 결정 사항:\n\n${logContent}`;
+      if (dsContent)     out += `\n\n---\n\n디자인 시스템 정보 (자동 포함):\n\n${dsContent}`;
       return out;
     }
 
@@ -2140,6 +2151,54 @@ preview.srcdoc=OPTIONS[active].html;
             slotsWrap.appendChild(slot);
           });
           col.appendChild(slotsWrap);
+
+          // Phase 2에 디자인 시스템 입력 위젯 추가
+          if (group.key === 'phase2') {
+            const ds = p.designSystem || {};
+            const dsSection = document.createElement('div');
+            dsSection.className = 'ds-section';
+            const dsLabel = document.createElement('label');
+            dsLabel.className = 'ds-toggle';
+            const dsCheck = document.createElement('input');
+            dsCheck.type = 'checkbox';
+            dsCheck.className = 'ds-check';
+            if (ds.exists) dsCheck.checked = true;
+            const dsLabelSpan = document.createElement('span');
+            dsLabelSpan.textContent = '디자인 시스템 있음';
+            dsLabel.appendChild(dsCheck);
+            dsLabel.appendChild(dsLabelSpan);
+            const dsBody = document.createElement('div');
+            dsBody.className = 'ds-body';
+            dsBody.style.display = ds.exists ? '' : 'none';
+            const dsTa = document.createElement('textarea');
+            dsTa.placeholder = 'CSS 변수, 토큰 JSON, 컴포넌트 목록 등 붙여넣기...';
+            dsTa.value = ds.content || '';
+            const dsHint = document.createElement('div');
+            dsHint.className = 'ds-hint';
+            dsHint.textContent = '/token · /mockup 복사 시 자동 포함됩니다';
+            const dsBtn = document.createElement('button');
+            dsBtn.type = 'button';
+            dsBtn.className = 'btn-sm';
+            dsBtn.textContent = '저장';
+            dsBody.appendChild(dsTa);
+            dsBody.appendChild(dsHint);
+            dsBody.appendChild(dsBtn);
+            dsSection.appendChild(dsLabel);
+            dsSection.appendChild(dsBody);
+            dsCheck.addEventListener('change', () => {
+              if (!p.designSystem) p.designSystem = {};
+              p.designSystem.exists = dsCheck.checked;
+              dsBody.style.display = dsCheck.checked ? '' : 'none';
+              saveState();
+            });
+            dsBtn.addEventListener('click', () => {
+              if (!p.designSystem) p.designSystem = {};
+              p.designSystem.content = dsTa.value.trim();
+              saveState();
+              toast('디자인 시스템 저장됨');
+            });
+            col.appendChild(dsSection);
+          }
 
           phaseColsEl.appendChild(col);
         });

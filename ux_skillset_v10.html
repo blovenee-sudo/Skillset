@@ -421,6 +421,22 @@
     .modal.modal-wide .modal-body { flex: 1; overflow: auto; min-height: 0; border-radius: 8px; border: 1px solid var(--border); }
     .modal.modal-wide iframe { width: 100%; height: 100%; border: none; background: #fff; }
     .modal.modal-wide pre { margin: 0; padding: 14px; white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6; }
+    /* 리뷰 & 핸드오프 모달 */
+    .modal.modal-review { max-width: calc(100vw - 40px); width: 100%; height: calc(100vh - 40px); display: flex; flex-direction: column; padding: 16px 16px 0; }
+    .rev-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-shrink: 0; }
+    .rev-body { flex: 1; display: flex; overflow: hidden; min-height: 0; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; }
+    .rev-left { flex: 1; min-width: 0; overflow: hidden; display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+    .rev-dev-bar { padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; flex-shrink: 0; background: var(--surface); }
+    .rev-dev-bar .rev-dev-btn-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .rev-iframe-wrap { flex: 1; overflow: auto; display: flex; align-items: flex-start; justify-content: center; }
+    .rev-iframe-wrap.desktop-mode #reviewIframe { width: 100%; height: 100%; border: none; flex-shrink: 0; }
+    .rev-iframe-wrap.mobile-mode { background: #555; padding: 20px; }
+    .rev-iframe-wrap.mobile-mode #reviewIframe { width: 375px; height: 812px; border: none; flex-shrink: 0; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,.4); }
+    .rev-panel { width: 300px; flex-shrink: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 18px; }
+    .rev-section-title { font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 8px; letter-spacing: .06em; text-transform: uppercase; }
+    #reviewNotes, #reviewHandoffPaste { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); font-size: 12px; resize: vertical; box-sizing: border-box; font-family: inherit; line-height: 1.5; }
+    #reviewNotes { height: 150px; }
+    #reviewHandoffPaste { height: 100px; }
   </style>
 </head>
 <body>
@@ -613,11 +629,54 @@
         <h4 id="delivViewTitle" style="margin:0;flex:1;font-size:14px"></h4>
         <button type="button" class="btn-sm" id="btnDelivViewOpen">새 탭에서 열기</button>
         <button type="button" class="btn-sm" id="btnDelivViewDownload">다운로드</button>
+        <button type="button" class="btn-sm" id="btnDelivViewReview" style="display:none">리뷰 & 핸드오프 ↗</button>
         <button type="button" class="btn-sm" id="btnDelivViewEdit">수정</button>
         <button type="button" class="btn-sm" id="btnDelivViewDelete" style="color:#fca5a5">삭제</button>
         <button type="button" class="btn-sm" id="btnDelivViewClose">닫기</button>
       </div>
       <div class="modal-body" id="delivViewBody"></div>
+    </div>
+  </div>
+
+  <!-- 리뷰 & 핸드오프 모달 -->
+  <div class="modal-backdrop" id="backdropReview">
+    <div class="modal modal-review">
+      <div class="rev-header">
+        <h4 id="reviewTitle" style="margin:0;flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">리뷰 & 핸드오프</h4>
+        <button type="button" class="btn-sm" id="btnReviewClose">닫기</button>
+      </div>
+      <div class="rev-body">
+        <div class="rev-left">
+          <div class="rev-dev-bar">
+            <span style="font-size:11px;color:var(--muted);margin-right:4px">디바이스</span>
+            <button type="button" class="btn-sm rev-dev-btn-active" id="btnRevDesktop" style="font-size:11px">데스크톱</button>
+            <button type="button" class="btn-sm" id="btnRevMobile" style="font-size:11px">모바일 (375)</button>
+          </div>
+          <div class="rev-iframe-wrap desktop-mode" id="reviewIframeWrap">
+            <iframe id="reviewIframe"></iframe>
+          </div>
+        </div>
+        <div class="rev-panel">
+          <div>
+            <div class="rev-section-title">검수 메모</div>
+            <textarea id="reviewNotes" placeholder="검수 내용, 이슈, 수정 요청 사항..."></textarea>
+            <button type="button" class="btn-sm" id="btnReviewSaveNotes" style="margin-top:6px;width:100%">메모 저장</button>
+          </div>
+          <div>
+            <div class="rev-section-title">AI 핸드오프 리포트</div>
+            <p style="font-size:11px;color:var(--muted);line-height:1.5;margin:0 0 8px">/handoff 프롬프트를 복사해 AI에 붙여넣으면 핸드오프 리포트가 생성됩니다.</p>
+            <button type="button" class="btn-sm" id="btnReviewCopyPrompt" style="width:100%">↗ /handoff 프롬프트 복사</button>
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+              <div class="rev-section-title">리포트 저장</div>
+              <textarea id="reviewHandoffPaste" placeholder="AI가 생성한 HTML을 붙여넣으세요..."></textarea>
+              <div style="display:flex;gap:6px;margin-top:6px">
+                <button type="button" class="btn-sm" id="btnReviewSaveHandoff" style="flex:1">저장</button>
+                <button type="button" class="btn-sm" id="btnReviewViewHandoff" style="flex:1;display:none">리포트 보기</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1266,10 +1325,9 @@
       phase4: { label: '산출물', name: 'Dev Hand-off Report', ext: 'html' },
     };
     const PHASE_GROUPS = [
-      { key: 'phase1', label: '/spec',    slots: ['phase1'] },
-      { key: 'phase2', label: '/token',   slots: ['phase2'] },
-      { key: 'phase3', label: '/mockup',  slots: ['phase3'] },
-      { key: 'phase4', label: '/handoff', slots: ['phase4'] },
+      { key: 'phase1', label: '/spec',   slots: ['phase1'] },
+      { key: 'phase2', label: '/token',  slots: ['phase2'] },
+      { key: 'phase3', label: '/mockup', slots: ['phase3'] },
     ];
     const QA_CHECKLISTS = {
       phase1: {
@@ -1334,7 +1392,7 @@
       _delivEditState = { projectId, phase };
       $("delivEditTitle").textContent = `${PHASE_META[phase].label} 스킬 결과 저장`;
       $("delivEditArea").value = p.deliverables?.[phase]?.content || "";
-      $("delivEditGuide").style.display = (phase === 'phase3' || phase === 'phase4') ? '' : 'none';
+      $("delivEditGuide").style.display = phase === 'phase3' ? '' : 'none';
       $("modalDelivEdit").classList.add("open");
       setTimeout(() => $("delivEditArea").focus(), 80);
     }
@@ -1354,6 +1412,7 @@
       const deliv = p.deliverables?.[phase];
       if (!deliv) return;
       _delivViewState = { projectId, phase };
+      $("btnDelivViewReview").style.display = 'none';
       const meta = PHASE_META[phase];
       $("delivViewTitle").textContent = `${meta.label} — ${meta.name}`;
       const body = $("delivViewBody");
@@ -1555,6 +1614,10 @@ preview.srcdoc=OPTIONS[active].html;
           a.href = URL.createObjectURL(new Blob([deliv.content], { type: 'text/html;charset=utf-8' }));
           a.download = `${p.name}-${meta.label}.${meta.ext}`; a.click(); URL.revokeObjectURL(a.href);
         };
+        if (phase === 'phase3') {
+          $("btnDelivViewReview").style.display = '';
+          $("btnDelivViewReview").onclick = () => openReviewModal(projectId, phase);
+        }
       } else {
         // Markdown (phase1)
         const div = document.createElement("div");
@@ -1873,6 +1936,105 @@ preview.srcdoc=OPTIONS[active].html;
       });
     })();
 
+    let _reviewState = null;
+
+    function openReviewModal(projectId, phase) {
+      const p = state.projects.find(x => x.id === projectId);
+      if (!p) return;
+      const deliv = p.deliverables?.[phase];
+      if (!deliv) return;
+      _reviewState = { projectId, phase };
+      $("reviewTitle").textContent = `${p.name} — 리뷰 & 핸드오프`;
+      $("reviewIframe").srcdoc = deliv.content;
+      $("reviewNotes").value = p.reviewNotes || '';
+      $("reviewHandoffPaste").value = '';
+      const h4 = p.deliverables?.phase4;
+      if (h4) {
+        const d = new Date(h4.savedAt);
+        const ds = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        $("reviewHandoffPaste").placeholder = `저장된 리포트 있음 (${ds})\n덮어쓰려면 새 HTML을 붙여넣으세요.`;
+        $("btnReviewViewHandoff").style.display = '';
+      } else {
+        $("reviewHandoffPaste").placeholder = 'AI가 생성한 핸드오프 HTML을 붙여넣으세요...';
+        $("btnReviewViewHandoff").style.display = 'none';
+      }
+      // 디바이스 토글 초기화 (데스크톱)
+      const wrap = $("reviewIframeWrap");
+      wrap.className = 'rev-iframe-wrap desktop-mode';
+      $("btnRevDesktop").classList.add('rev-dev-btn-active');
+      $("btnRevMobile").classList.remove('rev-dev-btn-active');
+      $("backdropReview").classList.add("open");
+    }
+
+    (function initReviewModal() {
+      $("btnRevDesktop").addEventListener("click", () => {
+        const wrap = $("reviewIframeWrap");
+        wrap.className = 'rev-iframe-wrap desktop-mode';
+        $("btnRevDesktop").classList.add('rev-dev-btn-active');
+        $("btnRevMobile").classList.remove('rev-dev-btn-active');
+      });
+      $("btnRevMobile").addEventListener("click", () => {
+        const wrap = $("reviewIframeWrap");
+        wrap.className = 'rev-iframe-wrap mobile-mode';
+        $("btnRevMobile").classList.add('rev-dev-btn-active');
+        $("btnRevDesktop").classList.remove('rev-dev-btn-active');
+      });
+      $("btnReviewSaveNotes").addEventListener("click", () => {
+        if (!_reviewState) return;
+        const p = state.projects.find(x => x.id === _reviewState.projectId);
+        if (!p) return;
+        p.reviewNotes = $("reviewNotes").value;
+        saveState();
+        toast("검수 메모가 저장됐습니다");
+      });
+      $("btnReviewCopyPrompt").addEventListener("click", async () => {
+        if (!_reviewState) return;
+        const p = state.projects.find(x => x.id === _reviewState.projectId);
+        if (!p) return;
+        const deliv = p.deliverables?.[_reviewState.phase];
+        if (!deliv) return;
+        const handoffSkill = state.skills.find(s => s.id === 'p4');
+        const basePrompt = handoffSkill?.prompt || '/handoff 스킬 프롬프트를 찾을 수 없습니다.';
+        const notes = $("reviewNotes").value.trim();
+        let full = basePrompt + '\n\n---\n\n**[Phase 3 HTML 목업 — 자동 포함]**\n\n```html\n' + deliv.content + '\n```';
+        if (notes) full += '\n\n**[검수 메모]**\n' + notes;
+        try {
+          await navigator.clipboard.writeText(full);
+          toast("프롬프트가 복사됐습니다. AI에 붙여넣으세요.");
+        } catch {
+          toast("복사 실패 — 브라우저 권한 확인");
+        }
+      });
+      $("btnReviewSaveHandoff").addEventListener("click", () => {
+        if (!_reviewState) return;
+        const html = $("reviewHandoffPaste").value.trim();
+        if (!html) { toast("저장할 내용이 없습니다"); return; }
+        const p = state.projects.find(x => x.id === _reviewState.projectId);
+        if (!p) return;
+        if (!p.deliverables) p.deliverables = {};
+        p.deliverables.phase4 = { content: html, savedAt: new Date().toISOString() };
+        saveState(); renderProjects();
+        toast("핸드오프 리포트가 저장됐습니다");
+        $("reviewHandoffPaste").value = '';
+        const d = new Date();
+        const ds = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        $("reviewHandoffPaste").placeholder = `저장된 리포트 있음 (${ds})\n덮어쓰려면 새 HTML을 붙여넣으세요.`;
+        $("btnReviewViewHandoff").style.display = '';
+      });
+      $("btnReviewViewHandoff").addEventListener("click", () => {
+        if (!_reviewState) return;
+        const p = state.projects.find(x => x.id === _reviewState.projectId);
+        const deliv = p?.deliverables?.phase4;
+        if (!deliv) return;
+        window.open(URL.createObjectURL(new Blob([deliv.content], { type: 'text/html;charset=utf-8' })));
+      });
+      $("btnReviewClose").addEventListener("click", () => {
+        $("backdropReview").classList.remove("open");
+        $("reviewIframe").srcdoc = '';
+        _reviewState = null;
+      });
+    })();
+
     function renderProjects() {
       const grid = $("projectsGrid");
       grid.innerHTML = "";
@@ -1913,9 +2075,9 @@ preview.srcdoc=OPTIONS[active].html;
         });
 
         // Phase 스킬(s1/p2/p3/p4)과 나머지 분리 (qa는 고정 행으로 별도 처리)
-        const PHASE_SKILL_MAP = { s1: 'phase1', p2: 'phase2', p3: 'phase3', p4: 'phase4' };
-        const FIXED_SKILL_IDS = new Set(['s1', 'p2', 'p3', 'p4', 'qa']);
-        const DEFAULT_ORDER = ['s1', 'p2', 'p3', 'p4'];
+        const PHASE_SKILL_MAP = { s1: 'phase1', p2: 'phase2', p3: 'phase3' };
+        const FIXED_SKILL_IDS = new Set(['s1', 'p2', 'p3', 'qa']);
+        const DEFAULT_ORDER = ['s1', 'p2', 'p3'];
         const sortedInstances = [...p.instances].sort((a, b) => {
           const ai = DEFAULT_ORDER.indexOf(a.skillId), bi = DEFAULT_ORDER.indexOf(b.skillId);
           if (ai >= 0 && bi >= 0) return ai - bi;
@@ -2355,7 +2517,7 @@ preview.srcdoc=OPTIONS[active].html;
           saveState();
           renderSidebar();
           toast("스킬 복사됨 ✓");
-          const _phaseKey = { s1:'phase1', p2:'phase2', p3:'phase3', p4:'phase4' }[sk.id];
+          const _phaseKey = { s1:'phase1', p2:'phase2', p3:'phase3' }[sk.id];
           const _pid = selectedProjectId;
 
           if (llmType === 'claude' && !isRegistered) {
@@ -2447,7 +2609,7 @@ preview.srcdoc=OPTIONS[active].html;
       $("btnNewProject").addEventListener("click", () => {
         const name = prompt("프로젝트 이름", "새 프로젝트");
         if (!name) return;
-        const defaultInstances = ['s1', 'p2', 'p3', 'p4']
+        const defaultInstances = ['s1', 'p2', 'p3']
           .filter(id => state.skills.find(s => s.id === id))
           .map(id => ({ instanceId: uid(), skillId: id, isDefault: true }));
         state.projects.push({ id: uid(), name: name.trim(), instances: defaultInstances });

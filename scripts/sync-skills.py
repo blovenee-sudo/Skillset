@@ -19,8 +19,9 @@ INDEX_PATH = ROOT / "skills" / "index.json"
 # MD 파일명: {skill_id}-{slash_without_slash}.md
 MD_MAP = {
     "s1": "s1-spec",
-    "p2": "p2-schema",
-    "p3": "p3-build",
+    "p2": "p2-token",
+    "p3": "p3-mockup",
+    "p4": "p4-handoff",
     "qa": "qa-qa",
 }
 

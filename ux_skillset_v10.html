@@ -949,6 +949,7 @@
       s1:  { output: null     },
       p2:  { output: 'phase1' },
       p3:  { output: 'phase2' },
+      p4:  { output: 'phase3' },
       qa:  { output: '__auto' },
     };
     function buildInjection(projectId, skillId) {
@@ -959,7 +960,7 @@
       if (!cfg) return "";
       let outputKey = cfg.output;
       if (outputKey === '__auto') {
-        for (const k of ['phase3', 'phase2', 'phase1']) {
+        for (const k of ['phase4', 'phase3', 'phase2', 'phase1']) {
           if (p.deliverables?.[k]?.content) { outputKey = k; break; }
         }
         if (outputKey === '__auto') outputKey = null;
@@ -967,7 +968,7 @@
       const outputContent = outputKey ? p.deliverables?.[outputKey]?.content : null;
       const logContent    = outputKey ? p.deliverables?.[outputKey]?.changeLog?.trim() || null : null;
       if (!outputContent && !logContent) return "";
-      const phaseLabel = { phase1: 'Phase 1 (/spec)', phase2: 'Phase 2 (/schema)', phase3: 'Phase 3 (/build)' };
+      const phaseLabel = { phase1: 'Phase 1 (/spec)', phase2: 'Phase 2 (/token)', phase3: 'Phase 3 (/mockup)', phase4: 'Phase 4 (/handoff)' };
       let out = "\n\n---\n";
       if (outputContent) out += `\n입력 자료 (${phaseLabel[outputKey] || outputKey} 산출물 — 자동 포함):\n\n${outputContent}`;
       if (logContent)    out += `\n\n---\n\n변경 결정 사항:\n\n${logContent}`;
@@ -1259,14 +1260,16 @@
 
     // ── Phase 산출물 관리 ──
     const PHASE_META = {
-      phase1: { label: '산출물', name: 'Markdown 스펙',   ext: 'md'   },
-      phase2: { label: '산출물', name: '설계 시각화',      ext: 'md'   },
-      phase3: { label: '산출물', name: 'HTML 프로토타입', ext: 'html' },
+      phase1: { label: '산출물', name: 'Markdown 스펙',       ext: 'md'   },
+      phase2: { label: '산출물', name: '디자인 토큰 가이드',   ext: 'md'   },
+      phase3: { label: '산출물', name: 'HTML 목업',           ext: 'html' },
+      phase4: { label: '산출물', name: 'Dev Hand-off Report', ext: 'html' },
     };
     const PHASE_GROUPS = [
-      { key: 'phase1', label: '/spec',   slots: ['phase1'] },
-      { key: 'phase2', label: '/schema', slots: ['phase2'] },
-      { key: 'phase3', label: '/build',  slots: ['phase3'] },
+      { key: 'phase1', label: '/spec',    slots: ['phase1'] },
+      { key: 'phase2', label: '/token',   slots: ['phase2'] },
+      { key: 'phase3', label: '/mockup',  slots: ['phase3'] },
+      { key: 'phase4', label: '/handoff', slots: ['phase4'] },
     ];
     const QA_CHECKLISTS = {
       phase1: {
@@ -1284,28 +1287,41 @@
       },
       phase2: {
         required: [
-          { id: 'p2_r1', text: '주요 엔티티가 모두 정의됨' },
-          { id: 'p2_r2', text: '각 필드의 타입이 명시됨' },
-          { id: 'p2_r3', text: '엔티티 간 관계(relation)가 정의됨' },
-          { id: 'p2_r4', text: '필수/선택 필드가 구분됨' },
+          { id: 'p2_r1', text: '모든 컬러 토큰이 CSS 변수(--color-*)로 정의되고 HEX값 포함' },
+          { id: 'p2_r2', text: 'Typography 토큰(크기·굵기·행간)이 정의됨' },
+          { id: 'p2_r3', text: 'Spacing 토큰이 8px 기반으로 정의됨' },
+          { id: 'p2_r4', text: '화면별 레이아웃 패턴이 명시됨' },
         ],
         recommended: [
-          { id: 'p2_c1', text: 'PK/FK가 명시됨' },
-          { id: 'p2_c2', text: 'enum 또는 상수값 정의 포함' },
-          { id: 'p2_c3', text: '인덱싱 전략 언급' },
+          { id: 'p2_c1', text: 'Border radius · Shadow 토큰 포함' },
+          { id: 'p2_c2', text: '핵심 컴포넌트 스타일 기준(버튼·카드·폼) 정의' },
+          { id: 'p2_c3', text: 'Tailwind CDN 병행 사용 고려한 네이밍 일관성' },
         ],
       },
       phase3: {
         required: [
-          { id: 'p3_r1', text: '주요 화면이 모두 구현됨' },
-          { id: 'p3_r2', text: 'Phase 1 스펙의 핵심 기능이 반영됨' },
-          { id: 'p3_r3', text: 'Phase 2 데이터 구조가 UI에 반영됨' },
-          { id: 'p3_r4', text: '기본 인터랙션(버튼, 폼 등)이 동작함' },
+          { id: 'p3_r1', text: '단일 HTML 파일로 외부 의존성 없이 실행됨' },
+          { id: 'p3_r2', text: 'Phase 2 CSS 변수가 :root에 선언되고 스타일에 적용됨' },
+          { id: 'p3_r3', text: '레이아웃이 flex/grid 기반 (float·absolute 위주 금지)' },
+          { id: 'p3_r4', text: '탭·모달·화면 전환 인터랙션이 실제 동작함' },
         ],
         recommended: [
-          { id: 'p3_c1', text: '반응형 레이아웃 적용' },
-          { id: 'p3_c2', text: '로딩/에러 상태 처리' },
-          { id: 'p3_c3', text: '더미 데이터가 실제 형태와 유사함' },
+          { id: 'p3_c1', text: '컴포넌트에 <!-- Component: 이름 --> 주석 포함' },
+          { id: 'p3_c2', text: 'Empty·Loading·Error 상태 구현' },
+          { id: 'p3_c3', text: '한국어 더미 데이터 사용 (Lorem 없음)' },
+        ],
+      },
+      phase4: {
+        required: [
+          { id: 'p4_r1', text: 'Phase 3 HTML이 iframe srcdoc에 인라인 포함됨' },
+          { id: 'p4_r2', text: '컴포넌트 명세 표(Variant·상태·치수)가 완성됨' },
+          { id: 'p4_r3', text: '디자인 토큰 테이블(변수명·값·사용처)이 포함됨' },
+          { id: 'p4_r4', text: '인터랙션 명세(트리거→동작→결과)가 표로 정리됨' },
+        ],
+        recommended: [
+          { id: 'p4_c1', text: '단일 HTML 파일로 외부 CDN 없이 실행됨' },
+          { id: 'p4_c2', text: '개발자 주의사항(에러처리·접근성·API포인트) 포함' },
+          { id: 'p4_c3', text: '다크 테마 리포트 UI가 적용됨' },
         ],
       },
     };
@@ -1318,7 +1334,7 @@
       _delivEditState = { projectId, phase };
       $("delivEditTitle").textContent = `${PHASE_META[phase].label} 스킬 결과 저장`;
       $("delivEditArea").value = p.deliverables?.[phase]?.content || "";
-      $("delivEditGuide").style.display = phase === 'phase3' ? '' : 'none';
+      $("delivEditGuide").style.display = (phase === 'phase3' || phase === 'phase4') ? '' : 'none';
       $("modalDelivEdit").classList.add("open");
       setTimeout(() => $("delivEditArea").focus(), 80);
     }
@@ -1865,10 +1881,10 @@ preview.srcdoc=OPTIONS[active].html;
         return;
       }
       state.projects.forEach(p => {
-        const _allKeys = ['phase1','phase2','phase3'];
+        const _allKeys = ['phase1','phase2','phase3','phase4'];
         if (!p.deliverables) p.deliverables = {};
         _allKeys.forEach(k => { if (!(k in p.deliverables)) p.deliverables[k] = null; });
-        ['changelog','phase1_log','phase2_log','phase3_log','phase1_qa','phase2_qa','phase3_qa'].forEach(k => delete p.deliverables[k]);
+        ['changelog','phase1_log','phase2_log','phase3_log','phase4_log','phase1_qa','phase2_qa','phase3_qa','phase4_qa'].forEach(k => delete p.deliverables[k]);
         const card = document.createElement("div");
         card.className = "project-card";
         card.dataset.projectId = p.id;
@@ -1896,10 +1912,10 @@ preview.srcdoc=OPTIONS[active].html;
           saveState(); renderSidebar();
         });
 
-        // Phase 스킬(s1/p2/p3)과 나머지 분리 (qa는 고정 행으로 별도 처리)
-        const PHASE_SKILL_MAP = { s1: 'phase1', p2: 'phase2', p3: 'phase3' };
-        const FIXED_SKILL_IDS = new Set(['s1', 'p2', 'p3', 'qa']);
-        const DEFAULT_ORDER = ['s1', 'p2', 'p3'];
+        // Phase 스킬(s1/p2/p3/p4)과 나머지 분리 (qa는 고정 행으로 별도 처리)
+        const PHASE_SKILL_MAP = { s1: 'phase1', p2: 'phase2', p3: 'phase3', p4: 'phase4' };
+        const FIXED_SKILL_IDS = new Set(['s1', 'p2', 'p3', 'p4', 'qa']);
+        const DEFAULT_ORDER = ['s1', 'p2', 'p3', 'p4'];
         const sortedInstances = [...p.instances].sort((a, b) => {
           const ai = DEFAULT_ORDER.indexOf(a.skillId), bi = DEFAULT_ORDER.indexOf(b.skillId);
           if (ai >= 0 && bi >= 0) return ai - bi;
@@ -2339,7 +2355,7 @@ preview.srcdoc=OPTIONS[active].html;
           saveState();
           renderSidebar();
           toast("스킬 복사됨 ✓");
-          const _phaseKey = { s1:'phase1', p2:'phase2', p3:'phase3' }[sk.id];
+          const _phaseKey = { s1:'phase1', p2:'phase2', p3:'phase3', p4:'phase4' }[sk.id];
           const _pid = selectedProjectId;
 
           if (llmType === 'claude' && !isRegistered) {
@@ -2431,7 +2447,7 @@ preview.srcdoc=OPTIONS[active].html;
       $("btnNewProject").addEventListener("click", () => {
         const name = prompt("프로젝트 이름", "새 프로젝트");
         if (!name) return;
-        const defaultInstances = ['s1', 'p2', 'p3']
+        const defaultInstances = ['s1', 'p2', 'p3', 'p4']
           .filter(id => state.skills.find(s => s.id === id))
           .map(id => ({ instanceId: uid(), skillId: id, isDefault: true }));
         state.projects.push({ id: uid(), name: name.trim(), instances: defaultInstances });

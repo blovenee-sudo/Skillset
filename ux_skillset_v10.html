@@ -437,6 +437,11 @@
     #reviewNotes, #reviewHandoffPaste { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); font-size: 12px; resize: vertical; box-sizing: border-box; font-family: inherit; line-height: 1.5; }
     #reviewNotes { height: 150px; }
     #reviewHandoffPaste { height: 100px; }
+    /* AI 커스텀 QA */
+    .qa-custom-divider { margin: 10px 0 8px; border: none; border-top: 1px dashed var(--border); }
+    .qa-group-hd.custom { color: var(--accent); }
+  </style>
+  <style>
     /* 디자인 시스템 입력 */
     .ds-section { border-top: 1px solid var(--border); }
     .ds-toggle { display: flex; align-items: center; gap: 6px; padding: 6px 8px; font-size: 11px; color: var(--muted); cursor: pointer; user-select: none; }
@@ -622,7 +627,12 @@
         <button type="button" class="btn-sm" id="btnDelivEditFile">파일 첨부</button>
         <input type="file" id="delivEditFileInput" accept=".md,.json,.html,.txt" style="display:none">
       </div>
-      <textarea id="delivEditArea" style="width:100%;height:220px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="여기에 붙여넣기..."></textarea>
+      <textarea id="delivEditArea" style="width:100%;height:180px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="여기에 붙여넣기..."></textarea>
+      <details id="delivCustomQaDetails" style="margin-top:8px">
+        <summary style="font-size:12px;color:var(--muted);cursor:pointer;user-select:none;padding:4px 0">AI 검토 항목 추가 (선택)</summary>
+        <p style="font-size:11px;color:var(--muted);margin:6px 0 4px;line-height:1.5">AI가 제안한 QA 체크리스트를 붙여넣으세요. 줄 단위로 파싱되며 고정 항목 아래에 표시됩니다.</p>
+        <textarea id="delivCustomQaArea" style="width:100%;height:90px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit;color:var(--text)" placeholder="- [ ] 검토 항목 1&#10;- [ ] 검토 항목 2&#10;..."></textarea>
+      </details>
       <div class="row" style="margin-top:10px">
         <button type="button" class="btn-sm" id="btnDelivEditCancel">취소</button>
         <button type="button" class="btn-primary" id="btnDelivEditSave">저장</button>
@@ -1404,8 +1414,27 @@
       $("delivEditTitle").textContent = `${PHASE_META[phase].label} 스킬 결과 저장`;
       $("delivEditArea").value = p.deliverables?.[phase]?.content || "";
       $("delivEditGuide").style.display = phase === 'phase3' ? '' : 'none';
+      const existingCq = p.deliverables?.[phase]?.customQa;
+      const cqTa = $("delivCustomQaArea");
+      cqTa.value = existingCq ? existingCq.map(i => `- [ ] ${i.text}`).join('\n') : '';
+      $("delivCustomQaDetails").open = !!existingCq?.length;
       $("modalDelivEdit").classList.add("open");
       setTimeout(() => $("delivEditArea").focus(), 80);
+    }
+
+    function parseCustomQa(text) {
+      return text.split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0)
+        .map((l, i) => {
+          const clean = l
+            .replace(/^-\s*\[[ xX]\]\s*/, '')
+            .replace(/^[-•*]\s+/, '')
+            .replace(/^\d+\.\s+/, '')
+            .trim();
+          return clean ? { id: `cq_${i}`, text: clean } : null;
+        })
+        .filter(Boolean);
     }
 
     function parseDesignOptions(content) {
@@ -1786,9 +1815,13 @@ preview.srcdoc=OPTIONS[active].html;
         const recHd = document.createElement("div");
         recHd.className = "qa-group-hd rec";
 
+        const customQaItems = deliv.customQa || [];
+        const customQaStates = { ...(deliv.customQaState || {}) };
+
         const updateQaUi = () => {
-          const total = allItems.length;
-          const checked = allItems.filter(i => checkStates[i.id]).length;
+          const total = allItems.length + customQaItems.length;
+          const checked = allItems.filter(i => checkStates[i.id]).length
+                        + customQaItems.filter(i => customQaStates[i.id]).length;
           const reqChk = cl.required.filter(i => checkStates[i.id]).length;
           const recChk = cl.recommended.filter(i => checkStates[i.id]).length;
           const pct = total ? Math.round(checked / total * 100) : 0;
@@ -1817,6 +1850,32 @@ preview.srcdoc=OPTIONS[active].html;
         cl.required.forEach(item => qaPanel.appendChild(mkItem(item)));
         qaPanel.appendChild(recHd);
         cl.recommended.forEach(item => qaPanel.appendChild(mkItem(item)));
+
+        if (customQaItems.length > 0) {
+          const divider = document.createElement('hr');
+          divider.className = 'qa-custom-divider';
+          qaPanel.appendChild(divider);
+          const customHd = document.createElement('div');
+          customHd.className = 'qa-group-hd custom';
+          customHd.textContent = 'AI 검토 항목';
+          qaPanel.appendChild(customHd);
+          customQaItems.forEach(item => {
+            const row = document.createElement('label');
+            row.className = 'qa-item' + (customQaStates[item.id] ? ' checked' : '');
+            const cb = document.createElement('input');
+            cb.type = 'checkbox'; cb.checked = !!customQaStates[item.id];
+            cb.addEventListener('change', () => {
+              customQaStates[item.id] = cb.checked;
+              row.classList.toggle('checked', cb.checked);
+              updateQaUi();
+            });
+            const span = document.createElement('span');
+            span.className = 'qa-item-text'; span.textContent = item.text;
+            row.appendChild(cb); row.appendChild(span);
+            qaPanel.appendChild(row);
+          });
+        }
+
         rightContent.appendChild(qaPanel);
 
         const hHandle = document.createElement("div");
@@ -1861,6 +1920,7 @@ preview.srcdoc=OPTIONS[active].html;
         saveBtn.addEventListener("click", () => {
           deliv.qa = { ...checkStates };
           deliv.changeLog = logTa.value;
+          if (customQaItems.length > 0) deliv.customQaState = { ...customQaStates };
           saveState(); renderProjects();
           toast("저장됐습니다");
         });
@@ -1927,11 +1987,15 @@ preview.srcdoc=OPTIONS[active].html;
         if (!p) return;
         if (!p.deliverables) p.deliverables = {};
         const prev = p.deliverables[phase] || {};
+        const cqText = $("delivCustomQaArea").value.trim();
+        const newCq = cqText ? parseCustomQa(cqText) : null;
         p.deliverables[phase] = {
           content: content || prev.content || "",
           savedAt: new Date().toISOString(),
           ...(prev.qa && { qa: prev.qa }),
-          ...(prev.changeLog && { changeLog: prev.changeLog })
+          ...(prev.changeLog && { changeLog: prev.changeLog }),
+          ...(newCq ? { customQa: newCq, customQaState: {} }
+            : (prev.customQa ? { customQa: prev.customQa, customQaState: prev.customQaState || {} } : {}))
         };
         saveState(); renderProjects();
         const _savedProjectId = projectId; const _savedPhase = phase;
@@ -2133,8 +2197,10 @@ preview.srcdoc=OPTIONS[active].html;
             if (deliv) {
               const d = new Date(deliv.savedAt);
               const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
-              const qaChecked = deliv.qa ? Object.values(deliv.qa).filter(Boolean).length : 0;
-              const qaTotal = QA_CHECKLISTS[ph] ? QA_CHECKLISTS[ph].required.length + QA_CHECKLISTS[ph].recommended.length : 0;
+              const qaChecked = (deliv.qa ? Object.values(deliv.qa).filter(Boolean).length : 0)
+                              + (deliv.customQaState ? Object.values(deliv.customQaState).filter(Boolean).length : 0);
+              const qaTotal = (QA_CHECKLISTS[ph] ? QA_CHECKLISTS[ph].required.length + QA_CHECKLISTS[ph].recommended.length : 0)
+                            + (deliv.customQa?.length || 0);
               const qaStr = qaTotal ? ` · QA ${qaChecked}/${qaTotal}` : '';
               slot.innerHTML = `<div class="ps-label">${meta.label}</div><div class="ps-name">${meta.name}</div><div class="ps-date">${dateStr}${qaStr}</div><span class="ps-del" title="삭제">×</span>`;
               slot.querySelector(".ps-del").addEventListener("click", (e) => {

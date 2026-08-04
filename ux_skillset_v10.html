@@ -486,6 +486,15 @@
     .vp-type-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
     /* 목업 페이지 주석 라벨 */
     .ann-page-label { font-size:10px; color:var(--muted); padding:2px 0 6px; }
+    /* 화면 탭 바 */
+    .screen-tab-bar { display:flex; gap:2px; padding:4px 8px; border-bottom:1px solid var(--border); flex-shrink:0; overflow-x:auto; align-items:center; }
+    .screen-tab { display:flex; align-items:center; gap:3px; padding:3px 10px; border-radius:4px; border:1px solid transparent; background:transparent; font-size:11px; color:var(--muted); cursor:pointer; white-space:nowrap; }
+    .screen-tab.active { border-color:var(--accent); color:var(--accent); font-weight:600; background:rgba(99,102,241,.08); }
+    .screen-tab:hover:not(.active) { background:var(--hover); }
+    .screen-tab-x { font-size:10px; line-height:1; opacity:.5; }
+    .screen-tab-x:hover { opacity:1; }
+    .screen-tab-add { padding:2px 7px; border-radius:4px; border:1px dashed var(--border); background:transparent; font-size:13px; color:var(--muted); cursor:pointer; line-height:1.4; }
+    .screen-tab-add:hover { border-color:var(--accent); color:var(--accent); }
   </style>
 </head>
 <body>
@@ -1548,6 +1557,7 @@
       let _localAnn = []; // 현재 페이지 주석 (새 탭 열기에서도 접근)
       let _activeOptIdx = 0;
       let _preSetActiveHook = null, _postSetActiveHook = null;
+      let _iframeWrap = null;
 
       // 분할 레이아웃: 좌(뷰어) + 수직핸들 + 우(QA 패널)
       const split = document.createElement("div");
@@ -1645,6 +1655,7 @@ ${bodyHtml}
         iframeWrap.appendChild(_annLayer);
         leftBody.appendChild(vpBar);
         leftBody.appendChild(iframeWrap);
+        _iframeWrap = iframeWrap;
         _activeOptIdx = 0;
         const setActive = (i) => {
           _preSetActiveHook?.();
@@ -1801,6 +1812,7 @@ preview.srcdoc=OPTIONS[active].html;
         iframeWrap.appendChild(_annLayer);
         leftBody.appendChild(vpBar);
         leftBody.appendChild(iframeWrap);
+        _iframeWrap = iframeWrap;
 
         // ── 새 탭 주석 주입 헬퍼 ──
         const generateAnnOverlay = (anns) => {
@@ -2262,18 +2274,24 @@ preview.srcdoc=OPTIONS[active].html;
       if (_annOverlay && _annLayer && _viewIframe) {
         const { hd: annHd, body: annBody, badgeEl: annBadge } = mkAccSection("주석");
 
-        // 페이지별 주석 지원 (디자인 안 포함)
-        let _currentAnnPage = '';
-        // 디자인 안이 여러 개일 때 키에 안 인덱스 포함
-        const _annKey = (pk) => opts.length > 0 ? `opt${_activeOptIdx}:${pk}` : pk;
+        // 화면별 주석 (화면명 + 디자인 안 인덱스로 키 구성)
+        const _getScreens = () => {
+          if (!p.deliverables[phase]) p.deliverables[phase] = {};
+          if (!Array.isArray(p.deliverables[phase].screens) || !p.deliverables[phase].screens.length)
+            p.deliverables[phase].screens = ['기본'];
+          return p.deliverables[phase].screens;
+        };
+        const _saveScreens = (arr) => { p.deliverables[phase].screens = arr; saveState(); };
+        let _currentScreen = _getScreens()[0];
+        const _annKey = (screenName) => opts.length > 0 ? `opt${_activeOptIdx}|${screenName}` : `s|${screenName}`;
         const _annBase = () => {
           let base = p.annotations?.[phase];
           if (!base) return {};
           if (Array.isArray(base)) { base = { '': base }; p.annotations[phase] = base; }
           return base;
         };
-        const _loadPageAnns = (pageKey) => (_annBase()[_annKey(pageKey)] || []).map(a => ({...a}));
-        _localAnn = _loadPageAnns(_currentAnnPage);
+        const _loadScreenAnns = (screenName) => (_annBase()[_annKey(screenName)] || []).map(a => ({...a}));
+        _localAnn = _loadScreenAnns(_currentScreen);
         let _localAnnActive = null;
         let _annModeOn = false;
 
@@ -2281,14 +2299,14 @@ preview.srcdoc=OPTIONS[active].html;
           if (!p.annotations) p.annotations = {};
           let base = p.annotations[phase];
           if (!base || Array.isArray(base)) { base = Array.isArray(base) ? {'':base} : {}; p.annotations[phase] = base; }
-          base[_annKey(_currentAnnPage)] = _localAnn.map(a => ({...a}));
+          base[_annKey(_currentScreen)] = _localAnn.map(a => ({...a}));
           saveState();
         };
 
-        // 페이지 라벨 (디자인 안 + 페이지)
+        // 라벨: 디자인 안 + 화면명
         const _annPageLabelText = () => {
           const optPart = opts.length > 0 ? `${opts[_activeOptIdx]?.title || `안${_activeOptIdx+1}`} · ` : '';
-          return optPart + (_currentAnnPage ? `페이지: ${_currentAnnPage}` : '메인 페이지');
+          return optPart + `화면: ${_currentScreen}`;
         };
         const annPageLabel = document.createElement("div");
         annPageLabel.className = "ann-page-label";
@@ -2296,11 +2314,13 @@ preview.srcdoc=OPTIONS[active].html;
 
         const renderAnnPins = () => {
           _annLayer.innerHTML = "";
+          let _scX = 0, _scY = 0;
+          try { _scX = _viewIframe.contentWindow.scrollX || 0; _scY = _viewIframe.contentWindow.scrollY || 0; } catch {}
           _localAnn.forEach((ann, i) => {
             const pin = document.createElement("div");
             pin.className = "rev-pin" + (ann.id === _localAnnActive ? " highlighted" : "");
-            pin.style.left = (ann.xPct * _viewIframe.offsetWidth) + "px";
-            pin.style.top  = (ann.yPct * _viewIframe.offsetHeight) + "px";
+            pin.style.left = (ann.xPct * _viewIframe.offsetWidth  - _scX) + "px";
+            pin.style.top  = (ann.yPct * _viewIframe.offsetHeight - _scY) + "px";
             pin.textContent = i + 1;
 
             let _pinDragged = false;
@@ -2312,10 +2332,12 @@ preview.srcdoc=OPTIONS[active].html;
               const iframeRect = _viewIframe.getBoundingClientRect();
               const onMove = (ev) => {
                 _pinDragged = true;
-                ann.xPct = Math.max(0, Math.min(1, (ev.clientX - iframeRect.left) / iframeRect.width));
-                ann.yPct = Math.max(0, Math.min(1, (ev.clientY - iframeRect.top)  / iframeRect.height));
-                pin.style.left = (ann.xPct * _viewIframe.offsetWidth) + "px";
-                pin.style.top  = (ann.yPct * _viewIframe.offsetHeight) + "px";
+                let sx = 0, sy = 0;
+                try { sx = _viewIframe.contentWindow.scrollX || 0; sy = _viewIframe.contentWindow.scrollY || 0; } catch {}
+                ann.xPct = ((ev.clientX - iframeRect.left) + sx) / _viewIframe.offsetWidth;
+                ann.yPct = ((ev.clientY - iframeRect.top)  + sy) / _viewIframe.offsetHeight;
+                pin.style.left = (ann.xPct * _viewIframe.offsetWidth  - sx) + "px";
+                pin.style.top  = (ann.yPct * _viewIframe.offsetHeight - sy) + "px";
               };
               const onUp = () => {
                 document.removeEventListener("mousemove", onMove);
@@ -2402,10 +2424,12 @@ preview.srcdoc=OPTIONS[active].html;
         _annOverlay.addEventListener("click", (e) => {
           if (!_annModeOn) return;
           const iframeRect = _viewIframe.getBoundingClientRect();
+          let _scX = 0, _scY = 0;
+          try { _scX = _viewIframe.contentWindow.scrollX || 0; _scY = _viewIframe.contentWindow.scrollY || 0; } catch {}
           const ann = {
             id: Date.now().toString(36),
-            xPct: (e.clientX - iframeRect.left) / iframeRect.width,
-            yPct: (e.clientY - iframeRect.top) / iframeRect.height,
+            xPct: ((e.clientX - iframeRect.left) + _scX) / _viewIframe.offsetWidth,
+            yPct: ((e.clientY - iframeRect.top)  + _scY) / _viewIframe.offsetHeight,
             note: ""
           };
           _localAnn.push(ann);
@@ -2417,38 +2441,89 @@ preview.srcdoc=OPTIONS[active].html;
           }, 50);
         });
 
-        // 페이지 전환 감지 (hash 기반)
-        const _switchAnnPage = (newPage) => {
-          annSave();
-          _currentAnnPage = newPage;
-          _localAnn = _loadPageAnns(_currentAnnPage);
-          _localAnnActive = null;
-          annPageLabel.textContent = _annPageLabelText();
-          renderAnnPins();
-          renderAnnList();
+        // 화면 탭 바 빌더
+        const buildScreenTabBar = () => {
+          const existing = leftBody.querySelector(".screen-tab-bar");
+          if (existing) existing.remove();
+          const screens = _getScreens();
+          const bar = document.createElement("div");
+          bar.className = "screen-tab-bar";
+          screens.forEach((name) => {
+            const tab = document.createElement("button");
+            tab.className = "screen-tab" + (name === _currentScreen ? " active" : "");
+            tab.addEventListener("click", () => {
+              if (name === _currentScreen) return;
+              annSave();
+              _currentScreen = name;
+              _localAnn = _loadScreenAnns(_currentScreen);
+              _localAnnActive = null;
+              annPageLabel.textContent = _annPageLabelText();
+              buildScreenTabBar(); renderAnnPins(); renderAnnList();
+            });
+            const nameSpan = document.createElement("span");
+            nameSpan.textContent = name;
+            tab.appendChild(nameSpan);
+            if (screens.length > 1) {
+              const x = document.createElement("span");
+              x.className = "screen-tab-x";
+              x.textContent = "×";
+              x.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const newScreens = screens.filter(s => s !== name);
+                _saveScreens(newScreens);
+                if (_currentScreen === name) {
+                  annSave();
+                  _currentScreen = newScreens[0];
+                  _localAnn = _loadScreenAnns(_currentScreen);
+                  _localAnnActive = null;
+                  annPageLabel.textContent = _annPageLabelText();
+                  renderAnnPins(); renderAnnList();
+                }
+                buildScreenTabBar();
+              });
+              tab.appendChild(x);
+            }
+            bar.appendChild(tab);
+          });
+          const addBtn = document.createElement("button");
+          addBtn.className = "screen-tab-add";
+          addBtn.textContent = "+";
+          addBtn.title = "화면 추가";
+          addBtn.addEventListener("click", () => {
+            const newName = prompt("화면 이름", `화면${_getScreens().length + 1}`);
+            if (!newName?.trim()) return;
+            const trimmed = newName.trim();
+            if (_getScreens().includes(trimmed)) { alert("같은 이름의 화면이 있습니다."); return; }
+            annSave();
+            _saveScreens([..._getScreens(), trimmed]);
+            _currentScreen = trimmed;
+            _localAnn = _loadScreenAnns(_currentScreen);
+            _localAnnActive = null;
+            annPageLabel.textContent = _annPageLabelText();
+            buildScreenTabBar(); renderAnnPins(); renderAnnList();
+          });
+          bar.appendChild(addBtn);
+          if (_iframeWrap) leftBody.insertBefore(bar, _iframeWrap);
+          else leftBody.appendChild(bar);
         };
+
         _viewIframe.addEventListener('load', () => {
           renderAnnPins();
-          try {
-            const hash = _viewIframe.contentWindow.location.hash || '';
-            if (hash !== _currentAnnPage) _switchAnnPage(hash);
-            _viewIframe.contentWindow.addEventListener('hashchange', () => {
-              try { _switchAnnPage(_viewIframe.contentWindow.location.hash || ''); } catch {}
-            });
-          } catch {}
+          try { _viewIframe.contentWindow.addEventListener('scroll', renderAnnPins, { passive: true }); } catch {}
         });
         renderAnnPinsLate = renderAnnPins;
         // 디자인 안 전환 시 주석 저장/로드 연결
         _preSetActiveHook = annSave;
         _postSetActiveHook = () => {
-          _localAnn = _loadPageAnns(_currentAnnPage);
+          _localAnn = _loadScreenAnns(_currentScreen);
           _localAnnActive = null;
           annPageLabel.textContent = _annPageLabelText();
-          renderAnnPins(); renderAnnList();
+          buildScreenTabBar(); renderAnnPins(); renderAnnList();
         };
         annBody.appendChild(annPageLabel);
         annBody.appendChild(annModeBtn);
         annBody.appendChild(annEmptyEl);
+        buildScreenTabBar();
         renderAnnPins();
         renderAnnList();
       }

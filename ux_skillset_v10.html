@@ -435,7 +435,8 @@
     .rev-ann-overlay { position:absolute; inset:0; cursor:crosshair; z-index:10; display:none; }
     .rev-ann-overlay.active { display:block; }
     .rev-ann-layer { position:absolute; inset:0; pointer-events:none; z-index:11; }
-    .rev-pin { position:absolute; width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; transform:translate(-50%,-50%); box-shadow:0 2px 8px rgba(0,0,0,.45); pointer-events:all; user-select:none; border:2px solid #fff; transition:transform .15s,box-shadow .15s; }
+    .rev-pin { position:absolute; width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:grab; transform:translate(-50%,-50%); box-shadow:0 2px 8px rgba(0,0,0,.45); pointer-events:all; user-select:none; border:2px solid #fff; transition:transform .15s,box-shadow .15s; }
+    .rev-pin.dragging { cursor:grabbing; transform:translate(-50%,-50%) scale(1.15); box-shadow:0 4px 14px rgba(0,0,0,.5); transition:none; }
     .rev-pin.highlighted { transform:translate(-50%,-50%) scale(1.3); box-shadow:0 0 0 4px var(--accent),0 2px 8px rgba(0,0,0,.4); }
     .rev-ann-item { border:1.5px solid var(--border); border-radius:6px; padding:8px 10px; transition:border-color .2s,box-shadow .2s; }
     .rev-ann-item.highlighted { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
@@ -2301,7 +2302,31 @@ preview.srcdoc=OPTIONS[active].html;
             pin.style.left = (ann.xPct * _viewIframe.offsetWidth) + "px";
             pin.style.top  = (ann.yPct * _viewIframe.offsetHeight) + "px";
             pin.textContent = i + 1;
-            pin.addEventListener("click", (e2) => { e2.stopPropagation(); highlightAnn(ann.id); });
+
+            let _pinDragged = false;
+            pin.addEventListener("mousedown", (e2) => {
+              e2.stopPropagation();
+              e2.preventDefault();
+              _pinDragged = false;
+              pin.classList.add("dragging");
+              const iframeRect = _viewIframe.getBoundingClientRect();
+              const onMove = (ev) => {
+                _pinDragged = true;
+                ann.xPct = Math.max(0, Math.min(1, (ev.clientX - iframeRect.left) / iframeRect.width));
+                ann.yPct = Math.max(0, Math.min(1, (ev.clientY - iframeRect.top)  / iframeRect.height));
+                pin.style.left = (ann.xPct * _viewIframe.offsetWidth) + "px";
+                pin.style.top  = (ann.yPct * _viewIframe.offsetHeight) + "px";
+              };
+              const onUp = () => {
+                document.removeEventListener("mousemove", onMove);
+                document.removeEventListener("mouseup", onUp);
+                pin.classList.remove("dragging");
+                if (_pinDragged) annSave();
+              };
+              document.addEventListener("mousemove", onMove);
+              document.addEventListener("mouseup", onUp);
+            });
+            pin.addEventListener("click", (e2) => { e2.stopPropagation(); if (!_pinDragged) highlightAnn(ann.id); });
             _annLayer.appendChild(pin);
           });
         };

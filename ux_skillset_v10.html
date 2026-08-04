@@ -1730,7 +1730,7 @@ preview.srcdoc=OPTIONS[active].html;
       panelHd.className = "qa-panel-hd";
       const panelTitle = document.createElement("span");
       panelTitle.className = "qa-panel-title";
-      panelTitle.textContent = "리뷰 패널";
+      panelTitle.textContent = phase === 'phase3' ? "리뷰 패널" : "QA 검토";
       const colBtn = document.createElement("button");
       colBtn.type = "button"; colBtn.className = "qa-col-btn"; colBtn.title = "접기"; colBtn.textContent = "›";
       panelHd.appendChild(panelTitle); panelHd.appendChild(colBtn);
@@ -1908,6 +1908,8 @@ preview.srcdoc=OPTIONS[active].html;
         noQaP.textContent = "이 페이즈는 QA 체크리스트가 없습니다.";
         qaBody.appendChild(noQaP);
       }
+
+      if (phase === 'phase3') {
 
       // ── 2. 코드 ── (iframe인 경우만)
       let showCode = null;
@@ -2165,6 +2167,8 @@ preview.srcdoc=OPTIONS[active].html;
       handoffBody.appendChild(handoffPasteTa);
       handoffBody.appendChild(handoffSaveBtn);
       handoffBody.appendChild(handoffViewBtn);
+
+      } // end phase3-only sections
 
       $("btnDelivViewEdit").onclick = () => {
         $("modalDelivView").classList.remove("open");

@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AX 스킬셋</title>
+  <title>UI 스킬셋</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f1218">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="AX 스킬셋">
+  <meta name="apple-mobile-web-app-title" content="UI 스킬셋">
   <link rel="apple-touch-icon" href="icon.svg">
   <style>
     :root {
@@ -157,7 +157,9 @@
       display: flex; align-items: center; gap: 8px; padding: 10px 12px;
       background: var(--surface); border-bottom: 1px solid var(--border);
     }
-    .project-head h2 { margin: 0; font-size: 14px; flex: 1; }
+    .project-head h2 { margin: 0; font-size: 14px; flex: 1; border-radius: 4px; padding: 1px 4px; outline: none; cursor: text; transition: background .15s; }
+    .project-head h2:hover { background: var(--hover); }
+    .project-head h2:focus { background: var(--hover); box-shadow: 0 0 0 2px var(--accent); }
     .project-head .mini { font-size: 11px; color: var(--muted); }
     .phase-section {
       margin: 8px 10px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
@@ -487,7 +489,7 @@
 </head>
 <body>
   <header class="app-header">
-    <h1>AX 스킬셋</h1>
+    <h1>UI 스킬셋</h1>
     <div class="header-actions">
       <button type="button" class="btn-sm" id="btnRefreshSkills" style="display:none" title="skills/index.json 에서 기본 스킬 새로고침">↻ 스킬 업데이트</button>
       <button type="button" class="btn-sm" id="btnManage">관리</button>
@@ -770,14 +772,14 @@
     const STORAGE_KEY = "ux_skillset_v10";
 
     const MARKDOWN_OUTPUT_BLOCK =
-      "\n\n---\n[공통 출력 규칙 — AX 스킬셋]\n" +
+      "\n\n---\n[공통 출력 규칙 — UI 스킬셋]\n" +
       "- 본 답변의 **기획·정리 산출물**은 기본적으로 **마크다운(GFM)** 형식으로 작성한다.\n" +
       "- `#`~`###` 제목, 불릿/번호 목록, 표, ` ``` ` 코드펜스(Mermaid 포함)를 적극 활용한다.\n" +
       "- 한 파일로보낼 수 있게 구조화한다.\n";
 
     function hasMarkdownDirective(text) {
       return typeof text === "string" && (
-        text.includes("[공통 출력 규칙 — AX 스킬셋]") ||
+        text.includes("[공통 출력 규칙 — UI 스킬셋]") ||
         text.includes("[공통 출력 규칙 — UX AI 스킬셋]")
       );
     }
@@ -1543,6 +1545,8 @@
       const _isHtml = opts.length > 0 || /^\s*<!DOCTYPE html/i.test(deliv.content) || /^\s*<html/i.test(deliv.content);
       let _viewIframe = null, _annOverlay = null, _annLayer = null;
       let _localAnn = []; // 현재 페이지 주석 (새 탭 열기에서도 접근)
+      let _activeOptIdx = 0;
+      let _preSetActiveHook = null, _postSetActiveHook = null;
 
       // 분할 레이아웃: 좌(뷰어) + 수직핸들 + 우(QA 패널)
       const split = document.createElement("div");
@@ -1605,17 +1609,51 @@ ${bodyHtml}
         const optBar = document.createElement("div");
         optBar.style.cssText = "display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;";
         leftBody.appendChild(optBar);
+        // Viewport 타입 바
+        const vpBar = document.createElement("div");
+        vpBar.className = "vp-type-bar";
+        const vpTypes = [
+          { label: "모바일", w: 375 },
+          { label: "태블릿", w: 768 },
+          { label: "데스크탑", w: null }
+        ];
+        const iframeWrap = document.createElement("div");
+        iframeWrap.style.cssText = "flex:1;min-height:0;overflow:auto;position:relative;display:flex;justify-content:center;";
         _viewIframe = document.createElement("iframe");
-        _viewIframe.style.cssText = "flex:1;min-height:0;border:none;display:block;width:100%";
-        leftBody.appendChild(_viewIframe);
-        let _activeOptIdx = 0;
+        _viewIframe.style.cssText = "height:100%;border:none;display:block;flex-shrink:0;width:100%;";
+        const _setVp = (w) => {
+          if (w) { _viewIframe.style.width = w + "px"; iframeWrap.style.background = "var(--hover)"; }
+          else { _viewIframe.style.width = "100%"; iframeWrap.style.background = ""; }
+          setTimeout(() => { renderAnnPinsLate && renderAnnPinsLate(); }, 50);
+        };
+        const vpBtns = vpTypes.map(vp => {
+          const btn = document.createElement("button");
+          btn.className = "vp-type-btn" + (vp.w === null ? " active" : "");
+          btn.textContent = vp.label;
+          btn.onclick = () => { vpBtns.forEach(b => b.classList.remove("active")); btn.classList.add("active"); _setVp(vp.w); };
+          vpBar.appendChild(btn);
+          return btn;
+        });
+        _setVp(null);
+        iframeWrap.appendChild(_viewIframe);
+        _annOverlay = document.createElement("div");
+        _annOverlay.className = "rev-ann-overlay";
+        _annLayer = document.createElement("div");
+        _annLayer.className = "rev-ann-layer";
+        iframeWrap.appendChild(_annOverlay);
+        iframeWrap.appendChild(_annLayer);
+        leftBody.appendChild(vpBar);
+        leftBody.appendChild(iframeWrap);
+        _activeOptIdx = 0;
         const setActive = (i) => {
+          _preSetActiveHook?.();
           _activeOptIdx = i;
           _viewIframe.srcdoc = opts[i].html;
           cards.forEach((c, j) => {
             c.style.borderColor = j === i ? 'var(--accent)' : 'var(--border)';
             c.style.background  = j === i ? 'var(--hover)'  : 'var(--bg)';
           });
+          _postSetActiveHook?.();
         };
         const cards = opts.map((opt, i) => {
           const card = document.createElement("button");
@@ -2223,15 +2261,17 @@ preview.srcdoc=OPTIONS[active].html;
       if (_annOverlay && _annLayer && _viewIframe) {
         const { hd: annHd, body: annBody, badgeEl: annBadge } = mkAccSection("주석");
 
-        // 페이지별 주석 지원
+        // 페이지별 주석 지원 (디자인 안 포함)
         let _currentAnnPage = '';
+        // 디자인 안이 여러 개일 때 키에 안 인덱스 포함
+        const _annKey = (pk) => opts.length > 0 ? `opt${_activeOptIdx}:${pk}` : pk;
         const _annBase = () => {
           let base = p.annotations?.[phase];
           if (!base) return {};
           if (Array.isArray(base)) { base = { '': base }; p.annotations[phase] = base; }
           return base;
         };
-        const _loadPageAnns = (pageKey) => (_annBase()[pageKey] || []).map(a => ({...a}));
+        const _loadPageAnns = (pageKey) => (_annBase()[_annKey(pageKey)] || []).map(a => ({...a}));
         _localAnn = _loadPageAnns(_currentAnnPage);
         let _localAnnActive = null;
         let _annModeOn = false;
@@ -2240,14 +2280,18 @@ preview.srcdoc=OPTIONS[active].html;
           if (!p.annotations) p.annotations = {};
           let base = p.annotations[phase];
           if (!base || Array.isArray(base)) { base = Array.isArray(base) ? {'':base} : {}; p.annotations[phase] = base; }
-          base[_currentAnnPage] = _localAnn.map(a => ({...a}));
+          base[_annKey(_currentAnnPage)] = _localAnn.map(a => ({...a}));
           saveState();
         };
 
-        // 페이지 라벨 표시
+        // 페이지 라벨 (디자인 안 + 페이지)
+        const _annPageLabelText = () => {
+          const optPart = opts.length > 0 ? `${opts[_activeOptIdx]?.title || `안${_activeOptIdx+1}`} · ` : '';
+          return optPart + (_currentAnnPage ? `페이지: ${_currentAnnPage}` : '메인 페이지');
+        };
         const annPageLabel = document.createElement("div");
         annPageLabel.className = "ann-page-label";
-        annPageLabel.textContent = _currentAnnPage ? `페이지: ${_currentAnnPage}` : '메인 페이지';
+        annPageLabel.textContent = _annPageLabelText();
 
         const renderAnnPins = () => {
           _annLayer.innerHTML = "";
@@ -2354,7 +2398,7 @@ preview.srcdoc=OPTIONS[active].html;
           _currentAnnPage = newPage;
           _localAnn = _loadPageAnns(_currentAnnPage);
           _localAnnActive = null;
-          annPageLabel.textContent = _currentAnnPage ? `페이지: ${_currentAnnPage}` : '메인 페이지';
+          annPageLabel.textContent = _annPageLabelText();
           renderAnnPins();
           renderAnnList();
         };
@@ -2369,6 +2413,14 @@ preview.srcdoc=OPTIONS[active].html;
           } catch {}
         });
         renderAnnPinsLate = renderAnnPins;
+        // 디자인 안 전환 시 주석 저장/로드 연결
+        _preSetActiveHook = annSave;
+        _postSetActiveHook = () => {
+          _localAnn = _loadPageAnns(_currentAnnPage);
+          _localAnnActive = null;
+          annPageLabel.textContent = _annPageLabelText();
+          renderAnnPins(); renderAnnList();
+        };
         annBody.appendChild(annPageLabel);
         annBody.appendChild(annModeBtn);
         annBody.appendChild(annEmptyEl);
@@ -2402,6 +2454,34 @@ preview.srcdoc=OPTIONS[active].html;
       const handoffInfoP = document.createElement("p");
       handoffInfoP.style.cssText = "font-size:11px;color:var(--muted);line-height:1.5;margin:0;flex-shrink:0;";
       handoffInfoP.textContent = "/handoff 프롬프트를 복사해 AI에 붙여넣으면 핸드오프 리포트가 생성됩니다.";
+
+      // 3가지 안이 있을 경우 어떤 안을 핸드오프할지 선택
+      let _handoffOptIdx = 0;
+      let handoffOptSelRow = null;
+      if (opts.length > 1) {
+        handoffOptSelRow = document.createElement("div");
+        handoffOptSelRow.style.cssText = "display:flex;gap:4px;align-items:center;flex-wrap:wrap;flex-shrink:0;";
+        const optSelLabel = document.createElement("span");
+        optSelLabel.textContent = "반영할 디자인 안:";
+        optSelLabel.style.cssText = "font-size:11px;color:var(--muted);";
+        handoffOptSelRow.appendChild(optSelLabel);
+        opts.forEach((opt, i) => {
+          const ob = document.createElement("button");
+          ob.type = "button";
+          ob.textContent = opt.title || `${['A','B','C'][i]}안`;
+          ob.className = "btn-sm";
+          if (i === 0) { ob.style.background = "var(--accent)"; ob.style.color = "#fff"; }
+          ob.addEventListener("click", () => {
+            _handoffOptIdx = i;
+            handoffOptSelRow.querySelectorAll("button").forEach((b, bi) => {
+              b.style.background = bi === i ? "var(--accent)" : "";
+              b.style.color = bi === i ? "#fff" : "";
+            });
+          });
+          handoffOptSelRow.appendChild(ob);
+        });
+      }
+
       const handoffCopyBtn = document.createElement("button");
       handoffCopyBtn.type = "button"; handoffCopyBtn.textContent = "↗ /handoff 프롬프트 복사";
       handoffCopyBtn.className = "btn-sm";
@@ -2410,7 +2490,14 @@ preview.srcdoc=OPTIONS[active].html;
         const handoffSkill = state.skills.find(s => s.id === 'p4');
         const basePrompt = handoffSkill?.prompt || '/handoff 스킬 프롬프트를 찾을 수 없습니다.';
         const notes = memoTa.value.trim();
-        let full = basePrompt + '\n\n---\n\n**[Phase 3 HTML 목업 — 자동 포함]**\n\n```html\n' + deliv.content + '\n```';
+        const handoffHtml = opts.length > 0 ? (opts[_handoffOptIdx]?.html || deliv.content) : deliv.content;
+        let full = basePrompt + '\n\n---\n\n**[Phase 3 HTML 목업 — 자동 포함]**\n\n```html\n' + handoffHtml + '\n```';
+        if (p.designSystem?.exists) {
+          const dsParts = [];
+          if (p.designSystem.content?.trim()) dsParts.push(p.designSystem.content.trim());
+          if (p.designSystem.files?.length) p.designSystem.files.forEach(f => dsParts.push(`--- ${f.name} ---\n${f.content}`));
+          if (dsParts.length) full += '\n\n**[디자인 시스템 — 자동 포함]**\n\n```\n' + dsParts.join('\n\n') + '\n```';
+        }
         if (notes) full += '\n\n**[검수 메모]**\n' + notes;
         try {
           await navigator.clipboard.writeText(full);
@@ -2454,6 +2541,7 @@ preview.srcdoc=OPTIONS[active].html;
         if (h4saved?.content) window.open(URL.createObjectURL(new Blob([h4saved.content], { type: 'text/html;charset=utf-8' })));
       });
       handoffBody.appendChild(handoffInfoP);
+      if (handoffOptSelRow) handoffBody.appendChild(handoffOptSelRow);
       handoffBody.appendChild(handoffCopyBtn);
       handoffBody.appendChild(handoffPasteTa);
       handoffBody.appendChild(handoffSaveBtn);
@@ -2822,7 +2910,7 @@ preview.srcdoc=OPTIONS[active].html;
 
         const head = document.createElement("div");
         head.className = "project-head";
-        head.innerHTML = `<h2 contenteditable="true" data-rename="${p.id}">${escapeHtml(p.name)}</h2>
+        head.innerHTML = `<h2 contenteditable="true" data-rename="${p.id}" title="클릭하여 이름 변경">${escapeHtml(p.name)}</h2>
           <span class="mini">${p.instances.length}개</span>`;
 
         const del = document.createElement("button");
@@ -2841,6 +2929,9 @@ preview.srcdoc=OPTIONS[active].html;
           const nv = e.target.textContent.trim() || p.name;
           p.name = nv; e.target.textContent = nv;
           saveState(); renderSidebar();
+        });
+        head.querySelector("h2").addEventListener("keydown", (e) => {
+          if (e.key === "Enter") { e.preventDefault(); e.target.blur(); }
         });
 
         // Phase 스킬(s1/p2/p3/p4)과 나머지 분리 (qa는 고정 행으로 별도 처리)

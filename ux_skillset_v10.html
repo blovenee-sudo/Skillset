@@ -486,6 +486,11 @@
     .vp-type-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
     /* 목업 페이지 주석 라벨 */
     .ann-page-label { font-size:10px; color:var(--muted); padding:2px 0 6px; }
+    /* 뷰어 상단 통합 내비 바 (안 선택 + 단말기) */
+    .nav-combined-bar { display:flex; align-items:center; gap:4px; padding:6px 10px; border-bottom:1px solid var(--border); flex-shrink:0; overflow-x:auto; }
+    .nav-opt-btn { padding:3px 10px; border-radius:4px; border:1px solid var(--border); background:var(--bg); font-size:11px; font-weight:600; color:var(--muted); cursor:pointer; white-space:nowrap; }
+    .nav-opt-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .nav-sep { width:1px; height:14px; background:var(--border); margin:0 4px; flex-shrink:0; }
     /* 화면 탭 바 */
     .screen-tab-bar { display:flex; gap:2px; padding:4px 8px; border-bottom:1px solid var(--border); flex-shrink:0; overflow-x:auto; align-items:center; }
     .screen-tab { display:flex; align-items:center; gap:3px; padding:3px 10px; border-radius:4px; border:1px solid transparent; background:transparent; font-size:11px; color:var(--muted); cursor:pointer; white-space:nowrap; }
@@ -1617,12 +1622,10 @@ ${bodyHtml}
         };
       } else if (opts.length > 0) {
         leftBody.style.cssText = "overflow:hidden;display:flex;flex-direction:column;";
-        const optBar = document.createElement("div");
-        optBar.style.cssText = "display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;";
-        leftBody.appendChild(optBar);
-        // Viewport 타입 바
-        const vpBar = document.createElement("div");
-        vpBar.className = "vp-type-bar";
+        // 통합 내비 바: [A안][B안][C안] | [모바일][태블릿][데스크탑]
+        const navBar = document.createElement("div");
+        navBar.className = "nav-combined-bar";
+        leftBody.appendChild(navBar);
         const vpTypes = [
           { label: "모바일", w: 375 },
           { label: "태블릿", w: 768 },
@@ -1637,12 +1640,27 @@ ${bodyHtml}
           else { _viewIframe.style.width = "100%"; iframeWrap.style.background = ""; }
           setTimeout(() => { renderAnnPinsLate && renderAnnPinsLate(); }, 50);
         };
+        // 안 선택 버튼
+        const optBtns = opts.map((opt, i) => {
+          const btn = document.createElement("button");
+          btn.className = "nav-opt-btn" + (i === 0 ? " active" : "");
+          btn.title = opt.ux;
+          btn.textContent = opt.title;
+          btn.onclick = () => setActive(i);
+          navBar.appendChild(btn);
+          return btn;
+        });
+        // 구분선
+        const navSep = document.createElement("div");
+        navSep.className = "nav-sep";
+        navBar.appendChild(navSep);
+        // 단말기 버튼
         const vpBtns = vpTypes.map(vp => {
           const btn = document.createElement("button");
           btn.className = "vp-type-btn" + (vp.w === null ? " active" : "");
           btn.textContent = vp.label;
           btn.onclick = () => { vpBtns.forEach(b => b.classList.remove("active")); btn.classList.add("active"); _setVp(vp.w); };
-          vpBar.appendChild(btn);
+          navBar.appendChild(btn);
           return btn;
         });
         _setVp(null);
@@ -1653,7 +1671,6 @@ ${bodyHtml}
         _annLayer.className = "rev-ann-layer";
         iframeWrap.appendChild(_annOverlay);
         iframeWrap.appendChild(_annLayer);
-        leftBody.appendChild(vpBar);
         leftBody.appendChild(iframeWrap);
         _iframeWrap = iframeWrap;
         _activeOptIdx = 0;
@@ -1661,21 +1678,9 @@ ${bodyHtml}
           _preSetActiveHook?.();
           _activeOptIdx = i;
           _viewIframe.srcdoc = opts[i].html;
-          cards.forEach((c, j) => {
-            c.style.borderColor = j === i ? 'var(--accent)' : 'var(--border)';
-            c.style.background  = j === i ? 'var(--hover)'  : 'var(--bg)';
-          });
+          optBtns.forEach((b, j) => b.classList.toggle("active", j === i));
           _postSetActiveHook?.();
         };
-        const cards = opts.map((opt, i) => {
-          const card = document.createElement("button");
-          card.type = "button";
-          card.style.cssText = "flex:1;min-width:130px;text-align:left;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);cursor:pointer;transition:border-color .15s,background .15s;";
-          card.innerHTML = `<div style="font-size:12px;font-weight:600;margin-bottom:4px;line-height:1.3">${escapeHtml(opt.title)}</div><div style="font-size:11px;color:var(--muted);line-height:1.45">${escapeHtml(opt.ux)}</div>`;
-          card.addEventListener("click", () => setActive(i));
-          optBar.appendChild(card);
-          return card;
-        });
         setActive(0);
         $("btnDelivViewOpen").onclick = () => {
           const optsJson = JSON.stringify(opts.map(o => ({title:o.title,ux:o.ux,html:o.html})))
@@ -2441,6 +2446,44 @@ preview.srcdoc=OPTIONS[active].html;
           }, 50);
         });
 
+        // iframe에서 화면 목록 자동 감지
+        const _detectScreens = () => {
+          try {
+            const win = _viewIframe.contentWindow;
+            const doc = _viewIframe.contentDocument;
+            // 1. window.SCREENS 객체 (p4 핸드오프 형식)
+            if (win.SCREENS && typeof win.SCREENS === 'object' && !Array.isArray(win.SCREENS)) {
+              return Object.keys(win.SCREENS);
+            }
+            // 2. window.__AX_SCREENS__ 배열 (자발적 선언 API)
+            if (Array.isArray(win.__AX_SCREENS__) && win.__AX_SCREENS__.length > 0) {
+              return win.__AX_SCREENS__;
+            }
+            // 3. data-screen 속성 요소
+            const dataEls = doc.querySelectorAll('[data-screen]');
+            if (dataEls.length > 1) {
+              return [...new Set([...dataEls].map(e => e.dataset.screen))].filter(Boolean);
+            }
+            // 4. .screen[id] 또는 .page[id] (AI 목업 흔한 패턴)
+            const screenEls = doc.querySelectorAll('.screen[id], .page[id], [class*="screen"][id]');
+            if (screenEls.length > 1) {
+              return [...new Set([...screenEls].map(e => e.id))].filter(Boolean);
+            }
+          } catch {}
+          return null;
+        };
+
+        // iframe 내 화면 전환
+        const _iframeShowScreen = (name) => {
+          try {
+            const win = _viewIframe.contentWindow;
+            if (typeof win.showScreen === 'function') { win.showScreen(name); return; }
+            if (typeof win.__AX_SHOW_SCREEN__ === 'function') { win.__AX_SHOW_SCREEN__(name); return; }
+            const el = _viewIframe.contentDocument.querySelector(`[data-screen="${name}"], #${CSS.escape(name)}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          } catch {}
+        };
+
         // 화면 탭 바 빌더
         const buildScreenTabBar = () => {
           const existing = leftBody.querySelector(".screen-tab-bar");
@@ -2459,6 +2502,7 @@ preview.srcdoc=OPTIONS[active].html;
               _localAnnActive = null;
               annPageLabel.textContent = _annPageLabelText();
               buildScreenTabBar(); renderAnnPins(); renderAnnList();
+              _iframeShowScreen(name);
             });
             const nameSpan = document.createElement("span");
             nameSpan.textContent = name;
@@ -2508,6 +2552,23 @@ preview.srcdoc=OPTIONS[active].html;
         };
 
         _viewIframe.addEventListener('load', () => {
+          // 화면 자동 감지
+          const detected = _detectScreens();
+          if (detected && detected.length > 0) {
+            const existing = _getScreens();
+            const isDefault = existing.length === 1 && existing[0] === '기본';
+            if (isDefault || detected.join() !== existing.join()) {
+              _saveScreens(detected);
+              if (!detected.includes(_currentScreen)) {
+                _currentScreen = detected[0];
+                _localAnn = _loadScreenAnns(_currentScreen);
+                _localAnnActive = null;
+                annPageLabel.textContent = _annPageLabelText();
+                renderAnnList();
+              }
+              buildScreenTabBar();
+            }
+          }
           renderAnnPins();
           try { _viewIframe.contentWindow.addEventListener('scroll', renderAnnPins, { passive: true }); } catch {}
         });

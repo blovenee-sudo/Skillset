@@ -676,20 +676,8 @@
         <label style="font-size:12px;color:var(--muted)">LLM 결과를 붙여넣거나 파일을 불러오세요.</label>
         <button type="button" class="btn-sm" id="btnDelivEditFile">파일 첨부</button>
         <input type="file" id="delivEditFileInput" accept=".md,.json,.html,.txt" style="display:none">
-        <button type="button" class="btn-sm" id="btnDelivEditMultiMode" style="display:none">3가지 안</button>
       </div>
-      <!-- 3가지 안 탭 (phase3 전용, JS로 표시) -->
-      <div id="delivEditOptBar" style="display:none">
-        <div class="edit-opt-tabs">
-          <button class="edit-opt-tab active" data-opt-tab="a">A안</button>
-          <button class="edit-opt-tab" data-opt-tab="b">B안</button>
-          <button class="edit-opt-tab" data-opt-tab="c">C안</button>
-          <button type="button" id="btnDelivEditSingleMode" class="btn-sm" style="margin-left:auto;font-size:10px">단일 모드</button>
-        </div>
-      </div>
-      <textarea id="delivEditArea" style="width:100%;height:180px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="여기에 붙여넣기..."></textarea>
-      <textarea id="delivEditAreaB" style="display:none;width:100%;height:180px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="B안 HTML (비어두면 제외됩니다)..."></textarea>
-      <textarea id="delivEditAreaC" style="display:none;width:100%;height:180px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="C안 HTML (비어두면 제외됩니다)..."></textarea>
+      <textarea id="delivEditArea" style="width:100%;height:220px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="여기에 붙여넣기..."></textarea>
       <details id="delivCustomQaDetails" style="margin-top:8px">
         <summary style="font-size:12px;color:var(--muted);cursor:pointer;user-select:none;padding:4px 0">AI 검토 항목 추가 (선택)</summary>
         <p style="font-size:11px;color:var(--muted);margin:6px 0 4px;line-height:1.5">AI가 제안한 QA 체크리스트를 붙여넣으세요. 줄 단위로 파싱되며 고정 항목 아래에 표시됩니다.</p>
@@ -1494,23 +1482,9 @@
       _delivEditState = { projectId, phase };
       $("delivEditTitle").textContent = `${PHASE_META[phase].label} 스킬 결과 저장`;
       $("delivEditGuide").style.display = phase === 'phase3' ? '' : 'none';
-      $("btnDelivEditMultiMode").style.display = phase === 'phase3' ? '' : 'none';
 
       const content = p.deliverables?.[phase]?.content || "";
-      const existingOpts = phase === 'phase3' ? parseDesignOptions(content) : [];
-
-      if (existingOpts.length >= 2) {
-        // 기존 3가지 안 포맷 → 멀티 모드로 열기
-        _activateMultiMode();
-        $("delivEditArea").value = existingOpts[0]?.html || "";
-        $("delivEditAreaB").value = existingOpts[1]?.html || "";
-        $("delivEditAreaC").value = existingOpts[2]?.html || "";
-        _switchOptTab('a');
-      } else {
-        // 단일 모드
-        _activateSingleMode();
-        $("delivEditArea").value = content;
-      }
+      $("delivEditArea").value = content;
 
       const existingCq = p.deliverables?.[phase]?.customQa;
       const cqTa = $("delivCustomQaArea");
@@ -1622,10 +1596,14 @@ ${bodyHtml}
         };
       } else if (opts.length > 0) {
         leftBody.style.cssText = "overflow:hidden;display:flex;flex-direction:column;";
-        // 통합 내비 바: [A안][B안][C안] | [모바일][태블릿][데스크탑]
-        const navBar = document.createElement("div");
-        navBar.className = "nav-combined-bar";
-        leftBody.appendChild(navBar);
+        // 안 선택 바 [A안][B안][C안]
+        const optBar = document.createElement("div");
+        optBar.className = "nav-combined-bar";
+        leftBody.appendChild(optBar);
+        // 단말기 바 [모바일][태블릿][데스크탑]
+        const vpBar = document.createElement("div");
+        vpBar.className = "vp-type-bar";
+        leftBody.appendChild(vpBar);
         const vpTypes = [
           { label: "모바일", w: 375 },
           { label: "태블릿", w: 768 },
@@ -1640,27 +1618,13 @@ ${bodyHtml}
           else { _viewIframe.style.width = "100%"; iframeWrap.style.background = ""; }
           setTimeout(() => { renderAnnPinsLate && renderAnnPinsLate(); }, 50);
         };
-        // 안 선택 버튼
-        const optBtns = opts.map((opt, i) => {
-          const btn = document.createElement("button");
-          btn.className = "nav-opt-btn" + (i === 0 ? " active" : "");
-          btn.title = opt.ux;
-          btn.textContent = opt.title;
-          btn.onclick = () => setActive(i);
-          navBar.appendChild(btn);
-          return btn;
-        });
-        // 구분선
-        const navSep = document.createElement("div");
-        navSep.className = "nav-sep";
-        navBar.appendChild(navSep);
         // 단말기 버튼
         const vpBtns = vpTypes.map(vp => {
           const btn = document.createElement("button");
           btn.className = "vp-type-btn" + (vp.w === null ? " active" : "");
           btn.textContent = vp.label;
           btn.onclick = () => { vpBtns.forEach(b => b.classList.remove("active")); btn.classList.add("active"); _setVp(vp.w); };
-          navBar.appendChild(btn);
+          vpBar.appendChild(btn);
           return btn;
         });
         _setVp(null);
@@ -1681,6 +1645,16 @@ ${bodyHtml}
           optBtns.forEach((b, j) => b.classList.toggle("active", j === i));
           _postSetActiveHook?.();
         };
+        // 안 선택 버튼 (setActive 선언 후)
+        const optBtns = opts.map((opt, i) => {
+          const btn = document.createElement("button");
+          btn.className = "nav-opt-btn" + (i === 0 ? " active" : "");
+          btn.title = opt.ux;
+          btn.textContent = opt.title;
+          btn.onclick = () => setActive(i);
+          optBar.appendChild(btn);
+          return btn;
+        });
         setActive(0);
         $("btnDelivViewOpen").onclick = () => {
           const optsJson = JSON.stringify(opts.map(o => ({title:o.title,ux:o.ux,html:o.html})))
@@ -2552,23 +2526,6 @@ preview.srcdoc=OPTIONS[active].html;
         };
 
         _viewIframe.addEventListener('load', () => {
-          // 화면 자동 감지
-          const detected = _detectScreens();
-          if (detected && detected.length > 0) {
-            const existing = _getScreens();
-            const isDefault = existing.length === 1 && existing[0] === '기본';
-            if (isDefault || detected.join() !== existing.join()) {
-              _saveScreens(detected);
-              if (!detected.includes(_currentScreen)) {
-                _currentScreen = detected[0];
-                _localAnn = _loadScreenAnns(_currentScreen);
-                _localAnnActive = null;
-                annPageLabel.textContent = _annPageLabelText();
-                renderAnnList();
-              }
-              buildScreenTabBar();
-            }
-          }
           renderAnnPins();
           try { _viewIframe.contentWindow.addEventListener('scroll', renderAnnPins, { passive: true }); } catch {}
         });
@@ -2579,12 +2536,11 @@ preview.srcdoc=OPTIONS[active].html;
           _localAnn = _loadScreenAnns(_currentScreen);
           _localAnnActive = null;
           annPageLabel.textContent = _annPageLabelText();
-          buildScreenTabBar(); renderAnnPins(); renderAnnList();
+          renderAnnPins(); renderAnnList();
         };
         annBody.appendChild(annPageLabel);
         annBody.appendChild(annModeBtn);
         annBody.appendChild(annEmptyEl);
-        buildScreenTabBar();
         renderAnnPins();
         renderAnnList();
       }
@@ -2725,42 +2681,6 @@ preview.srcdoc=OPTIONS[active].html;
     }
 
     (function initDelivModals() {
-      // ── 3가지 안 모드 ──
-      let _isMultiMode = false;
-      let _currentOptTab = 'a';
-
-      window._activateMultiMode = () => {
-        _isMultiMode = true;
-        $("delivEditOptBar").style.display = '';
-        $("btnDelivEditMultiMode").style.display = 'none';
-        _switchOptTab('a');
-      };
-      window._activateSingleMode = () => {
-        _isMultiMode = false;
-        $("delivEditOptBar").style.display = 'none';
-        $("btnDelivEditMultiMode").style.display = _delivEditState?.phase === 'phase3' ? '' : 'none';
-        $("delivEditArea").style.display = '';
-        $("delivEditAreaB").style.display = 'none';
-        $("delivEditAreaC").style.display = 'none';
-      };
-      window._switchOptTab = (tab) => {
-        _currentOptTab = tab;
-        document.querySelectorAll('.edit-opt-tab[data-opt-tab]').forEach(b => {
-          b.classList.toggle('active', b.dataset.optTab === tab);
-        });
-        $("delivEditArea").style.display = tab === 'a' ? '' : 'none';
-        $("delivEditAreaB").style.display = tab === 'b' ? '' : 'none';
-        $("delivEditAreaC").style.display = tab === 'c' ? '' : 'none';
-      };
-
-      document.querySelectorAll('.edit-opt-tab[data-opt-tab]').forEach(btn => {
-        btn.addEventListener('click', () => _switchOptTab(btn.dataset.optTab));
-      });
-      $("btnDelivEditMultiMode").addEventListener('click', () => _activateMultiMode());
-      $("btnDelivEditSingleMode").addEventListener('click', () => {
-        // 단일 모드 전환 시 A안 내용 유지
-        _activateSingleMode();
-      });
 
       $("btnDelivEditFile").addEventListener("click", () => $("delivEditFileInput").click());
       $("delivEditFileInput").addEventListener("change", (e) => {
@@ -2783,21 +2703,7 @@ preview.srcdoc=OPTIONS[active].html;
       $("btnDelivEditSave").addEventListener("click", () => {
         if (!_delivEditState) return;
         const { projectId, phase } = _delivEditState;
-        let content;
-        if (_isMultiMode) {
-          const aHtml = $("delivEditArea").value.trim();
-          const bHtml = $("delivEditAreaB").value.trim();
-          const cHtml = $("delivEditAreaC").value.trim();
-          if (!aHtml) { toast("A안 내용을 입력해주세요"); return; }
-          const wrapOpt = (n, label, html) =>
-            `<!-- AX_OPTION\nn: ${n}\ntitle: ${label}\nux: ${label} 디자인\n-->\n${html}\n<!-- AX_OPTION_END -->`;
-          const parts = [wrapOpt(1, 'A안', aHtml)];
-          if (bHtml) parts.push(wrapOpt(2, 'B안', bHtml));
-          if (cHtml) parts.push(wrapOpt(3, 'C안', cHtml));
-          content = parts.join('\n\n');
-        } else {
-          content = $("delivEditArea").value.trim();
-        }
+        const content = $("delivEditArea").value.trim();
         if (!content) { toast("내용을 입력해주세요"); return; }
         const p = state.projects.find(x => x.id === projectId);
         if (!p) return;

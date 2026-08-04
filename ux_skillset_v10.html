@@ -215,7 +215,6 @@
       color: #fff; font-weight: 600;
     }
     .copy-btn:hover { filter: brightness(1.06); }
-    #llmTypeSelect { width: auto; margin: 0; padding: 6px 10px; font-size: 12px; flex-shrink: 0; }
     textarea.prompt-area {
       width: 100%; min-height: 160px; padding: 12px; border-radius: 8px;
       border: 1px solid var(--border); background: var(--bg); font-size: 13px; line-height: 1.5; resize: vertical;
@@ -551,10 +550,6 @@
       <div class="prompt-area prompt-rendered" id="detailPrompt"></div>
       <div class="detail-actions">
         <code id="detailSlashBadge" style="font-family:ui-monospace,monospace;font-size:13px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--accent);align-self:center;white-space:nowrap"></code>
-        <select id="llmTypeSelect">
-          <option value="other">기타 LLM</option>
-          <option value="claude">Claude / Codex</option>
-        </select>
         <button type="button" class="copy-btn" id="btnCopy">스킬 복사</button>
         <button type="button" class="btn-sm" id="btnEditSkill" style="display:none">스킬 편집</button>
         <button type="button" class="btn-sm" id="btnDelSkill" style="display:none;border-color:#7f1d1d;color:#fca5a5">스킬 삭제</button>
@@ -3247,17 +3242,6 @@ preview.srcdoc=OPTIONS[active].html;
       document.head.appendChild(s);
     }
 
-    function updateCopyBtn() {
-      const sk = selectedSkillId ? state.skills.find(s => s.id === selectedSkillId) : null;
-      if (!sk) return;
-      const llmType = state.llmType || 'other';
-      const isRegistered = !!(state.registeredSkills || {})[sk.id];
-      if (llmType === 'claude') {
-        $("btnCopy").textContent = isRegistered ? "스킬 복사" : "스킬 등록";
-      } else {
-        $("btnCopy").textContent = "스킬 복사";
-      }
-    }
 
     function openDetail(skillId, projectId = null) {
       try {
@@ -3315,8 +3299,6 @@ preview.srcdoc=OPTIONS[active].html;
           .catch(() => {});
       }
 
-      $("llmTypeSelect").value = state.llmType || 'other';
-      updateCopyBtn();
       $("detailPanel").classList.add("open");
       $("detailBackdrop").classList.add("open");
       } catch (e) {
@@ -3422,21 +3404,7 @@ preview.srcdoc=OPTIONS[active].html;
         }
 
         const injection = buildInjection(selectedProjectId, sk.id);
-        const llmType = state.llmType || 'other';
-        const isRegistered = !!(state.registeredSkills || {})[sk.id];
-
-        let copyText;
-        if (llmType === 'claude' && isRegistered) {
-          // 등록된 Claude/Codex: 명령어 + 이전 페이즈 결과만 복사
-          copyText = (sk.slash || sk.name) + injection;
-        } else if (llmType === 'claude' && !isRegistered) {
-          // 미등록 Claude/Codex: 등록 가이드 + 전체 지침 복사 (injection 제외)
-          const guide = `━━ 스킬 등록 안내 (최초 1회) ━━\n아래 내용을 Claude Projects 지침 또는 Custom Instructions에 추가하세요.\n등록 후에는 ${sk.slash || sk.name} 명령어만 입력하면 이 지침이 실행됩니다.\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-          copyText = guide + (sk.slash || sk.name) + "\n\n" + promptText;
-        } else {
-          // 기타 LLM: 기존 동작 (전체 지침 + 이전 페이즈 결과)
-          copyText = buildClipboardPrompt((sk.slash || sk.name) + "\n\n" + promptText + injection);
-        }
+        const copyText = buildClipboardPrompt((sk.slash || sk.name) + "\n\n" + promptText + injection);
 
         const ok = await copyToClipboard(copyText);
         if (ok) {
@@ -3448,39 +3416,18 @@ preview.srcdoc=OPTIONS[active].html;
           toast("스킬 복사됨 ✓");
           const _phaseKey = { s1:'phase1', p2:'phase2', p3:'phase3' }[sk.id];
           const _pid = selectedProjectId;
-
-          if (llmType === 'claude' && !isRegistered) {
-            // 첫 복사: 자동으로 등록 완료 처리
-            if (!state.registeredSkills) state.registeredSkills = {};
-            state.registeredSkills[sk.id] = true;
-            saveState();
-            updateCopyBtn();
-            $("copyHintText").innerHTML = `📋 <strong style="color:var(--text)">스킬 지침이 복사됐습니다.</strong><br>Claude Projects 지침 또는 Custom Instructions에 붙여넣으면 스킬이 등록됩니다.<br>다음 복사부터는 명령어만 복사됩니다.`;
-            $("copyHint").style.display = "block";
-          } else if (_pid && _phaseKey) {
-            // 페이즈 스킬: 패널 닫고 산출물 저장 팝업 자동 열기
+          if (_pid && _phaseKey) {
             pendingAction = { type: 'deliverable', projectId: _pid, phaseKey: _phaseKey };
             closeDetail();
             openDelivEdit(_pid, _phaseKey);
           } else {
             const slashCode = `<code style="font-size:11px;color:var(--accent);background:var(--bg);padding:1px 5px;border-radius:3px">${escapeHtml(sk.slash || sk.name)}</code>`;
-            if (llmType === 'claude') {
-              $("copyHintText").innerHTML = `✓ ${slashCode} 명령어가 복사됐습니다.`;
-            } else {
-              $("copyHintText").innerHTML = `💡 <strong style="color:var(--text)">Claude Code · Cursor · Copilot</strong> 사용자는 ${slashCode} 명령어만 입력해도 이 지침이 즉시 실행됩니다.`;
-            }
+            $("copyHintText").innerHTML = `✓ ${slashCode} 스킬이 복사됐습니다.`;
             $("copyHint").style.display = "block";
           }
         } else {
           toast("복사 실패 — 브라우저 권한을 확인하세요");
         }
-      });
-
-      $("llmTypeSelect").addEventListener("change", () => {
-        state.llmType = $("llmTypeSelect").value;
-        saveState();
-        $("copyHint").style.display = "none";
-        updateCopyBtn();
       });
 
 

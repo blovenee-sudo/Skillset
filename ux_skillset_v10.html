@@ -473,6 +473,16 @@
     .ds-file-del { font-size:11px; color:var(--muted); cursor:pointer; flex-shrink:0; padding:0 2px; }
     .ds-file-del:hover { color:var(--danger,#e74c3c); }
     .ds-attach-row { display:flex; gap:4px; flex-wrap:wrap; }
+    /* 산출물 저장 — 3가지 안 탭 */
+    .edit-opt-tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:6px; }
+    .edit-opt-tab { padding:5px 16px; border:none; background:none; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+    .edit-opt-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+    /* 뷰어 viewport 타입 버튼 */
+    .vp-type-bar { display:flex; gap:4px; padding:6px 10px; border-bottom:1px solid var(--border); flex-shrink:0; }
+    .vp-type-btn { padding:3px 10px; border-radius:4px; border:1px solid var(--border); background:var(--bg); font-size:11px; font-weight:600; color:var(--muted); cursor:pointer; }
+    .vp-type-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+    /* 목업 페이지 주석 라벨 */
+    .ann-page-label { font-size:10px; color:var(--muted); padding:2px 0 6px; }
   </style>
 </head>
 <body>
@@ -649,8 +659,20 @@
         <label style="font-size:12px;color:var(--muted)">LLM 결과를 붙여넣거나 파일을 불러오세요.</label>
         <button type="button" class="btn-sm" id="btnDelivEditFile">파일 첨부</button>
         <input type="file" id="delivEditFileInput" accept=".md,.json,.html,.txt" style="display:none">
+        <button type="button" class="btn-sm" id="btnDelivEditMultiMode" style="display:none">3가지 안</button>
+      </div>
+      <!-- 3가지 안 탭 (phase3 전용, JS로 표시) -->
+      <div id="delivEditOptBar" style="display:none">
+        <div class="edit-opt-tabs">
+          <button class="edit-opt-tab active" data-opt-tab="a">A안</button>
+          <button class="edit-opt-tab" data-opt-tab="b">B안</button>
+          <button class="edit-opt-tab" data-opt-tab="c">C안</button>
+          <button type="button" id="btnDelivEditSingleMode" class="btn-sm" style="margin-left:auto;font-size:10px">단일 모드</button>
+        </div>
       </div>
       <textarea id="delivEditArea" style="width:100%;height:180px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="여기에 붙여넣기..."></textarea>
+      <textarea id="delivEditAreaB" style="display:none;width:100%;height:180px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="B안 HTML (비어두면 제외됩니다)..."></textarea>
+      <textarea id="delivEditAreaC" style="display:none;width:100%;height:180px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="C안 HTML (비어두면 제외됩니다)..."></textarea>
       <details id="delivCustomQaDetails" style="margin-top:8px">
         <summary style="font-size:12px;color:var(--muted);cursor:pointer;user-select:none;padding:4px 0">AI 검토 항목 추가 (선택)</summary>
         <p style="font-size:11px;color:var(--muted);margin:6px 0 4px;line-height:1.5">AI가 제안한 QA 체크리스트를 붙여넣으세요. 줄 단위로 파싱되며 고정 항목 아래에 표시됩니다.</p>
@@ -1454,8 +1476,25 @@
       if (!p) return;
       _delivEditState = { projectId, phase };
       $("delivEditTitle").textContent = `${PHASE_META[phase].label} 스킬 결과 저장`;
-      $("delivEditArea").value = p.deliverables?.[phase]?.content || "";
       $("delivEditGuide").style.display = phase === 'phase3' ? '' : 'none';
+      $("btnDelivEditMultiMode").style.display = phase === 'phase3' ? '' : 'none';
+
+      const content = p.deliverables?.[phase]?.content || "";
+      const existingOpts = phase === 'phase3' ? parseDesignOptions(content) : [];
+
+      if (existingOpts.length >= 2) {
+        // 기존 3가지 안 포맷 → 멀티 모드로 열기
+        _activateMultiMode();
+        $("delivEditArea").value = existingOpts[0]?.html || "";
+        $("delivEditAreaB").value = existingOpts[1]?.html || "";
+        $("delivEditAreaC").value = existingOpts[2]?.html || "";
+        _switchOptTab('a');
+      } else {
+        // 단일 모드
+        _activateSingleMode();
+        $("delivEditArea").value = content;
+      }
+
       const existingCq = p.deliverables?.[phase]?.customQa;
       const cqTa = $("delivCustomQaArea");
       cqTa.value = existingCq ? existingCq.map(i => `- [ ] ${i.text}`).join('\n') : '';
@@ -1503,6 +1542,7 @@
       const opts = parseDesignOptions(deliv.content);
       const _isHtml = opts.length > 0 || /^\s*<!DOCTYPE html/i.test(deliv.content) || /^\s*<html/i.test(deliv.content);
       let _viewIframe = null, _annOverlay = null, _annLayer = null;
+      let _localAnn = []; // 현재 페이지 주석 (새 탭 열기에서도 접근)
 
       // 분할 레이아웃: 좌(뷰어) + 수직핸들 + 우(QA 패널)
       const split = document.createElement("div");
@@ -1673,17 +1713,78 @@ preview.srcdoc=OPTIONS[active].html;
           a.download = `${p.name}-prototype-${opt.n}.html`; a.click(); URL.revokeObjectURL(a.href);
         };
       } else if (_isHtml) {
-        leftBody.style.cssText = "overflow:hidden;position:relative;";
+        leftBody.style.cssText = "overflow:hidden;position:relative;display:flex;flex-direction:column;";
+
+        // ── Viewport 타입 바 (모바일/태블릿/데스크탑) ──
+        const vpBar = document.createElement("div");
+        vpBar.className = "vp-type-bar";
+        const vpTypes = [
+          { label: "모바일", w: 375 },
+          { label: "태블릿", w: 768 },
+          { label: "데스크탑", w: null }
+        ];
+        let _vpCurrent = null; // null = full width
+        const iframeWrap = document.createElement("div");
+        iframeWrap.style.cssText = "flex:1;min-height:0;overflow:auto;position:relative;display:flex;justify-content:center;";
         _viewIframe = document.createElement("iframe");
         _viewIframe.srcdoc = deliv.content;
-        _viewIframe.style.cssText = "width:100%;height:100%;border:none;display:block;";
-        leftBody.appendChild(_viewIframe);
+        _viewIframe.style.cssText = "height:100%;border:none;display:block;flex-shrink:0;";
+        const _setVp = (w) => {
+          _vpCurrent = w;
+          if (w) {
+            _viewIframe.style.width = w + "px";
+            iframeWrap.style.background = "var(--hover)";
+          } else {
+            _viewIframe.style.width = "100%";
+            iframeWrap.style.background = "";
+          }
+          setTimeout(() => { renderAnnPinsLate && renderAnnPinsLate(); }, 50);
+        };
+        const vpBtns = vpTypes.map(vp => {
+          const btn = document.createElement("button");
+          btn.className = "vp-type-btn" + (vp.w === null ? " active" : "");
+          btn.textContent = vp.label;
+          btn.onclick = () => {
+            vpBtns.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            _setVp(vp.w);
+          };
+          vpBar.appendChild(btn);
+          return btn;
+        });
+        _setVp(null);
+        iframeWrap.appendChild(_viewIframe);
         _annOverlay = document.createElement("div");
         _annOverlay.className = "rev-ann-overlay";
         _annLayer = document.createElement("div");
         _annLayer.className = "rev-ann-layer";
-        leftBody.appendChild(_annOverlay);
-        leftBody.appendChild(_annLayer);
+        iframeWrap.appendChild(_annOverlay);
+        iframeWrap.appendChild(_annLayer);
+        leftBody.appendChild(vpBar);
+        leftBody.appendChild(iframeWrap);
+
+        // ── 새 탭 주석 주입 헬퍼 ──
+        const generateAnnOverlay = (anns) => {
+          const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          return `<style>
+#__ax_ann_wrap__{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2147483647}
+.ax-ap{position:absolute;width:22px;height:22px;border-radius:50%;background:#E94B35;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:22px;cursor:pointer;pointer-events:all;transform:translate(-50%,-50%);box-shadow:0 2px 6px rgba(0,0,0,.3);border:2px solid #fff}
+.ax-ap.hl{outline:3px solid #E94B35;outline-offset:2px}
+#__ax_pnl__{position:fixed;right:0;top:0;bottom:0;width:260px;background:#fff;border-left:1px solid #ddd;box-shadow:-2px 0 12px rgba(0,0,0,.12);overflow-y:auto;padding:14px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;transform:translateX(100%);transition:transform .2s ease;z-index:2147483646}
+#__ax_pnl__.open{transform:translateX(0)}
+#__ax_pnl__ h3{font-size:13px;font-weight:700;color:#1a1a1a;margin:0 0 10px}
+.ax-ai{padding:9px 10px;border-radius:6px;border:1px solid #e2e2e2;margin-bottom:6px;cursor:pointer}
+.ax-ai:hover{background:#f9f9f9}
+.ax-ai.hl{border-color:#E94B35;background:#FFF5F4}
+.ax-ai-n{font-size:10px;font-weight:700;color:#E94B35;margin-bottom:3px}
+.ax-ai-t{font-size:12px;color:#333;line-height:1.5;white-space:pre-wrap}
+#__ax_cls__{position:absolute;top:10px;right:10px;background:none;border:none;font-size:16px;cursor:pointer;color:#999;line-height:1}
+</style>
+<div id="__ax_ann_wrap__">${anns.map((a,i)=>`<div class="ax-ap" data-id="${i}" style="left:${(a.xPct*100).toFixed(2)}%;top:${(a.yPct*100).toFixed(2)}%">${i+1}</div>`).join('')}</div>
+<div id="__ax_pnl__"><button id="__ax_cls__">✕</button><h3>주석</h3>${anns.map((a,i)=>`<div class="ax-ai" data-id="${i}"><div class="ax-ai-n">${i+1}</div><div class="ax-ai-t">${esc(a.note)}</div></div>`).join('')}</div>
+<script>(function(){var ps=document.querySelectorAll('.ax-ap'),its=document.querySelectorAll('.ax-ai'),pnl=document.getElementById('__ax_pnl__'),cls=document.getElementById('__ax_cls__');function act(i){ps.forEach(function(p,j){p.classList.toggle('hl',j===i)});its.forEach(function(it,j){it.classList.toggle('hl',j===i)});pnl.classList.add('open');if(its[i])its[i].scrollIntoView({block:'nearest'})}ps.forEach(function(p,i){p.addEventListener('click',function(e){e.stopPropagation();act(i)})});its.forEach(function(it,i){it.addEventListener('click',function(){act(i)})});cls.addEventListener('click',function(){pnl.classList.remove('open');ps.forEach(function(p){p.classList.remove('hl')});its.forEach(function(it){it.classList.remove('hl')})})})();<\/script>`;
+        };
+
         $("btnDelivViewOpen").onclick = () => {
           let htmlContent = deliv.content;
           if (_viewIframe && _viewIframe.contentDocument) {
@@ -1694,6 +1795,11 @@ preview.srcdoc=OPTIONS[active].html;
                 htmlContent = htmlContent.includes('</head>') ? htmlContent.replace('</head>', inj+'</head>') : inj+htmlContent;
               }
             } catch {}
+          }
+          // 주석 주입
+          if (_localAnn && _localAnn.length > 0) {
+            const overlay = generateAnnOverlay(_localAnn);
+            htmlContent = htmlContent.includes('</body>') ? htmlContent.replace('</body>', overlay+'</body>') : htmlContent + overlay;
           }
           window.open(URL.createObjectURL(new Blob([htmlContent], { type: 'text/html;charset=utf-8' })));
         };
@@ -1725,36 +1831,13 @@ preview.srcdoc=OPTIONS[active].html;
       rightBody.style.width = rightOpenW + 'px';
       vHandle.style.display = '';
 
-      const colStrip = document.createElement("div");
-      colStrip.className = "qa-col-strip";
-      colStrip.innerHTML = `<span class="qa-col-icon">‹</span><span class="qa-col-label">리뷰 패널</span>`;
-      rightBody.appendChild(colStrip);
-
       const panelHd = document.createElement("div");
       panelHd.className = "qa-panel-hd";
       const panelTitle = document.createElement("span");
       panelTitle.className = "qa-panel-title";
       panelTitle.textContent = phase === 'phase3' ? "리뷰 패널" : "QA 검토";
-      const colBtn = document.createElement("button");
-      colBtn.type = "button"; colBtn.className = "qa-col-btn"; colBtn.title = "접기"; colBtn.textContent = "›";
-      panelHd.appendChild(panelTitle); panelHd.appendChild(colBtn);
+      panelHd.appendChild(panelTitle);
       rightBody.appendChild(panelHd);
-
-      const togglePanel = () => {
-        const isOpen = rightBody.classList.toggle('qa-open');
-        if (isOpen) {
-          rightBody.style.transition = 'width .2s';
-          rightBody.style.width = rightOpenW + 'px';
-          vHandle.style.display = '';
-        } else {
-          rightOpenW = Math.max(200, rightBody.offsetWidth);
-          rightBody.style.transition = 'width .2s';
-          rightBody.style.width = '28px';
-          vHandle.style.display = 'none';
-        }
-      };
-      colStrip.addEventListener('click', togglePanel);
-      colBtn.addEventListener('click', togglePanel);
 
       vHandle.addEventListener('mousedown', e => {
         e.preventDefault();
@@ -1817,6 +1900,17 @@ preview.srcdoc=OPTIONS[active].html;
       const { hd: qaHd, body: qaBody, badgeEl: qaBadge } = mkAccSection("QA 검토");
       qaHd.classList.add("active");
       qaBody.style.display = "flex";
+
+      // DS 적용 여부 표시 (phase3)
+      if (phase === 'phase3') {
+        const dsRow = document.createElement("div");
+        dsRow.style.cssText = "display:flex;align-items:center;gap:5px;font-size:11px;padding:4px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px;";
+        const dsApplied = p.designSystem?.exists;
+        dsRow.innerHTML = dsApplied
+          ? `<span style="color:var(--accent)">✓</span><span>디자인 시스템 적용됨</span>`
+          : `<span style="color:var(--muted)">○</span><span style="color:var(--muted)">디자인 시스템 미적용 — phase2 산출물에서 설정 가능</span>`;
+        qaBody.appendChild(dsRow);
+      }
 
       const cl = QA_CHECKLISTS[phase];
       if (cl) {
@@ -2102,7 +2196,6 @@ preview.srcdoc=OPTIONS[active].html;
           accordion.querySelectorAll(".ax-acc-body").forEach(b => { b.style.display = "none"; });
           codeHd.classList.add("active");
           codeBody.style.display = "flex";
-          if (!rightBody.classList.contains('qa-open')) togglePanel();
         };
 
         const injectInspector = () => {
@@ -2125,17 +2218,36 @@ preview.srcdoc=OPTIONS[active].html;
       }
 
       // ── 3. 주석 ── (HTML 산출물인 경우만)
+      let renderAnnPinsLate = null; // viewport 리사이즈 후 재렌더용
+
       if (_annOverlay && _annLayer && _viewIframe) {
         const { hd: annHd, body: annBody, badgeEl: annBadge } = mkAccSection("주석");
-        let _localAnn = (p.annotations?.[phase] || []).map(a => ({ ...a }));
+
+        // 페이지별 주석 지원
+        let _currentAnnPage = '';
+        const _annBase = () => {
+          let base = p.annotations?.[phase];
+          if (!base) return {};
+          if (Array.isArray(base)) { base = { '': base }; p.annotations[phase] = base; }
+          return base;
+        };
+        const _loadPageAnns = (pageKey) => (_annBase()[pageKey] || []).map(a => ({...a}));
+        _localAnn = _loadPageAnns(_currentAnnPage);
         let _localAnnActive = null;
         let _annModeOn = false;
 
         const annSave = () => {
           if (!p.annotations) p.annotations = {};
-          p.annotations[phase] = _localAnn.map(a => ({ ...a }));
+          let base = p.annotations[phase];
+          if (!base || Array.isArray(base)) { base = Array.isArray(base) ? {'':base} : {}; p.annotations[phase] = base; }
+          base[_currentAnnPage] = _localAnn.map(a => ({...a}));
           saveState();
         };
+
+        // 페이지 라벨 표시
+        const annPageLabel = document.createElement("div");
+        annPageLabel.className = "ann-page-label";
+        annPageLabel.textContent = _currentAnnPage ? `페이지: ${_currentAnnPage}` : '메인 페이지';
 
         const renderAnnPins = () => {
           _annLayer.innerHTML = "";
@@ -2236,7 +2348,28 @@ preview.srcdoc=OPTIONS[active].html;
           }, 50);
         });
 
-        _viewIframe.addEventListener('load', renderAnnPins);
+        // 페이지 전환 감지 (hash 기반)
+        const _switchAnnPage = (newPage) => {
+          annSave();
+          _currentAnnPage = newPage;
+          _localAnn = _loadPageAnns(_currentAnnPage);
+          _localAnnActive = null;
+          annPageLabel.textContent = _currentAnnPage ? `페이지: ${_currentAnnPage}` : '메인 페이지';
+          renderAnnPins();
+          renderAnnList();
+        };
+        _viewIframe.addEventListener('load', () => {
+          renderAnnPins();
+          try {
+            const hash = _viewIframe.contentWindow.location.hash || '';
+            if (hash !== _currentAnnPage) _switchAnnPage(hash);
+            _viewIframe.contentWindow.addEventListener('hashchange', () => {
+              try { _switchAnnPage(_viewIframe.contentWindow.location.hash || ''); } catch {}
+            });
+          } catch {}
+        });
+        renderAnnPinsLate = renderAnnPins;
+        annBody.appendChild(annPageLabel);
         annBody.appendChild(annModeBtn);
         annBody.appendChild(annEmptyEl);
         renderAnnPins();
@@ -2343,12 +2476,54 @@ preview.srcdoc=OPTIONS[active].html;
     }
 
     (function initDelivModals() {
+      // ── 3가지 안 모드 ──
+      let _isMultiMode = false;
+      let _currentOptTab = 'a';
+
+      window._activateMultiMode = () => {
+        _isMultiMode = true;
+        $("delivEditOptBar").style.display = '';
+        $("btnDelivEditMultiMode").style.display = 'none';
+        _switchOptTab('a');
+      };
+      window._activateSingleMode = () => {
+        _isMultiMode = false;
+        $("delivEditOptBar").style.display = 'none';
+        $("btnDelivEditMultiMode").style.display = _delivEditState?.phase === 'phase3' ? '' : 'none';
+        $("delivEditArea").style.display = '';
+        $("delivEditAreaB").style.display = 'none';
+        $("delivEditAreaC").style.display = 'none';
+      };
+      window._switchOptTab = (tab) => {
+        _currentOptTab = tab;
+        document.querySelectorAll('.edit-opt-tab[data-opt-tab]').forEach(b => {
+          b.classList.toggle('active', b.dataset.optTab === tab);
+        });
+        $("delivEditArea").style.display = tab === 'a' ? '' : 'none';
+        $("delivEditAreaB").style.display = tab === 'b' ? '' : 'none';
+        $("delivEditAreaC").style.display = tab === 'c' ? '' : 'none';
+      };
+
+      document.querySelectorAll('.edit-opt-tab[data-opt-tab]').forEach(btn => {
+        btn.addEventListener('click', () => _switchOptTab(btn.dataset.optTab));
+      });
+      $("btnDelivEditMultiMode").addEventListener('click', () => _activateMultiMode());
+      $("btnDelivEditSingleMode").addEventListener('click', () => {
+        // 단일 모드 전환 시 A안 내용 유지
+        _activateSingleMode();
+      });
+
       $("btnDelivEditFile").addEventListener("click", () => $("delivEditFileInput").click());
       $("delivEditFileInput").addEventListener("change", (e) => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => { $("delivEditArea").value = ev.target.result; };
+        reader.onload = (ev) => {
+          const target = _isMultiMode
+            ? (_currentOptTab === 'b' ? $("delivEditAreaB") : _currentOptTab === 'c' ? $("delivEditAreaC") : $("delivEditArea"))
+            : $("delivEditArea");
+          target.value = ev.target.result;
+        };
         reader.readAsText(file, "UTF-8");
         e.target.value = "";
       });
@@ -2359,7 +2534,21 @@ preview.srcdoc=OPTIONS[active].html;
       $("btnDelivEditSave").addEventListener("click", () => {
         if (!_delivEditState) return;
         const { projectId, phase } = _delivEditState;
-        const content = $("delivEditArea").value.trim();
+        let content;
+        if (_isMultiMode) {
+          const aHtml = $("delivEditArea").value.trim();
+          const bHtml = $("delivEditAreaB").value.trim();
+          const cHtml = $("delivEditAreaC").value.trim();
+          if (!aHtml) { toast("A안 내용을 입력해주세요"); return; }
+          const wrapOpt = (n, label, html) =>
+            `<!-- AX_OPTION\nn: ${n}\ntitle: ${label}\nux: ${label} 디자인\n-->\n${html}\n<!-- AX_OPTION_END -->`;
+          const parts = [wrapOpt(1, 'A안', aHtml)];
+          if (bHtml) parts.push(wrapOpt(2, 'B안', bHtml));
+          if (cHtml) parts.push(wrapOpt(3, 'C안', cHtml));
+          content = parts.join('\n\n');
+        } else {
+          content = $("delivEditArea").value.trim();
+        }
         if (!content) { toast("내용을 입력해주세요"); return; }
         const p = state.projects.find(x => x.id === projectId);
         if (!p) return;

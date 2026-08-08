@@ -499,6 +499,16 @@
     .screen-tab-x:hover { opacity:1; }
     .screen-tab-add { padding:2px 7px; border-radius:4px; border:1px dashed var(--border); background:transparent; font-size:13px; color:var(--muted); cursor:pointer; line-height:1.4; }
     .screen-tab-add:hover { border-color:var(--accent); color:var(--accent); }
+    /* Handoff viewer */
+    .hf-screen-btn { font-size:11px; padding:3px 10px; border-radius:4px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; white-space:nowrap; }
+    .hf-screen-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .hf-spec-pane { display:flex; flex-direction:column; overflow:hidden; height:100%; }
+    .hf-spec-tabs { display:flex; border-bottom:1px solid var(--border); flex-shrink:0; overflow-x:auto; }
+    .hf-spec-tab { padding:8px 10px; font-size:11px; white-space:nowrap; cursor:pointer; color:var(--muted); border:none; border-bottom:2px solid transparent; background:none; flex-shrink:0; }
+    .hf-spec-tab.active { color:var(--text); border-bottom-color:var(--accent); }
+    .hf-spec-content { flex:1; overflow-y:auto; }
+    .hf-spec-panel { display:none; flex-direction:column; }
+    .hf-spec-panel.hf-active { display:flex; }
   </style>
 </head>
 <body>
@@ -1513,6 +1523,22 @@
       return opts.sort((a, b) => a.n - b.n);
     }
 
+    function parseHandoffScreens(content) {
+      const re = /<!--\s*AX_SCREEN\s*\nid:\s*([^\n]+)\s*\nname:\s*([^\n]+)\s*-->([\s\S]*?)<!--\s*AX_SCREEN_END\s*-->/g;
+      const screens = []; let m;
+      while ((m = re.exec(content)) !== null)
+        screens.push({ id: m[1].trim(), name: m[2].trim(), html: m[3].trim() });
+      return screens;
+    }
+
+    function parseHandoffSpecs(content) {
+      const get = (tag) => {
+        const m = content.match(new RegExp(`<!--\\s*AX_SPEC_${tag}\\s*-->([\\s\\S]*?)<!--\\s*AX_SPEC_${tag}_END\\s*-->`));
+        return m ? m[1].trim() : '';
+      };
+      return { components: get('COMPONENTS'), tokens: get('TOKENS'), interaction: get('INTERACTION') };
+    }
+
     function openDelivView(projectId, phase) {
       const p = state.projects.find(x => x.id === projectId);
       if (!p) return;
@@ -1526,7 +1552,10 @@
       body.innerHTML = "";
       body.style.cssText = "overflow:hidden;";
       const opts = parseDesignOptions(deliv.content);
-      const _isHtml = opts.length > 0 || /^\s*<!DOCTYPE html/i.test(deliv.content) || /^\s*<html/i.test(deliv.content);
+      const hScreens = phase === 'phase4' ? parseHandoffScreens(deliv.content) : [];
+      const hSpecs  = hScreens.length > 0 ? parseHandoffSpecs(deliv.content) : null;
+      let _isHVwr = hScreens.length > 0;
+      const _isHtml = opts.length > 0 || _isHVwr || /^\s*<!DOCTYPE html/i.test(deliv.content) || /^\s*<html/i.test(deliv.content);
       let _viewIframe = null, _annOverlay = null, _annLayer = null;
       let _localAnn = []; // 현재 페이지 주석 (새 탭 열기에서도 접근)
       let _activeOptIdx = 0;
@@ -1624,21 +1653,13 @@ ${bodyHtml}
         });
         _setVp(null);
         iframeWrap.appendChild(_viewIframe);
-        _annOverlay = document.createElement("div");
-        _annOverlay.className = "rev-ann-overlay";
-        _annLayer = document.createElement("div");
-        _annLayer.className = "rev-ann-layer";
-        iframeWrap.appendChild(_annOverlay);
-        iframeWrap.appendChild(_annLayer);
         leftBody.appendChild(iframeWrap);
         _iframeWrap = iframeWrap;
         _activeOptIdx = 0;
         const setActive = (i) => {
-          _preSetActiveHook?.();
           _activeOptIdx = i;
           _viewIframe.srcdoc = opts[i].html;
           optBtns.forEach((b, j) => b.classList.toggle("active", j === i));
-          _postSetActiveHook?.();
         };
         // 안 선택 버튼 (setActive 선언 후)
         const optBtns = opts.map((opt, i) => {
@@ -1736,6 +1757,165 @@ preview.srcdoc=OPTIONS[active].html;
           a.href = URL.createObjectURL(new Blob([opt.html], { type: 'text/html;charset=utf-8' }));
           a.download = `${p.name}-prototype-${opt.n}.html`; a.click(); URL.revokeObjectURL(a.href);
         };
+      } else if (_isHVwr) {
+        // ── 핸드오프 뷰어 (AX_SCREEN 기반) ──
+        leftBody.style.cssText = "overflow:hidden;position:relative;display:flex;flex-direction:column;";
+
+        // 화면 전환 바
+        const screenBar = document.createElement("div");
+        screenBar.style.cssText = "display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);";
+        hScreens.forEach(sc => {
+          const btn = document.createElement("button");
+          btn.className = "hf-screen-btn";
+          btn.dataset.screenId = sc.id;
+          btn.textContent = sc.name;
+          btn.onclick = () => hfSwitchScreen(sc.id);
+          screenBar.appendChild(btn);
+        });
+        leftBody.appendChild(screenBar);
+
+        // Viewport 타입 바
+        const vpBarH = document.createElement("div");
+        vpBarH.className = "vp-type-bar";
+        const vpTypesH = [
+          { label: "모바일", w: 375 },
+          { label: "태블릿", w: 768 },
+          { label: "데스크탑", w: null }
+        ];
+        vpTypesH.forEach(vt => {
+          const b = document.createElement("button");
+          b.className = "vp-type-btn";
+          b.textContent = vt.label;
+          if (vt.w === null) b.classList.add("active");
+          b.onclick = () => {
+            vpBarH.querySelectorAll(".vp-type-btn").forEach(x => x.classList.remove("active"));
+            b.classList.add("active");
+            if (vt.w) {
+              iframeWrapH.style.width = vt.w + "px";
+              iframeWrapH.style.margin = "0 auto";
+            } else {
+              iframeWrapH.style.width = "";
+              iframeWrapH.style.margin = "";
+            }
+          };
+          vpBarH.appendChild(b);
+        });
+        leftBody.appendChild(vpBarH);
+
+        // iFrame + 주석 레이어
+        const iframeWrapH = document.createElement("div");
+        iframeWrapH.style.cssText = "flex:1;overflow:auto;position:relative;";
+
+        _viewIframe = document.createElement("iframe");
+        _viewIframe.style.cssText = "width:100%;height:100%;border:none;display:block;";
+        _viewIframe.sandbox = "allow-scripts allow-same-origin";
+        iframeWrapH.appendChild(_viewIframe);
+
+        _annOverlay = document.createElement("div");
+        _annOverlay.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:10;";
+        _annLayer = document.createElement("div");
+        _annLayer.style.cssText = "position:absolute;inset:0;";
+        _annOverlay.appendChild(_annLayer);
+        iframeWrapH.appendChild(_annOverlay);
+        leftBody.appendChild(iframeWrapH);
+
+        // 주석 저장/로드 (화면별 키)
+        const _hfAnnKey = (sid) => `s|${sid}`;
+        const _hfLoadAnns = (sid) => ((p.annotations?.['phase4']?.[_hfAnnKey(sid)]) || []);
+        const _hfSaveAnns = (sid, anns) => {
+          if (!p.annotations) p.annotations = {};
+          if (!p.annotations['phase4']) p.annotations['phase4'] = {};
+          p.annotations['phase4'][_hfAnnKey(sid)] = anns;
+          saveState();
+        };
+
+        let _hfCurrentScreen = null;
+        let _hfCurrentAnns = [];
+        let _hfRenderDescPanel = () => {};
+        let _hfCodeUpdate = null;
+
+        function renderHfAnnPins() {
+          _annLayer.innerHTML = '';
+          _hfCurrentAnns.forEach((ann, i) => {
+            const pin = document.createElement("div");
+            pin.className = "ann-pin";
+            pin.style.cssText = `left:${ann.x*100}%;top:${ann.y*100}%;pointer-events:auto;`;
+            pin.textContent = i + 1;
+            pin.title = ann.text;
+            _annLayer.appendChild(pin);
+          });
+          _hfRenderDescPanel();
+        }
+
+        _annOverlay.addEventListener('click', e => {
+          if (_annOverlay.style.pointerEvents === 'none') return;
+          const rect = iframeWrapH.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / rect.width;
+          const y = (e.clientY - rect.top)  / rect.height;
+          const text = prompt('주석 내용을 입력하세요:');
+          if (!text) return;
+          _hfCurrentAnns.push({ x, y, text });
+          _hfSaveAnns(_hfCurrentScreen, _hfCurrentAnns);
+          renderHfAnnPins();
+        });
+
+        function hfSwitchScreen(screenId) {
+          if (_hfCurrentScreen) _hfSaveAnns(_hfCurrentScreen, _hfCurrentAnns);
+          _hfCurrentScreen = screenId;
+          _hfCurrentAnns = _hfLoadAnns(screenId);
+          screenBar.querySelectorAll('.hf-screen-btn').forEach(b =>
+            b.classList.toggle('active', b.dataset.screenId === screenId));
+          const sc = hScreens.find(s => s.id === screenId);
+          if (sc) {
+            const blob = new Blob([sc.html], { type: 'text/html;charset=utf-8' });
+            _viewIframe.src = URL.createObjectURL(blob);
+          }
+          renderHfAnnPins();
+          if (_hfCodeUpdate) _hfCodeUpdate(screenId);
+        }
+
+        // 초기 화면 로드
+        if (hScreens.length > 0) {
+          _hfCurrentScreen = hScreens[0].id;
+          _hfCurrentAnns = _hfLoadAnns(hScreens[0].id);
+          screenBar.querySelectorAll('.hf-screen-btn')[0]?.classList.add('active');
+          _viewIframe.src = URL.createObjectURL(new Blob([hScreens[0].html], { type: 'text/html;charset=utf-8' }));
+        }
+
+        // 새 탭 내보내기
+        $("btnDelivViewOpen").onclick = () => {
+          const anns = {};
+          hScreens.forEach(sc => { anns[sc.id] = _hfLoadAnns(sc.id); });
+          const specHtml = hSpecs ? `
+            <div class="s-sec"><h3>컴포넌트</h3><div class="md">${renderMd(hSpecs.components)}</div></div>
+            <div class="s-sec"><h3>디자인 토큰</h3><div class="md">${renderMd(hSpecs.tokens)}</div></div>
+            <div class="s-sec"><h3>인터랙션</h3><div class="md">${renderMd(hSpecs.interaction)}</div></div>` : '';
+          const page = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${p.name} 핸드오프</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#111;color:#e0e0e0;font-family:-apple-system,sans-serif;display:flex;height:100vh}
+.left{flex:1;overflow:hidden;display:flex;flex-direction:column;border-right:1px solid #333}
+.sbar{display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;border-bottom:1px solid #333;background:#1a1a1a}
+.sbtn{font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid #444;background:transparent;color:#aaa;cursor:pointer}
+.sbtn.active{background:#6366f1;color:#fff;border-color:#6366f1}
+iframe{flex:1;border:none;width:100%}
+.right{width:300px;overflow-y:auto;background:#1a1a1a;padding:16px;font-size:12px}
+.s-sec{margin-bottom:20px}.s-sec h3{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.ann-hd{font-size:11px;color:#888;margin:12px 0 6px}.ann-item{padding:4px 6px;border-left:2px solid #6366f1;margin-bottom:4px;color:#ccc}
+.ann-num{font-weight:700;color:#6366f1;margin-right:4px}
+table{width:100%;font-size:11px;border-collapse:collapse}th,td{text-align:left;padding:4px 6px;border-bottom:1px solid #333}th{color:#888}
+</style></head><body>
+<div class="left"><div class="sbar" id="sbar"></div><iframe id="pf" sandbox="allow-scripts allow-same-origin"></iframe></div>
+<div class="right">${specHtml}<div id="ann"></div></div>
+<script>
+const S=${JSON.stringify(hScreens)},A=${JSON.stringify(anns)};
+const sbar=document.getElementById('sbar'),pf=document.getElementById('pf'),ann=document.getElementById('ann');
+function renderAnns(id){const l=A[id]||[];ann.innerHTML='<div class="ann-hd">주석</div>';l.forEach((a,i)=>{const d=document.createElement('div');d.className='ann-item';d.innerHTML='<span class="ann-num">'+(i+1)+'</span>'+a.text;ann.appendChild(d);});}
+function sw(id){S.forEach(s=>{const b=document.querySelector('[data-id="'+s.id+'"]');if(b)b.className='sbtn'+(s.id===id?' active':'');});const s=S.find(x=>x.id===id);if(s){const blob=new Blob([s.html],{type:'text/html;charset=utf-8'});pf.src=URL.createObjectURL(blob);}renderAnns(id);}
+S.forEach(sc=>{const b=document.createElement('button');b.className='sbtn';b.dataset.id=sc.id;b.textContent=sc.name;b.onclick=()=>sw(sc.id);sbar.appendChild(b);});
+if(S.length)sw(S[0].id);
+<\/script></body></html>`;
+          window.open(URL.createObjectURL(new Blob([page], { type: 'text/html;charset=utf-8' })));
+        };
+        $("btnDelivViewDownload").onclick = () => {};
       } else if (_isHtml) {
         leftBody.style.cssText = "overflow:hidden;position:relative;display:flex;flex-direction:column;";
 
@@ -1778,55 +1958,12 @@ preview.srcdoc=OPTIONS[active].html;
         });
         _setVp(null);
         iframeWrap.appendChild(_viewIframe);
-        _annOverlay = document.createElement("div");
-        _annOverlay.className = "rev-ann-overlay";
-        _annLayer = document.createElement("div");
-        _annLayer.className = "rev-ann-layer";
-        iframeWrap.appendChild(_annOverlay);
-        iframeWrap.appendChild(_annLayer);
         leftBody.appendChild(vpBar);
         leftBody.appendChild(iframeWrap);
         _iframeWrap = iframeWrap;
 
-        // ── 새 탭 주석 주입 헬퍼 ──
-        const generateAnnOverlay = (anns) => {
-          const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-          return `<style>
-#__ax_ann_wrap__{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2147483647}
-.ax-ap{position:absolute;width:22px;height:22px;border-radius:50%;background:#E94B35;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:22px;cursor:pointer;pointer-events:all;transform:translate(-50%,-50%);box-shadow:0 2px 6px rgba(0,0,0,.3);border:2px solid #fff}
-.ax-ap.hl{outline:3px solid #E94B35;outline-offset:2px}
-#__ax_pnl__{position:fixed;right:0;top:0;bottom:0;width:260px;background:#fff;border-left:1px solid #ddd;box-shadow:-2px 0 12px rgba(0,0,0,.12);overflow-y:auto;padding:14px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;transform:translateX(100%);transition:transform .2s ease;z-index:2147483646}
-#__ax_pnl__.open{transform:translateX(0)}
-#__ax_pnl__ h3{font-size:13px;font-weight:700;color:#1a1a1a;margin:0 0 10px}
-.ax-ai{padding:9px 10px;border-radius:6px;border:1px solid #e2e2e2;margin-bottom:6px;cursor:pointer}
-.ax-ai:hover{background:#f9f9f9}
-.ax-ai.hl{border-color:#E94B35;background:#FFF5F4}
-.ax-ai-n{font-size:10px;font-weight:700;color:#E94B35;margin-bottom:3px}
-.ax-ai-t{font-size:12px;color:#333;line-height:1.5;white-space:pre-wrap}
-#__ax_cls__{position:absolute;top:10px;right:10px;background:none;border:none;font-size:16px;cursor:pointer;color:#999;line-height:1}
-</style>
-<div id="__ax_ann_wrap__">${anns.map((a,i)=>`<div class="ax-ap" data-id="${i}" style="left:${(a.xPct*100).toFixed(2)}%;top:${(a.yPct*100).toFixed(2)}%">${i+1}</div>`).join('')}</div>
-<div id="__ax_pnl__"><button id="__ax_cls__">✕</button><h3>주석</h3>${anns.map((a,i)=>`<div class="ax-ai" data-id="${i}"><div class="ax-ai-n">${i+1}</div><div class="ax-ai-t">${esc(a.note)}</div></div>`).join('')}</div>
-<script>(function(){var ps=document.querySelectorAll('.ax-ap'),its=document.querySelectorAll('.ax-ai'),pnl=document.getElementById('__ax_pnl__'),cls=document.getElementById('__ax_cls__');function act(i){ps.forEach(function(p,j){p.classList.toggle('hl',j===i)});its.forEach(function(it,j){it.classList.toggle('hl',j===i)});pnl.classList.add('open');if(its[i])its[i].scrollIntoView({block:'nearest'})}ps.forEach(function(p,i){p.addEventListener('click',function(e){e.stopPropagation();act(i)})});its.forEach(function(it,i){it.addEventListener('click',function(){act(i)})});cls.addEventListener('click',function(){pnl.classList.remove('open');ps.forEach(function(p){p.classList.remove('hl')});its.forEach(function(it){it.classList.remove('hl')})})})();<\/script>`;
-        };
-
         $("btnDelivViewOpen").onclick = () => {
-          let htmlContent = deliv.content;
-          if (_viewIframe && _viewIframe.contentDocument) {
-            try {
-              const checks = [..._viewIframe.contentDocument.querySelectorAll('input[type=checkbox]')].map(c => c.checked);
-              if (checks.length) {
-                const inj = `<script>window.__QA_CHECKS__=${JSON.stringify(checks)};(function(){function r(){document.querySelectorAll('input[type=checkbox]').forEach(function(c,i){if(__QA_CHECKS__[i]!==undefined)c.checked=__QA_CHECKS__[i]});if(typeof updateProgress==='function')updateProgress();}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',r):r();})();<\/script>`;
-                htmlContent = htmlContent.includes('</head>') ? htmlContent.replace('</head>', inj+'</head>') : inj+htmlContent;
-              }
-            } catch {}
-          }
-          // 주석 주입
-          if (_localAnn && _localAnn.length > 0) {
-            const overlay = generateAnnOverlay(_localAnn);
-            htmlContent = htmlContent.includes('</body>') ? htmlContent.replace('</body>', overlay+'</body>') : htmlContent + overlay;
-          }
-          window.open(URL.createObjectURL(new Blob([htmlContent], { type: 'text/html;charset=utf-8' })));
+          window.open(URL.createObjectURL(new Blob([deliv.content], { type: 'text/html;charset=utf-8' })));
         };
         $("btnDelivViewDownload").onclick = () => {
           const a = document.createElement("a");
@@ -1849,6 +1986,141 @@ preview.srcdoc=OPTIONS[active].html;
           a.download = `${p.name}-${meta.label}.${meta.ext}`; a.click(); URL.revokeObjectURL(a.href);
         };
       }
+
+      // ── 우: 핸드오프 스펙 패널 or QA 패널 ──
+      if (_isHVwr) {
+        // ── 핸드오프: 5탭 스펙 패널 ──
+        let rightOpenW = 300;
+        rightBody.classList.add('qa-open');
+        rightBody.style.width = rightOpenW + 'px';
+        rightBody.style.cssText += ";display:flex;flex-direction:column;overflow:hidden;";
+        vHandle.style.display = '';
+
+        vHandle.addEventListener('mousedown', e => {
+          e.preventDefault();
+          vHandle.classList.add('dragging');
+          rightBody.style.transition = 'none';
+          const startX = e.clientX, startW = rightBody.offsetWidth;
+          const onMove = ev => {
+            document.body.style.userSelect = 'none';
+            const w = Math.max(200, Math.min(600, startW + (startX - ev.clientX)));
+            rightBody.style.width = w + 'px';
+          };
+          const onUp = () => {
+            vHandle.classList.remove('dragging');
+            rightBody.style.transition = '';
+            document.body.style.userSelect = '';
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+
+        const specPane = document.createElement("div");
+        specPane.className = "hf-spec-pane";
+
+        // 탭 헤더
+        const tabHd = document.createElement("div");
+        tabHd.className = "hf-spec-tabs";
+        const tabNames = ['컴포넌트', '디자인 토큰', '인터랙션', '디스크립션', '코드'];
+        const tabPanels = [];
+        tabNames.forEach((name, i) => {
+          const t = document.createElement("button");
+          t.className = "hf-spec-tab" + (i === 0 ? " active" : "");
+          t.textContent = name;
+          tabHd.appendChild(t);
+
+          const panel = document.createElement("div");
+          panel.className = "hf-spec-panel" + (i === 0 ? " hf-active" : "");
+          panel.style.padding = "12px";
+          tabPanels.push(panel);
+
+          t.onclick = () => {
+            tabHd.querySelectorAll('.hf-spec-tab').forEach(x => x.classList.remove('active'));
+            t.classList.add('active');
+            tabPanels.forEach(p => p.classList.remove('hf-active'));
+            panel.classList.add('hf-active');
+          };
+        });
+        specPane.appendChild(tabHd);
+
+        // 스펙 탭 콘텐츠 (컴포넌트/토큰/인터랙션)
+        const specKeys = ['components', 'tokens', 'interaction'];
+        specKeys.forEach((key, i) => {
+          const md = hSpecs?.[key] || '';
+          tabPanels[i].innerHTML = md ? renderMd(md) : `<p style="color:var(--muted);font-size:12px;">내용 없음</p>`;
+        });
+
+        // 디스크립션 탭 (주석 관리)
+        const descPanel = tabPanels[3];
+        descPanel.style.display = 'flex';
+        descPanel.style.flexDirection = 'column';
+        descPanel.style.gap = '8px';
+
+        const annModeBtn = document.createElement("button");
+        annModeBtn.className = "btn-sm";
+        annModeBtn.textContent = "주석 추가";
+        let _annMode = false;
+        annModeBtn.onclick = () => {
+          _annMode = !_annMode;
+          annModeBtn.textContent = _annMode ? "추가 완료" : "주석 추가";
+          annModeBtn.style.background = _annMode ? 'var(--accent)' : '';
+          annModeBtn.style.color = _annMode ? '#fff' : '';
+          if (_annOverlay) _annOverlay.style.pointerEvents = _annMode ? 'auto' : 'none';
+        };
+        descPanel.appendChild(annModeBtn);
+
+        const annListDiv = document.createElement("div");
+        annListDiv.style.cssText = "display:flex;flex-direction:column;gap:4px;";
+        descPanel.appendChild(annListDiv);
+
+        function _hfRenderAnnList() {
+          annListDiv.innerHTML = '';
+          _hfCurrentAnns.forEach((ann, i) => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:flex-start;gap:6px;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);";
+            const num = document.createElement("span");
+            num.style.cssText = "font-weight:700;color:var(--accent);min-width:16px;";
+            num.textContent = i + 1;
+            const txt = document.createElement("span");
+            txt.style.cssText = "flex:1;color:var(--text);line-height:1.4;";
+            txt.textContent = ann.text;
+            const del = document.createElement("button");
+            del.textContent = '×';
+            del.style.cssText = "border:none;background:none;color:var(--muted);cursor:pointer;padding:0 2px;font-size:14px;";
+            del.onclick = () => {
+              _hfCurrentAnns.splice(i, 1);
+              _hfSaveAnns(_hfCurrentScreen, _hfCurrentAnns);
+              renderHfAnnPins();
+            };
+            row.appendChild(num); row.appendChild(txt); row.appendChild(del);
+            annListDiv.appendChild(row);
+          });
+        }
+        _hfRenderDescPanel = _hfRenderAnnList;
+
+        // 코드 탭
+        const codePre = document.createElement("pre");
+        codePre.style.cssText = "font-size:10px;overflow:auto;background:var(--surface);padding:8px;border-radius:4px;white-space:pre-wrap;word-break:break-all;height:100%;";
+        tabPanels[4].style.padding = '8px';
+        tabPanels[4].appendChild(codePre);
+        _hfCodeUpdate = (screenId) => {
+          const sc = hScreens.find(s => s.id === screenId);
+          codePre.textContent = sc ? sc.html : '';
+        };
+        if (hScreens.length) _hfCodeUpdate(hScreens[0].id);
+
+        const specContent = document.createElement("div");
+        specContent.className = "hf-spec-content";
+        tabPanels.forEach(p => specContent.appendChild(p));
+        specPane.appendChild(specContent);
+        rightBody.appendChild(specPane);
+
+        // 초기 주석 렌더링
+        if (hScreens.length) renderHfAnnPins();
+
+      } else {
 
       // ── 우: 아코디언 리뷰 패널 ──
       let rightOpenW = 272;
@@ -2661,6 +2933,8 @@ preview.srcdoc=OPTIONS[active].html;
 
       } // end phase3-only sections
 
+      } // end else (QA panel)
+
       $("btnDelivViewEdit").onclick = () => {
         $("modalDelivView").classList.remove("open");
         openDelivEdit(projectId, phase);
@@ -2683,10 +2957,7 @@ preview.srcdoc=OPTIONS[active].html;
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (ev) => {
-          const target = _isMultiMode
-            ? (_currentOptTab === 'b' ? $("delivEditAreaB") : _currentOptTab === 'c' ? $("delivEditAreaC") : $("delivEditArea"))
-            : $("delivEditArea");
-          target.value = ev.target.result;
+          $("delivEditArea").value = ev.target.result;
         };
         reader.readAsText(file, "UTF-8");
         e.target.value = "";

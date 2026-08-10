@@ -264,3 +264,4 @@ font-weight: --font-medium
 - Tailwind CSS CDN 병행 사용 가능하도록 네이밍 일관성 유지
 - H1·H2 헤더와 표 구조로 스캔 가독성 극대화
 - 마지막 줄 출력: `→ Phase 3 (/mockup) 으로 넘어갈 준비가 됐습니다.`
+- **[CRITICAL]** 이 스킬 결과만 출력하고 종료. 다음 페이즈(/mockup 등)를 자동으로 실행하거나 미리 출력하는 것 절대 금지.

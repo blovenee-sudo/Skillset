@@ -125,6 +125,7 @@ name: 상세 화면
 
 **[CRITICAL — 반드시 준수]**
 - AX_SCREEN 블록: Phase 3 각 화면을 **실제 완전한 HTML**로 작성. 주석·플레이스홀더·빈 문자열 절대 금지.
+- **MOCKUP_HTML 삽입 시 반드시 Base64 인코딩 사용**: `const b64 = "[base64]"; frame.srcdoc = decodeURIComponent(escape(atob(b64)));` — 템플릿 리터럴 직접 삽입 금지 (백틱 충돌로 JS 파싱 오류 발생)
 - AX_SPEC 세 블록 모두 필수 출력 (COMPONENTS / TOKENS / INTERACTION)
 - 스펙 표는 Phase 3 코드를 파싱한 실제 데이터로 채움 (빈 행 최소화)
 - 외부 CDN 없이 각 AX_SCREEN이 독립 실행 가능해야 함

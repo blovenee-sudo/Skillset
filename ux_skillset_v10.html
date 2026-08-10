@@ -681,6 +681,8 @@
         <label style="font-size:12px;color:var(--muted)">LLM 결과를 붙여넣거나 파일을 불러오세요.</label>
         <button type="button" class="btn-sm" id="btnDelivEditFile">파일 첨부</button>
         <input type="file" id="delivEditFileInput" accept=".md,.json,.html,.txt" style="display:none">
+        <button type="button" class="btn-sm" id="btnDelivEditMulti" style="display:none">3안 불러오기</button>
+        <input type="file" id="delivEditMultiInput" accept=".html" multiple style="display:none">
       </div>
       <textarea id="delivEditArea" style="width:100%;height:220px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="여기에 붙여넣기..."></textarea>
       <details id="delivCustomQaDetails" style="margin-top:8px">
@@ -1487,6 +1489,7 @@
       _delivEditState = { projectId, phase };
       $("delivEditTitle").textContent = `${PHASE_META[phase].label} 스킬 결과 저장`;
       $("delivEditGuide").style.display = phase === 'phase3' ? '' : 'none';
+      $("btnDelivEditMulti").style.display = phase === 'phase3' ? '' : 'none';
 
       const content = p.deliverables?.[phase]?.content || "";
       $("delivEditArea").value = content;
@@ -2839,32 +2842,7 @@ if(S.length)sw(S[0].id);
       handoffInfoP.style.cssText = "font-size:11px;color:var(--muted);line-height:1.5;margin:0;flex-shrink:0;";
       handoffInfoP.textContent = "/handoff 프롬프트를 복사해 AI에 붙여넣으면 핸드오프 리포트가 생성됩니다.";
 
-      // 3가지 안이 있을 경우 어떤 안을 핸드오프할지 선택
-      let _handoffOptIdx = 0;
-      let handoffOptSelRow = null;
-      if (opts.length > 1) {
-        handoffOptSelRow = document.createElement("div");
-        handoffOptSelRow.style.cssText = "display:flex;gap:4px;align-items:center;flex-wrap:wrap;flex-shrink:0;";
-        const optSelLabel = document.createElement("span");
-        optSelLabel.textContent = "반영할 디자인 안:";
-        optSelLabel.style.cssText = "font-size:11px;color:var(--muted);";
-        handoffOptSelRow.appendChild(optSelLabel);
-        opts.forEach((opt, i) => {
-          const ob = document.createElement("button");
-          ob.type = "button";
-          ob.textContent = opt.title || `${['A','B','C'][i]}안`;
-          ob.className = "btn-sm";
-          if (i === 0) { ob.style.background = "var(--accent)"; ob.style.color = "#fff"; }
-          ob.addEventListener("click", () => {
-            _handoffOptIdx = i;
-            handoffOptSelRow.querySelectorAll("button").forEach((b, bi) => {
-              b.style.background = bi === i ? "var(--accent)" : "";
-              b.style.color = bi === i ? "#fff" : "";
-            });
-          });
-          handoffOptSelRow.appendChild(ob);
-        });
-      }
+      // 메인 뷰어에서 선택된 안(_activeOptIdx)을 핸드오프에 자동 반영
 
       const handoffCopyBtn = document.createElement("button");
       handoffCopyBtn.type = "button"; handoffCopyBtn.textContent = "↗ /handoff 프롬프트 복사";
@@ -2874,7 +2852,7 @@ if(S.length)sw(S[0].id);
         const handoffSkill = state.skills.find(s => s.id === 'p4');
         const basePrompt = handoffSkill?.prompt || '/handoff 스킬 프롬프트를 찾을 수 없습니다.';
         const notes = memoTa.value.trim();
-        const handoffHtml = opts.length > 0 ? (opts[_handoffOptIdx]?.html || deliv.content) : deliv.content;
+        const handoffHtml = opts.length > 0 ? (opts[_activeOptIdx]?.html || deliv.content) : deliv.content;
         let full = basePrompt + '\n\n---\n\n**[Phase 3 HTML 목업 — 자동 포함]**\n\n```html\n' + handoffHtml + '\n```';
         if (p.designSystem?.exists) {
           const dsParts = [];
@@ -2925,7 +2903,6 @@ if(S.length)sw(S[0].id);
         if (h4saved?.content) window.open(URL.createObjectURL(new Blob([h4saved.content], { type: 'text/html;charset=utf-8' })));
       });
       handoffBody.appendChild(handoffInfoP);
-      if (handoffOptSelRow) handoffBody.appendChild(handoffOptSelRow);
       handoffBody.appendChild(handoffCopyBtn);
       handoffBody.appendChild(handoffPasteTa);
       handoffBody.appendChild(handoffSaveBtn);
@@ -2960,6 +2937,22 @@ if(S.length)sw(S[0].id);
           $("delivEditArea").value = ev.target.result;
         };
         reader.readAsText(file, "UTF-8");
+        e.target.value = "";
+      });
+      $("btnDelivEditMulti").addEventListener("click", () => $("delivEditMultiInput").click());
+      $("delivEditMultiInput").addEventListener("change", async (e) => {
+        const files = [...e.target.files].sort((a, b) => a.name.localeCompare(b.name));
+        if (!files.length) return;
+        const titles = ['A안', 'B안', 'C안'];
+        const uxLabels = ['리스트형, 정보 스캔 최우선', '카드 그리드형, 시각 요소 강조', '대시보드형, 핵심 지표 중심'];
+        const blocks = await Promise.all(files.map(async (f, i) => {
+          const html = await f.text();
+          const t = titles[i] || `${i+1}안`;
+          const ux = uxLabels[i] || f.name;
+          return `<!-- AX_OPTION\nn: ${i+1}\ntitle: ${t}\nux: ${ux}\n-->\n${html}\n<!-- AX_OPTION_END -->`;
+        }));
+        $("delivEditArea").value = blocks.join('\n\n');
+        toast(`${files.length}개 파일을 ${files.length}안으로 불러왔습니다.`);
         e.target.value = "";
       });
       $("btnDelivEditCancel").addEventListener("click", () => {
@@ -3446,7 +3439,9 @@ if(S.length)sw(S[0].id);
       const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       const fmt = s => s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
                         .replace(/\*([^*]+)\*/g,'<em>$1</em>')
-                        .replace(/`([^`]+)`/g,'<code>$1</code>');
+                        .replace(/`([^`]+)`/g,'<code>$1</code>')
+                        .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+                        .replace(/(?<![">])(https?:\/\/[^\s<>"]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
       const parts = text.split(/(```[\s\S]*?```)/g);
       let html = parts.map((part, i) => {
         if (i % 2 === 1) {

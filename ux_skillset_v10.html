@@ -3607,6 +3607,7 @@ if(S.length)sw(S[0].id);
                         .replace(/\*([^*]+)\*/g,'<em>$1</em>')
                         .replace(/`([^`]+)`/g,'<code>$1</code>')
                         .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+                        .replace(/(https?:\/\/[^\s"<>()\]]+)"[^>\n<]*>([^\n<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$2</a>')
                         .replace(/(?<![">])(https?:\/\/[^\s<>"]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
       // Pre-clean: AI가 HTML anchor 태그나 준-HTML URL 패턴 생성 시 마크다운 링크로 변환
       // 1) <a href="url" ...>text</a> → [text](url)

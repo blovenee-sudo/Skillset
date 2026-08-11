@@ -570,7 +570,7 @@
         <div id="copyHintText"></div>
       </div>
       <div id="skillDownloads" style="display:none;margin-top:8px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--muted);">
-        <div style="margin-bottom:5px">📎 스킬 사용 시 아래 파일을 LLM에 함께 첨부하세요</div>
+        <div style="margin-bottom:5px">📎 스킬 복사 전 아래 파일을 LLM에 함께 첨부하세요</div>
         <div id="skillDownloadBtns"></div>
       </div>
     </div>
@@ -1098,7 +1098,7 @@
     const PHASE_INJECT = {
       s1:  { output: null     },
       p2:  { output: 'phase1' },
-      p3:  { output: 'phase2' },
+      p3:  { output: null     },
       p4:  { output: 'phase3' },
       qa:  { output: '__auto' },
     };
@@ -3696,30 +3696,29 @@ if(S.length)sw(S[0].id);
       selectedProjectId = projectId;
       $("copyHint").style.display = "none";
 
-      // 다운로드 첨부파일 섹션
+      // /mockup 스킬 전용: 저장된 Phase 2 결과 다운로드 버튼
       const dlWrap = $("skillDownloads");
       const dlBtns = $("skillDownloadBtns");
       dlBtns.innerHTML = "";
-      if (sk.downloads?.length) {
-        sk.downloads.forEach(dl => {
+      if (sk.id === 'p3' && projectId) {
+        const proj = state.projects.find(x => x.id === projectId);
+        const phase2Content = proj?.deliverables?.phase2?.content;
+        if (phase2Content) {
           const btn = document.createElement("button");
           btn.type = "button"; btn.className = "btn-sm";
-          btn.textContent = `↓ ${dl.label || dl.outputName || dl.filename}`;
+          btn.textContent = "↓ 디자인 토큰 내려받기";
           btn.style.cssText = "margin-right:4px;margin-top:2px;font-size:11px;";
-          btn.onclick = async () => {
-            try {
-              const res = await fetch(`./skills/${dl.filename}`, { cache: 'no-cache' });
-              if (!res.ok) { toast("다운로드 실패"); return; }
-              const text = await res.text();
-              const a = document.createElement("a");
-              a.href = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
-              a.download = dl.outputName || dl.filename;
-              a.click(); URL.revokeObjectURL(a.href);
-            } catch { toast("다운로드 실패"); }
+          btn.onclick = () => {
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(new Blob([phase2Content], { type: 'text/markdown;charset=utf-8' }));
+            a.download = "design-tokens.md";
+            a.click(); URL.revokeObjectURL(a.href);
           };
           dlBtns.appendChild(btn);
-        });
-        dlWrap.style.display = "block";
+          dlWrap.style.display = "block";
+        } else {
+          dlWrap.style.display = "none";
+        }
       } else {
         dlWrap.style.display = "none";
       }

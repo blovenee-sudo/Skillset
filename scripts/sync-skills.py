@@ -28,18 +28,6 @@ MD_MAP = {
 def strip_frontmatter(text):
     return re.sub(r"^---[\s\S]*?---\s*\n", "", text).strip()
 
-def extract_downloads(text):
-    fm = re.match(r"^---[\s\S]*?---", text)
-    if not fm:
-        return None
-    dl = re.search(r"^downloads:\s*(.+)$", fm.group(0), re.MULTILINE)
-    if not dl:
-        return None
-    try:
-        return json.loads(dl.group(1).strip())
-    except Exception:
-        return None
-
 def main():
     with open(INDEX_PATH, encoding="utf-8") as f:
         skills = json.load(f)
@@ -55,16 +43,9 @@ def main():
             continue
         raw = md_path.read_text(encoding="utf-8")
         body = strip_frontmatter(raw)
-        downloads = extract_downloads(raw)
         changed = False
         if body and sk.get("prompt") != body:
             sk["prompt"] = body
-            changed = True
-        if downloads != sk.get("downloads"):
-            if downloads is not None:
-                sk["downloads"] = downloads
-            elif "downloads" in sk:
-                del sk["downloads"]
             changed = True
         if changed:
             updated.append(sid)

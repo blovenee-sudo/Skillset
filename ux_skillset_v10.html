@@ -569,6 +569,10 @@
       <div id="copyHint" style="display:none;margin-top:8px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--muted);line-height:1.6">
         <div id="copyHintText"></div>
       </div>
+      <div id="skillDownloads" style="display:none;margin-top:8px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--muted);">
+        <div style="margin-bottom:5px">📎 스킬 사용 시 아래 파일을 LLM에 함께 첨부하세요</div>
+        <div id="skillDownloadBtns"></div>
+      </div>
     </div>
   </div>
 
@@ -3691,6 +3695,35 @@ if(S.length)sw(S[0].id);
       selectedSkillId = skillId;
       selectedProjectId = projectId;
       $("copyHint").style.display = "none";
+
+      // 다운로드 첨부파일 섹션
+      const dlWrap = $("skillDownloads");
+      const dlBtns = $("skillDownloadBtns");
+      dlBtns.innerHTML = "";
+      if (sk.downloads?.length) {
+        sk.downloads.forEach(dl => {
+          const btn = document.createElement("button");
+          btn.type = "button"; btn.className = "btn-sm";
+          btn.textContent = `↓ ${dl.label || dl.outputName || dl.filename}`;
+          btn.style.cssText = "margin-right:4px;margin-top:2px;font-size:11px;";
+          btn.onclick = async () => {
+            try {
+              const res = await fetch(`./skills/${dl.filename}`, { cache: 'no-cache' });
+              if (!res.ok) { toast("다운로드 실패"); return; }
+              const text = await res.text();
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
+              a.download = dl.outputName || dl.filename;
+              a.click(); URL.revokeObjectURL(a.href);
+            } catch { toast("다운로드 실패"); }
+          };
+          dlBtns.appendChild(btn);
+        });
+        dlWrap.style.display = "block";
+      } else {
+        dlWrap.style.display = "none";
+      }
+
       $("detailSlash").textContent = sk.slash;
       $("detailSlashBadge").textContent = sk.slash || sk.name;
       $("detailTitle").textContent = sk.name;

@@ -1520,7 +1520,7 @@
     }
 
     function parseDesignOptions(content) {
-      const re = /<!--\s*AX_OPTION\s*\nn:\s*(\d+)\s*\ntitle:\s*([^\n]+)\s*\nux:\s*([\s\S]*?)\s*-->([\s\S]*?)<!--\s*AX_OPTION_END\s*-->/g;
+      const re = /<!--\s*AX_OPTION\s+n:\s*(\d+)\s+title:\s*([^\r\n]+)\s+ux:\s*([\s\S]*?)\s*-->([\s\S]*?)<!--\s*AX_OPTION_END\s*-->/g;
       const opts = []; let m;
       while ((m = re.exec(content)) !== null) {
         opts.push({ n: +m[1], title: m[2].trim(), ux: m[3].trim(), html: m[4].trim() });
@@ -3608,9 +3608,14 @@ if(S.length)sw(S[0].id);
                         .replace(/`([^`]+)`/g,'<code>$1</code>')
                         .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
                         .replace(/(?<![">])(https?:\/\/[^\s<>"]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
-      // Pre-clean: AI가 HTML anchor 태그나 준-HTML URL 패턴을 생성할 때 마크다운으로 변환
-      text = text.replace(/<a\s+href="(https?:\/\/[^"]+)"[^>]*>([^<]*)<\/a>/gi, '[$2]($1)');
-      text = text.replace(/(https?:\/\/[^\s"<>()\]]+)"\s+target="[^"]*"\s+rel="[^"]*">([^\n<]*)/g, '[$2]($1)');
+      // Pre-clean: AI가 HTML anchor 태그나 준-HTML URL 패턴 생성 시 마크다운 링크로 변환
+      // 1) <a href="url" ...>text</a> → [text](url)
+      text = text.replace(/<a\s+href="(https?:\/\/[^"]+)"[^>]*>\s*([^<]*?)\s*<\/a>/gi, '[$2]($1)');
+      // 2) url"attrs>text (AI가 href="" 없이 속성+>만 붙이는 패턴, 속성 종류 무관)
+      text = text.replace(/(https?:\/\/[^\s"<>()\]]+)"[^>\n<]*>([^\n<]+)/g, (_, url, linkText) => {
+        const t = linkText.trim();
+        return t ? `[${t}](${url})` : url;
+      });
       const parts = text.split(/(```[\s\S]*?```)/g);
       let html = parts.map((part, i) => {
         if (i % 2 === 1) {

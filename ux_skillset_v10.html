@@ -506,8 +506,8 @@
     .hf-spec-tabs { display:flex; border-bottom:1px solid var(--border); flex-shrink:0; overflow-x:auto; }
     .hf-spec-tab { padding:8px 10px; font-size:11px; white-space:nowrap; cursor:pointer; color:var(--muted); border:none; border-bottom:2px solid transparent; background:none; flex-shrink:0; }
     .hf-spec-tab.active { color:var(--text); border-bottom-color:var(--accent); }
-    .hf-spec-content { flex:1; overflow-y:auto; }
-    .hf-spec-panel { display:none; flex-direction:column; }
+    .hf-spec-content { flex:1; overflow-y:auto; min-height:0; }
+    .hf-spec-panel { display:none; flex-direction:column; min-height:0; overflow:hidden; }
     .hf-spec-panel.hf-active { display:flex; }
   </style>
 </head>
@@ -681,7 +681,7 @@
         <label style="font-size:12px;color:var(--muted)">LLM 결과를 붙여넣거나 파일을 불러오세요.</label>
         <button type="button" class="btn-sm" id="btnDelivEditFile">파일 첨부</button>
         <input type="file" id="delivEditFileInput" accept=".md,.json,.html,.txt" style="display:none">
-        <button type="button" class="btn-sm" id="btnDelivEditMulti" style="display:none">3안 불러오기</button>
+        <button type="button" class="btn-sm" id="btnDelivEditMulti" style="display:none">목업 불러오기</button>
         <input type="file" id="delivEditMultiInput" accept=".html" multiple style="display:none">
       </div>
       <textarea id="delivEditArea" style="width:100%;height:220px;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit" placeholder="여기에 붙여넣기..."></textarea>
@@ -1114,7 +1114,7 @@
       const outputContent = outputKey ? p.deliverables?.[outputKey]?.content : null;
       const logContent    = outputKey ? p.deliverables?.[outputKey]?.changeLog?.trim() || null : null;
       let dsContent = null;
-      if (['p2', 'p3'].includes(skillId) && p.designSystem?.exists) {
+      if (['p2', 'p3'].includes(skillId) && (p.designSystem?.content?.trim() || p.designSystem?.files?.length)) {
         const parts = [];
         if (p.designSystem.content?.trim()) parts.push(p.designSystem.content.trim());
         if (p.designSystem.files?.length) {
@@ -1482,6 +1482,7 @@
     };
     let _delivEditState = null;
     let _delivViewState = null;
+    let _h4ViewOverride = null; // 핸드오프 다중 리포트 중 특정 항목 열기
 
     function openDelivEdit(projectId, phase) {
       const p = state.projects.find(x => x.id === projectId);
@@ -1490,6 +1491,7 @@
       $("delivEditTitle").textContent = `${PHASE_META[phase].label} 스킬 결과 저장`;
       $("delivEditGuide").style.display = phase === 'phase3' ? '' : 'none';
       $("btnDelivEditMulti").style.display = phase === 'phase3' ? '' : 'none';
+      $("btnDelivEditFile").style.display = phase === 'phase3' ? 'none' : '';
 
       const content = p.deliverables?.[phase]?.content || "";
       $("delivEditArea").value = content;
@@ -1555,10 +1557,19 @@
       body.innerHTML = "";
       body.style.cssText = "overflow:hidden;";
       const opts = parseDesignOptions(deliv.content);
-      const hScreens = phase === 'phase4' ? parseHandoffScreens(deliv.content) : [];
-      const hSpecs  = hScreens.length > 0 ? parseHandoffSpecs(deliv.content) : null;
+      let _h4Content = deliv.content;
+      if (phase === 'phase4') {
+        if (_h4ViewOverride) {
+          _h4Content = _h4ViewOverride;
+          _h4ViewOverride = null;
+        } else if (!_h4Content && deliv.items?.length) {
+          _h4Content = deliv.items[deliv.items.length - 1].content;
+        }
+      }
+      const hScreens = phase === 'phase4' ? parseHandoffScreens(_h4Content) : [];
+      const hSpecs  = hScreens.length > 0 ? parseHandoffSpecs(_h4Content) : null;
       let _isHVwr = hScreens.length > 0;
-      const _isHtml = opts.length > 0 || _isHVwr || /^\s*<!DOCTYPE html/i.test(deliv.content) || /^\s*<html/i.test(deliv.content);
+      const _isHtml = opts.length > 0 || _isHVwr || /^\s*<!DOCTYPE html/i.test(_h4Content ?? deliv.content) || /^\s*<html/i.test(_h4Content ?? deliv.content);
       let _viewIframe = null, _annOverlay = null, _annLayer = null;
       let _localAnn = []; // 현재 페이지 주석 (새 탭 열기에서도 접근)
       let _activeOptIdx = 0;
@@ -1627,6 +1638,23 @@ ${bodyHtml}
         const optBar = document.createElement("div");
         optBar.className = "nav-combined-bar";
         leftBody.appendChild(optBar);
+        // 안별 HTML 다운로드 버튼 행
+        const dlRow = document.createElement("div");
+        dlRow.style.cssText = "display:flex;gap:4px;padding:4px 8px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);";
+        opts.forEach(opt => {
+          const dlBtn = document.createElement("button");
+          dlBtn.type = "button"; dlBtn.className = "btn-sm";
+          dlBtn.textContent = `↓ ${opt.title || (opt.n + '안')}`;
+          dlBtn.style.fontSize = "11px";
+          dlBtn.onclick = () => {
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(new Blob([opt.html], { type: 'text/html;charset=utf-8' }));
+            a.download = `${p.name}-${opt.title || (opt.n + '안')}.html`;
+            a.click(); URL.revokeObjectURL(a.href);
+          };
+          dlRow.appendChild(dlBtn);
+        });
+        leftBody.appendChild(dlRow);
         // 단말기 바 [모바일][태블릿][데스크탑]
         const vpBar = document.createElement("div");
         vpBar.className = "vp-type-bar";
@@ -2114,8 +2142,8 @@ if(S.length)sw(S[0].id);
 
         // 코드 탭
         const codePre = document.createElement("pre");
-        codePre.style.cssText = "font-size:10px;overflow:auto;background:var(--surface);padding:8px;border-radius:4px;white-space:pre-wrap;word-break:break-all;height:100%;";
-        tabPanels[4].style.padding = '8px';
+        codePre.style.cssText = "font-size:10px;overflow:auto;background:var(--surface);padding:8px;border-radius:4px;white-space:pre-wrap;word-break:break-all;flex:1;min-height:0;min-width:0;";
+        tabPanels[4].style.cssText = "padding:8px;display:flex;flex-direction:column;overflow:hidden;";
         tabPanels[4].appendChild(codePre);
         _hfCodeUpdate = (screenId) => {
           const sc = hScreens.find(s => s.id === screenId);
@@ -2214,7 +2242,7 @@ if(S.length)sw(S[0].id);
       if (phase === 'phase3') {
         const dsRow = document.createElement("div");
         dsRow.style.cssText = "display:flex;align-items:center;gap:5px;font-size:11px;padding:4px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px;";
-        const dsApplied = p.designSystem?.exists;
+        const dsApplied = !!(p.designSystem?.content?.trim() || p.designSystem?.files?.length);
         dsRow.innerHTML = dsApplied
           ? `<span style="color:var(--accent)">✓</span><span>디자인 시스템 적용됨</span>`
           : `<span style="color:var(--muted)">○</span><span style="color:var(--muted)">디자인 시스템 미적용 — phase2 산출물에서 설정 가능</span>`;
@@ -2322,27 +2350,12 @@ if(S.length)sw(S[0].id);
         const { hd: dsHd, body: dsBody, badgeEl: dsBadge } = mkAccSection("디자인 시스템");
 
         // 배지 초기값
-        const _dsBadgeVal = () => ds.exists ? (((ds.content?.trim() ? 1 : 0) + (ds.files?.length || 0)) > 0 ? "●" : "") : "";
+        const _dsBadgeVal = () => ((ds.content?.trim() ? 1 : 0) + (ds.files?.length || 0)) > 0 ? "●" : "";
         dsBadge.textContent = _dsBadgeVal();
 
-        // 체크박스 토글
-        const dsToggleRow = document.createElement("div");
-        dsToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;";
-        const dsCheck = document.createElement("input");
-        dsCheck.type = "checkbox";
-        dsCheck.style.cssText = "accent-color:var(--accent);cursor:pointer;";
-        dsCheck.checked = !!ds.exists;
-        const dsCheckLabel = document.createElement("label");
-        dsCheckLabel.style.cssText = "font-size:12px;color:var(--text);cursor:pointer;user-select:none;";
-        dsCheckLabel.textContent = "디자인 시스템 있음";
-        dsToggleRow.appendChild(dsCheck);
-        dsToggleRow.appendChild(dsCheckLabel);
-        dsBody.appendChild(dsToggleRow);
-
-        // 본문 (체크 시만 표시)
+        // 첨부 UI (항상 표시)
         const dsInner = document.createElement("div");
         dsInner.style.cssText = "display:flex;flex-direction:column;gap:6px;";
-        dsInner.style.display = ds.exists ? "flex" : "none";
 
         // 텍스트 입력
         const dsTa = document.createElement("textarea");
@@ -2453,17 +2466,10 @@ if(S.length)sw(S[0].id);
         dsFileInput.onchange = e => { _readFiles(e.target.files); e.target.value = ""; };
         dsFolderInput.onchange = e => { _readFiles(e.target.files); e.target.value = ""; };
 
-        dsCheck.onchange = () => {
-          if (!p.designSystem) p.designSystem = {};
-          p.designSystem.exists = dsCheck.checked;
-          dsInner.style.display = dsCheck.checked ? "flex" : "none";
-          saveState();
-          dsBadge.textContent = _dsBadgeVal();
-        };
-
         dsSaveBtn.onclick = () => {
           if (!p.designSystem) p.designSystem = {};
           p.designSystem.content = dsTa.value.trim();
+          p.designSystem.exists = !!(p.designSystem.content || p.designSystem.files?.length);
           saveState();
           dsBadge.textContent = _dsBadgeVal();
           toast("디자인 시스템 저장됨");
@@ -3034,7 +3040,10 @@ if(S.length)sw(S[0].id);
           const viewBtn = document.createElement("button");
           viewBtn.textContent = "보기"; viewBtn.className = "btn-sm";
           viewBtn.style.cssText = "padding:2px 8px;font-size:11px;flex-shrink:0;";
-          viewBtn.onclick = () => window.open(URL.createObjectURL(new Blob([item.content], { type: 'text/html;charset=utf-8' })));
+          viewBtn.onclick = () => {
+            _h4ViewOverride = item.content;
+            openDelivView(projectId, 'phase4');
+          };
           const delBtn = document.createElement("button");
           delBtn.textContent = "삭제"; delBtn.className = "btn-sm";
           delBtn.style.cssText = "padding:2px 8px;font-size:11px;flex-shrink:0;";
@@ -3045,28 +3054,25 @@ if(S.length)sw(S[0].id);
       };
       renderH4List();
 
-      // 새 리포트 붙여넣기
+      // 새 리포트 붙여넣기 — 붙여넣는 즉시 목록에 추가
       const handoffPasteTa = document.createElement("textarea");
-      handoffPasteTa.placeholder = 'AI가 생성한 핸드오프 결과를 붙여넣으세요 (AX_SCREEN 블록 또는 HTML)...';
+      handoffPasteTa.placeholder = 'AI 핸드오프 결과 붙여넣기 → 즉시 목록에 추가됩니다';
       handoffPasteTa.style.minHeight = "80px";
-      const handoffSaveBtn = document.createElement("button");
-      handoffSaveBtn.type = "button"; handoffSaveBtn.textContent = "저장";
-      handoffSaveBtn.className = "btn-sm";
-      handoffSaveBtn.style.cssText = "width:100%;flex-shrink:0;";
-      handoffSaveBtn.addEventListener("click", () => {
-        const html = handoffPasteTa.value.trim();
-        if (!html) { toast("저장할 내용이 없습니다"); return; }
-        _h4Add(html);
-        handoffPasteTa.value = '';
-        renderH4List();
-        toast("핸드오프 리포트가 저장됐습니다");
+      handoffPasteTa.addEventListener('paste', () => {
+        setTimeout(() => {
+          const html = handoffPasteTa.value.trim();
+          if (!html) return;
+          _h4Add(html);
+          handoffPasteTa.value = '';
+          renderH4List();
+          toast("핸드오프 리포트가 추가됐습니다");
+        }, 50);
       });
 
       handoffBody.appendChild(handoffInfoP);
       handoffBody.appendChild(handoffCopyBtn);
       handoffBody.appendChild(h4ListDiv);
       handoffBody.appendChild(handoffPasteTa);
-      handoffBody.appendChild(handoffSaveBtn);
 
       } // end phase3-only sections
 
@@ -3602,6 +3608,9 @@ if(S.length)sw(S[0].id);
                         .replace(/`([^`]+)`/g,'<code>$1</code>')
                         .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
                         .replace(/(?<![">])(https?:\/\/[^\s<>"]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+      // Pre-clean: AI가 HTML anchor 태그나 준-HTML URL 패턴을 생성할 때 마크다운으로 변환
+      text = text.replace(/<a\s+href="(https?:\/\/[^"]+)"[^>]*>([^<]*)<\/a>/gi, '[$2]($1)');
+      text = text.replace(/(https?:\/\/[^\s"<>()\]]+)"\s+target="[^"]*"\s+rel="[^"]*">([^\n<]*)/g, '[$2]($1)');
       const parts = text.split(/(```[\s\S]*?```)/g);
       let html = parts.map((part, i) => {
         if (i % 2 === 1) {

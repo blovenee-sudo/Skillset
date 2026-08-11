@@ -1631,6 +1631,11 @@ ${bodyHtml}
         const vpBar = document.createElement("div");
         vpBar.className = "vp-type-bar";
         leftBody.appendChild(vpBar);
+        // 3뎁스: 화면 드롭박스 컨테이너 (iframe 로드 후 자동 채워짐)
+        const screenDropRow = document.createElement("div");
+        screenDropRow.className = "screen-drop-row";
+        screenDropRow.style.cssText = "display:none;align-items:center;gap:6px;padding:5px 10px;border-bottom:1px solid var(--border);flex-shrink:0;font-size:12px;";
+        leftBody.appendChild(screenDropRow);
         const vpTypes = [
           { label: "모바일", w: 375 },
           { label: "태블릿", w: 768 },
@@ -1764,18 +1769,23 @@ preview.srcdoc=OPTIONS[active].html;
         // ── 핸드오프 뷰어 (AX_SCREEN 기반) ──
         leftBody.style.cssText = "overflow:hidden;position:relative;display:flex;flex-direction:column;";
 
-        // 화면 전환 바
-        const screenBar = document.createElement("div");
-        screenBar.style.cssText = "display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);";
+        // 화면 전환 드롭박스 (3뎁스)
+        const screenDropRowHf = document.createElement("div");
+        screenDropRowHf.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);";
+        const screenLabelHf = document.createElement("span");
+        screenLabelHf.textContent = "화면";
+        screenLabelHf.style.cssText = "font-size:12px;color:var(--muted);white-space:nowrap;flex-shrink:0;";
+        const screenSelHf = document.createElement("select");
+        screenSelHf.style.cssText = "flex:1;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;";
         hScreens.forEach(sc => {
-          const btn = document.createElement("button");
-          btn.className = "hf-screen-btn";
-          btn.dataset.screenId = sc.id;
-          btn.textContent = sc.name;
-          btn.onclick = () => hfSwitchScreen(sc.id);
-          screenBar.appendChild(btn);
+          const opt = document.createElement("option");
+          opt.value = sc.id; opt.textContent = sc.name;
+          screenSelHf.appendChild(opt);
         });
-        leftBody.appendChild(screenBar);
+        screenSelHf.addEventListener("change", () => hfSwitchScreen(screenSelHf.value));
+        screenDropRowHf.appendChild(screenLabelHf);
+        screenDropRowHf.appendChild(screenSelHf);
+        leftBody.appendChild(screenDropRowHf);
 
         // Viewport 타입 바
         const vpBarH = document.createElement("div");
@@ -1866,8 +1876,7 @@ preview.srcdoc=OPTIONS[active].html;
           if (_hfCurrentScreen) _hfSaveAnns(_hfCurrentScreen, _hfCurrentAnns);
           _hfCurrentScreen = screenId;
           _hfCurrentAnns = _hfLoadAnns(screenId);
-          screenBar.querySelectorAll('.hf-screen-btn').forEach(b =>
-            b.classList.toggle('active', b.dataset.screenId === screenId));
+          screenSelHf.value = screenId;
           const sc = hScreens.find(s => s.id === screenId);
           if (sc) {
             const blob = new Blob([sc.html], { type: 'text/html;charset=utf-8' });
@@ -1881,7 +1890,7 @@ preview.srcdoc=OPTIONS[active].html;
         if (hScreens.length > 0) {
           _hfCurrentScreen = hScreens[0].id;
           _hfCurrentAnns = _hfLoadAnns(hScreens[0].id);
-          screenBar.querySelectorAll('.hf-screen-btn')[0]?.classList.add('active');
+          screenSelHf.value = hScreens[0].id;
           _viewIframe.src = URL.createObjectURL(new Blob([hScreens[0].html], { type: 'text/html;charset=utf-8' }));
         }
 
@@ -2517,6 +2526,116 @@ if(S.length)sw(S[0].id);
         setTimeout(injectInspector, 100);
       }
 
+      // ── 2-B. 디스크립션 (목업 뷰어 - 3뎁스 화면 선택 + 페이지별 메모) ──
+      if (opts.length > 0 && _viewIframe) {
+        const { hd: descHd, body: descBody } = mkAccSection("디스크립션");
+        descBody.style.gap = '6px';
+
+        const descPageSel = document.createElement("select");
+        descPageSel.style.cssText = "font-size:12px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);width:100%;display:none;";
+        const descTa = document.createElement("textarea");
+        descTa.placeholder = "이 화면에 대한 디자이너 메모, 인터랙션 가이드...";
+        descTa.style.minHeight = "80px";
+        const descSaveBtn = document.createElement("button");
+        descSaveBtn.type = "button"; descSaveBtn.textContent = "저장";
+        descSaveBtn.className = "btn-sm"; descSaveBtn.style.width = "100%";
+
+        const _descKey = (page) => `pdesc|opt${_activeOptIdx}|${page}`;
+        const _loadDesc = (page) => {
+          const base = p.annotations?.[phase];
+          if (!base || Array.isArray(base)) return '';
+          return base[_descKey(page)] || '';
+        };
+        const _saveDesc = (page, text) => {
+          if (!p.annotations) p.annotations = {};
+          if (!p.annotations[phase] || Array.isArray(p.annotations[phase])) p.annotations[phase] = {};
+          p.annotations[phase][_descKey(page)] = text;
+          saveState();
+        };
+        let _descCurPage = '';
+
+        const _detectScreensD = () => {
+          try {
+            const win = _viewIframe.contentWindow, doc = _viewIframe.contentDocument;
+            if (win.SCREENS && typeof win.SCREENS === 'object' && !Array.isArray(win.SCREENS)) return Object.keys(win.SCREENS);
+            if (Array.isArray(win.__AX_SCREENS__) && win.__AX_SCREENS__.length > 0) return win.__AX_SCREENS__;
+            const de = doc.querySelectorAll('[data-screen]');
+            if (de.length > 1) return [...new Set([...de].map(e => e.dataset.screen))].filter(Boolean);
+            const se = doc.querySelectorAll('.screen[id], .page[id], [class*="screen"][id]');
+            if (se.length > 1) return [...new Set([...se].map(e => e.id))].filter(Boolean);
+          } catch {}
+          return null;
+        };
+        const _iframeShowScreenD = (name) => {
+          try {
+            const win = _viewIframe.contentWindow;
+            if (typeof win.showScreen === 'function') { win.showScreen(name); return; }
+            if (typeof win.__AX_SHOW_SCREEN__ === 'function') { win.__AX_SHOW_SCREEN__(name); return; }
+            const el = _viewIframe.contentDocument.querySelector(`[data-screen="${name}"], #${CSS.escape(name)}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          } catch {}
+        };
+
+        const _descPopulate = (pages) => {
+          descPageSel.innerHTML = '';
+          if (!pages || pages.length <= 1) { descPageSel.style.display = 'none'; screenDropRow.style.display = 'none'; return; }
+          descPageSel.style.display = '';
+          pages.forEach(name => {
+            const o = document.createElement("option");
+            o.value = name; o.textContent = name;
+            if (name === _descCurPage) o.selected = true;
+            descPageSel.appendChild(o);
+          });
+          if (!_descCurPage || !pages.includes(_descCurPage)) {
+            _descCurPage = pages[0];
+          }
+          descPageSel.value = _descCurPage;
+          descTa.value = _loadDesc(_descCurPage);
+          // 좌측 screenDropRow도 채우기
+          screenDropRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 10px;border-bottom:1px solid var(--border);flex-shrink:0;font-size:12px;";
+          screenDropRow.innerHTML = '';
+          const lbl = document.createElement("span");
+          lbl.textContent = "화면"; lbl.style.cssText = "color:var(--muted);white-space:nowrap;";
+          const lSel = document.createElement("select");
+          lSel.style.cssText = "flex:1;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;";
+          pages.forEach(name => {
+            const o = document.createElement("option");
+            o.value = name; o.textContent = name;
+            if (name === _descCurPage) o.selected = true;
+            lSel.appendChild(o);
+          });
+          lSel.addEventListener("change", () => {
+            _descCurPage = lSel.value;
+            descPageSel.value = lSel.value;
+            descTa.value = _loadDesc(lSel.value);
+            _iframeShowScreenD(lSel.value);
+          });
+          screenDropRow.appendChild(lbl);
+          screenDropRow.appendChild(lSel);
+        };
+
+        descPageSel.addEventListener("change", () => {
+          _descCurPage = descPageSel.value;
+          descTa.value = _loadDesc(_descCurPage);
+          _iframeShowScreenD(_descCurPage);
+          const lSel = screenDropRow.querySelector("select");
+          if (lSel) lSel.value = _descCurPage;
+        });
+        descSaveBtn.addEventListener("click", () => {
+          _saveDesc(_descCurPage || descPageSel.value, descTa.value);
+          toast("저장됐습니다");
+        });
+
+        _viewIframe.addEventListener('load', () => setTimeout(() => {
+          const pages = _detectScreensD();
+          _descPopulate(pages);
+        }, 150));
+
+        descBody.appendChild(descPageSel);
+        descBody.appendChild(descTa);
+        descBody.appendChild(descSaveBtn);
+      }
+
       // ── 3. 주석 ── (HTML 산출물인 경우만)
       let renderAnnPinsLate = null; // viewport 리사이즈 후 재렌더용
 
@@ -2837,13 +2956,34 @@ if(S.length)sw(S[0].id);
 
       // ── 5. AI 핸드오프 ──
       const { body: handoffBody, badgeEl: handoffBadge } = mkAccSection("AI 핸드오프");
-      const existingH4 = p.deliverables?.phase4;
       const handoffInfoP = document.createElement("p");
       handoffInfoP.style.cssText = "font-size:11px;color:var(--muted);line-height:1.5;margin:0;flex-shrink:0;";
       handoffInfoP.textContent = "/handoff 프롬프트를 복사해 AI에 붙여넣으면 핸드오프 리포트가 생성됩니다.";
 
-      // 메인 뷰어에서 선택된 안(_activeOptIdx)을 핸드오프에 자동 반영
+      // 다중 리포트 헬퍼
+      const _h4GetItems = () => {
+        const h4 = p.deliverables?.phase4;
+        if (!h4) return [];
+        if (Array.isArray(h4.items)) return h4.items;
+        if (h4.content) return [{ label: '리포트 1', content: h4.content, savedAt: h4.savedAt || new Date().toISOString() }];
+        return [];
+      };
+      const _h4Add = (content) => {
+        if (!p.deliverables) p.deliverables = {};
+        const items = _h4GetItems();
+        items.push({ label: `리포트 ${items.length + 1}`, content, savedAt: new Date().toISOString() });
+        p.deliverables.phase4 = { items };
+        saveState(); renderProjects();
+      };
+      const _h4Remove = (idx) => {
+        const items = _h4GetItems();
+        items.splice(idx, 1);
+        items.forEach((it, i) => { it.label = `리포트 ${i + 1}`; });
+        p.deliverables.phase4 = { items };
+        saveState(); renderProjects();
+      };
 
+      // 프롬프트 복사
       const handoffCopyBtn = document.createElement("button");
       handoffCopyBtn.type = "button"; handoffCopyBtn.textContent = "↗ /handoff 프롬프트 복사";
       handoffCopyBtn.className = "btn-sm";
@@ -2852,6 +2992,7 @@ if(S.length)sw(S[0].id);
         const handoffSkill = state.skills.find(s => s.id === 'p4');
         const basePrompt = handoffSkill?.prompt || '/handoff 스킬 프롬프트를 찾을 수 없습니다.';
         const notes = memoTa.value.trim();
+        const changeLog = deliv.changeLog?.trim();
         const handoffHtml = opts.length > 0 ? (opts[_activeOptIdx]?.html || deliv.content) : deliv.content;
         let full = basePrompt + '\n\n---\n\n**[Phase 3 HTML 목업 — 자동 포함]**\n\n```html\n' + handoffHtml + '\n```';
         if (p.designSystem?.exists) {
@@ -2860,53 +3001,72 @@ if(S.length)sw(S[0].id);
           if (p.designSystem.files?.length) p.designSystem.files.forEach(f => dsParts.push(`--- ${f.name} ---\n${f.content}`));
           if (dsParts.length) full += '\n\n**[디자인 시스템 — 자동 포함]**\n\n```\n' + dsParts.join('\n\n') + '\n```';
         }
+        if (changeLog) full += '\n\n**[변경이력 (Phase 3)]**\n' + changeLog;
         if (notes) full += '\n\n**[검수 메모]**\n' + notes;
         try {
           await navigator.clipboard.writeText(full);
           toast("프롬프트가 복사됐습니다. AI에 붙여넣으세요.");
         } catch { toast("복사 실패 — 브라우저 권한 확인"); }
       });
+
+      // 저장된 리포트 목록
+      const h4ListDiv = document.createElement("div");
+      h4ListDiv.style.cssText = "display:flex;flex-direction:column;gap:2px;";
+      const renderH4List = () => {
+        h4ListDiv.innerHTML = '';
+        const items = _h4GetItems();
+        handoffBadge.style.display = items.length > 0 ? "" : "none";
+        if (items.length > 0) handoffBadge.textContent = "●";
+        if (items.length === 0) {
+          const emp = document.createElement("p");
+          emp.style.cssText = "font-size:11px;color:var(--muted);margin:0;";
+          emp.textContent = "저장된 리포트가 없습니다.";
+          h4ListDiv.appendChild(emp);
+          return;
+        }
+        items.forEach((item, idx) => {
+          const row = document.createElement("div");
+          row.style.cssText = "display:flex;align-items:center;gap:4px;padding:5px 0;border-bottom:1px solid var(--border);";
+          const lbl = document.createElement("span");
+          lbl.style.cssText = "flex:1;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+          const d = new Date(item.savedAt);
+          lbl.textContent = `${item.label} (${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')})`;
+          const viewBtn = document.createElement("button");
+          viewBtn.textContent = "보기"; viewBtn.className = "btn-sm";
+          viewBtn.style.cssText = "padding:2px 8px;font-size:11px;flex-shrink:0;";
+          viewBtn.onclick = () => window.open(URL.createObjectURL(new Blob([item.content], { type: 'text/html;charset=utf-8' })));
+          const delBtn = document.createElement("button");
+          delBtn.textContent = "삭제"; delBtn.className = "btn-sm";
+          delBtn.style.cssText = "padding:2px 8px;font-size:11px;flex-shrink:0;";
+          delBtn.onclick = () => { if (confirm("삭제하시겠습니까?")) { _h4Remove(idx); renderH4List(); } };
+          row.appendChild(lbl); row.appendChild(viewBtn); row.appendChild(delBtn);
+          h4ListDiv.appendChild(row);
+        });
+      };
+      renderH4List();
+
+      // 새 리포트 붙여넣기
       const handoffPasteTa = document.createElement("textarea");
+      handoffPasteTa.placeholder = 'AI가 생성한 핸드오프 결과를 붙여넣으세요 (AX_SCREEN 블록 또는 HTML)...';
       handoffPasteTa.style.minHeight = "80px";
-      if (existingH4?.content) {
-        const d4 = new Date(existingH4.savedAt);
-        const ds4 = `${d4.getMonth()+1}/${d4.getDate()} ${String(d4.getHours()).padStart(2,'0')}:${String(d4.getMinutes()).padStart(2,'0')}`;
-        handoffPasteTa.placeholder = `저장된 리포트 있음 (${ds4})\n덮어쓰려면 새 HTML을 붙여넣으세요.`;
-        handoffBadge.style.display = ""; handoffBadge.textContent = "●";
-      } else {
-        handoffPasteTa.placeholder = 'AI가 생성한 핸드오프 HTML을 붙여넣으세요...';
-      }
       const handoffSaveBtn = document.createElement("button");
       handoffSaveBtn.type = "button"; handoffSaveBtn.textContent = "저장";
       handoffSaveBtn.className = "btn-sm";
       handoffSaveBtn.style.cssText = "width:100%;flex-shrink:0;";
-      const handoffViewBtn = document.createElement("button");
-      handoffViewBtn.type = "button"; handoffViewBtn.textContent = "리포트 보기";
-      handoffViewBtn.className = "btn-sm";
-      handoffViewBtn.style.cssText = "width:100%;flex-shrink:0;" + (existingH4 ? "" : "display:none;");
       handoffSaveBtn.addEventListener("click", () => {
         const html = handoffPasteTa.value.trim();
         if (!html) { toast("저장할 내용이 없습니다"); return; }
-        if (!p.deliverables) p.deliverables = {};
-        p.deliverables.phase4 = { content: html, savedAt: new Date().toISOString() };
-        saveState(); renderProjects();
-        handoffViewBtn.style.display = '';
-        handoffBadge.style.display = ""; handoffBadge.textContent = "●";
+        _h4Add(html);
         handoffPasteTa.value = '';
-        const d4s = new Date();
-        const ds4s = `${d4s.getMonth()+1}/${d4s.getDate()} ${String(d4s.getHours()).padStart(2,'0')}:${String(d4s.getMinutes()).padStart(2,'0')}`;
-        handoffPasteTa.placeholder = `저장된 리포트 있음 (${ds4s})\n덮어쓰려면 새 HTML을 붙여넣으세요.`;
+        renderH4List();
         toast("핸드오프 리포트가 저장됐습니다");
       });
-      handoffViewBtn.addEventListener("click", () => {
-        const h4saved = p.deliverables?.phase4;
-        if (h4saved?.content) window.open(URL.createObjectURL(new Blob([h4saved.content], { type: 'text/html;charset=utf-8' })));
-      });
+
       handoffBody.appendChild(handoffInfoP);
       handoffBody.appendChild(handoffCopyBtn);
+      handoffBody.appendChild(h4ListDiv);
       handoffBody.appendChild(handoffPasteTa);
       handoffBody.appendChild(handoffSaveBtn);
-      handoffBody.appendChild(handoffViewBtn);
 
       } // end phase3-only sections
 

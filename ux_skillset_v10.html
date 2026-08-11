@@ -1118,7 +1118,7 @@
       const outputContent = outputKey ? p.deliverables?.[outputKey]?.content : null;
       const logContent    = outputKey ? p.deliverables?.[outputKey]?.changeLog?.trim() || null : null;
       let dsContent = null;
-      if (['p2', 'p3'].includes(skillId) && (p.designSystem?.content?.trim() || p.designSystem?.files?.length)) {
+      if (skillId === 'p2' && (p.designSystem?.content?.trim() || p.designSystem?.files?.length)) {
         const parts = [];
         if (p.designSystem.content?.trim()) parts.push(p.designSystem.content.trim());
         if (p.designSystem.files?.length) {

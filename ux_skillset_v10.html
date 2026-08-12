@@ -1533,7 +1533,7 @@
     }
 
     function parseHandoffScreens(content) {
-      const re = /<!--\s*AX_SCREEN\s*\nid:\s*([^\n]+)\s*\nname:\s*([^\n]+)\s*-->([\s\S]*?)<!--\s*AX_SCREEN_END\s*-->/g;
+      const re = /<!--\s*AX_SCREEN\s+id:\s*([^\r\n]+)\s+name:\s*([^\r\n]+)\s*-->([\s\S]*?)<!--\s*AX_SCREEN_END\s*-->/g;
       const screens = []; let m;
       while ((m = re.exec(content)) !== null)
         screens.push({ id: m[1].trim(), name: m[2].trim(), html: m[3].trim() });
@@ -1642,23 +1642,6 @@ ${bodyHtml}
         const optBar = document.createElement("div");
         optBar.className = "nav-combined-bar";
         leftBody.appendChild(optBar);
-        // 안별 HTML 다운로드 버튼 행
-        const dlRow = document.createElement("div");
-        dlRow.style.cssText = "display:flex;gap:4px;padding:4px 8px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);";
-        opts.forEach(opt => {
-          const dlBtn = document.createElement("button");
-          dlBtn.type = "button"; dlBtn.className = "btn-sm";
-          dlBtn.textContent = `↓ ${opt.title || (opt.n + '안')}`;
-          dlBtn.style.fontSize = "11px";
-          dlBtn.onclick = () => {
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(new Blob([opt.html], { type: 'text/html;charset=utf-8' }));
-            a.download = `${p.name}-${opt.title || (opt.n + '안')}.html`;
-            a.click(); URL.revokeObjectURL(a.href);
-          };
-          dlRow.appendChild(dlBtn);
-        });
-        leftBody.appendChild(dlRow);
         // 단말기 바 [모바일][태블릿][데스크탑]
         const vpBar = document.createElement("div");
         vpBar.className = "vp-type-bar";
@@ -1895,13 +1878,37 @@ preview.srcdoc=OPTIONS[active].html;
         _annOverlay.addEventListener('click', e => {
           if (_annOverlay.style.pointerEvents === 'none') return;
           const rect = iframeWrapH.getBoundingClientRect();
-          const x = (e.clientX - rect.left) / rect.width;
-          const y = (e.clientY - rect.top)  / rect.height;
-          const text = prompt('주석 내용을 입력하세요:');
-          if (!text) return;
-          _hfCurrentAnns.push({ x, y, text });
-          _hfSaveAnns(_hfCurrentScreen, _hfCurrentAnns);
-          renderHfAnnPins();
+          const px = (e.clientX - rect.left) / rect.width;
+          const py = (e.clientY - rect.top)  / rect.height;
+          // 디스크립션 탭으로 자동 전환
+          const descTabBtn = tabHd.querySelectorAll('.hf-spec-tab')[3];
+          if (descTabBtn) descTabBtn.click();
+          // 인라인 입력 폼 표시
+          const existing = annListDiv.querySelector('.hf-ann-input-row');
+          if (existing) existing.remove();
+          const inputRow = document.createElement("div");
+          inputRow.className = "hf-ann-input-row";
+          inputRow.style.cssText = "display:flex;gap:4px;align-items:center;margin-bottom:4px;";
+          const inp = document.createElement("input");
+          inp.type = "text";
+          inp.placeholder = `핀 ${_hfCurrentAnns.length + 1} 설명 입력`;
+          inp.style.cssText = "flex:1;font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);";
+          const confirmBtn = document.createElement("button");
+          confirmBtn.type = "button"; confirmBtn.textContent = "추가";
+          confirmBtn.className = "btn-sm"; confirmBtn.style.fontSize = "11px";
+          const doAdd = () => {
+            const text = inp.value.trim();
+            inputRow.remove();
+            if (!text) return;
+            _hfCurrentAnns.push({ x: px, y: py, text });
+            _hfSaveAnns(_hfCurrentScreen, _hfCurrentAnns);
+            renderHfAnnPins();
+          };
+          inp.addEventListener("keydown", ev => { if (ev.key === 'Enter') doAdd(); if (ev.key === 'Escape') inputRow.remove(); });
+          confirmBtn.addEventListener("click", doAdd);
+          inputRow.appendChild(inp); inputRow.appendChild(confirmBtn);
+          annListDiv.insertBefore(inputRow, annListDiv.firstChild);
+          setTimeout(() => inp.focus(), 50);
         });
 
         function hfSwitchScreen(screenId) {
@@ -2098,7 +2105,6 @@ if(S.length)sw(S[0].id);
 
         // 디스크립션 탭 (주석 관리)
         const descPanel = tabPanels[3];
-        descPanel.style.display = 'flex';
         descPanel.style.flexDirection = 'column';
         descPanel.style.gap = '8px';
 

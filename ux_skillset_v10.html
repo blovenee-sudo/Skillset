@@ -1579,6 +1579,8 @@
       let _activeOptIdx = 0;
       let _preSetActiveHook = null, _postSetActiveHook = null;
       let _iframeWrap = null;
+      let _screenNavEl = null; // 산출물 팝업 좌측 화면 드롭박스 (공유 ref)
+      let _descPopulateRef = null; // 디스크립션 섹션 페이지 재갱신 함수 (주석 섹션에서 호출)
 
       // 분할 레이아웃: 좌(뷰어) + 수직핸들 + 우(QA 패널)
       const split = document.createElement("div");
@@ -2010,6 +2012,11 @@ if(S.length)sw(S[0].id);
         _setVp(null);
         iframeWrap.appendChild(_viewIframe);
         leftBody.appendChild(vpBar);
+        // 화면 드롭박스 (산출물 팝업) — 주석 섹션에서 _getScreens() 로 채워짐
+        const _htmlScreenDrop = document.createElement("div");
+        _htmlScreenDrop.style.cssText = "display:none;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);";
+        leftBody.appendChild(_htmlScreenDrop);
+        _screenNavEl = _htmlScreenDrop;
         leftBody.appendChild(iframeWrap);
         _iframeWrap = iframeWrap;
 
@@ -2594,11 +2601,11 @@ if(S.length)sw(S[0].id);
 
         const _descPopulate = (pages) => {
           descPageSel.innerHTML = '';
-          if (!pages || pages.length <= 1) { descPageSel.style.display = 'none'; screenDropRow.style.display = 'none'; return; }
+          if (!pages || pages.length === 0) { descPageSel.style.display = 'none'; screenDropRow.style.display = 'none'; return; }
           descPageSel.style.display = '';
-          pages.forEach(name => {
+          pages.forEach((name, idx) => {
             const o = document.createElement("option");
-            o.value = name; o.textContent = name;
+            o.value = name; o.textContent = `${idx + 1}. ${name}`;
             if (name === _descCurPage) o.selected = true;
             descPageSel.appendChild(o);
           });
@@ -2614,9 +2621,9 @@ if(S.length)sw(S[0].id);
           lbl.textContent = "화면"; lbl.style.cssText = "color:var(--muted);white-space:nowrap;";
           const lSel = document.createElement("select");
           lSel.style.cssText = "flex:1;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;";
-          pages.forEach(name => {
+          pages.forEach((name, idx) => {
             const o = document.createElement("option");
-            o.value = name; o.textContent = name;
+            o.value = name; o.textContent = `${idx + 1}. ${name}`;
             if (name === _descCurPage) o.selected = true;
             lSel.appendChild(o);
           });
@@ -2629,6 +2636,7 @@ if(S.length)sw(S[0].id);
           screenDropRow.appendChild(lbl);
           screenDropRow.appendChild(lSel);
         };
+        _descPopulateRef = _descPopulate;
 
         descPageSel.addEventListener("change", () => {
           _descCurPage = descPageSel.value;
@@ -2948,6 +2956,56 @@ if(S.length)sw(S[0].id);
         annBody.appendChild(annEmptyEl);
         renderAnnPins();
         renderAnnList();
+
+        // ── 화면 드롭박스 (산출물 팝업 좌측) — _screenNavEl이 있을 때만 ──
+        let _uscreenNav; _uscreenNav = () => {
+          if (!_screenNavEl) return;
+          const screens = _getScreens();
+          _screenNavEl.innerHTML = '';
+          _screenNavEl.style.display = 'flex';
+          _screenNavEl.style.alignItems = 'center';
+          _screenNavEl.style.gap = '8px';
+          const lbl = document.createElement("span");
+          lbl.textContent = "화면";
+          lbl.style.cssText = "font-size:12px;color:var(--muted);white-space:nowrap;flex-shrink:0;";
+          const sel = document.createElement("select");
+          sel.style.cssText = "flex:1;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;";
+          screens.forEach((name, idx) => {
+            const o = document.createElement("option");
+            o.value = name; o.textContent = `${idx + 1}. ${name}`;
+            if (name === _currentScreen) o.selected = true;
+            sel.appendChild(o);
+          });
+          sel.addEventListener("change", () => {
+            annSave();
+            _currentScreen = sel.value;
+            _localAnn = _loadScreenAnns(_currentScreen);
+            _localAnnActive = null;
+            annPageLabel.textContent = _annPageLabelText();
+            _uscreenNav(); renderAnnPins(); renderAnnList();
+            _iframeShowScreen(_currentScreen);
+          });
+          const addBtn = document.createElement("button");
+          addBtn.type = "button"; addBtn.textContent = "+"; addBtn.title = "화면 추가";
+          addBtn.style.cssText = "padding:2px 8px;font-size:12px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;flex-shrink:0;";
+          addBtn.addEventListener("click", () => {
+            const newName = prompt("화면 이름", `화면${_getScreens().length + 1}`);
+            if (!newName?.trim()) return;
+            const trimmed = newName.trim();
+            if (_getScreens().includes(trimmed)) { alert("같은 이름의 화면이 있습니다."); return; }
+            annSave();
+            _saveScreens([..._getScreens(), trimmed]);
+            _currentScreen = trimmed;
+            _localAnn = _loadScreenAnns(_currentScreen);
+            _localAnnActive = null;
+            annPageLabel.textContent = _annPageLabelText();
+            _uscreenNav(); renderAnnPins(); renderAnnList();
+          });
+          _screenNavEl.appendChild(lbl); _screenNavEl.appendChild(sel); _screenNavEl.appendChild(addBtn);
+        };
+        _uscreenNav();
+        // 디스크립션 섹션 페이지 목록도 동기화 (AX_OPTION 형식 산출물용)
+        if (_descPopulateRef) _descPopulateRef(_getScreens());
       }
 
       // ── 4. 검수 메모 ──
@@ -3051,8 +3109,25 @@ if(S.length)sw(S[0].id);
           viewBtn.textContent = "보기"; viewBtn.className = "btn-sm";
           viewBtn.style.cssText = "padding:2px 8px;font-size:11px;flex-shrink:0;";
           viewBtn.onclick = () => {
-            _h4ViewOverride = item.content;
-            openDelivView(projectId, 'phase4');
+            const itemScreens = parseHandoffScreens(item.content);
+            if (itemScreens.length > 0) {
+              const itemSpecs = parseHandoffSpecs(item.content);
+              const specHtml = itemSpecs ? `<div class="s-sec"><h3>컴포넌트</h3><div class="md">${renderMd(itemSpecs.components)}</div></div><div class="s-sec"><h3>디자인 토큰</h3><div class="md">${renderMd(itemSpecs.tokens)}</div></div><div class="s-sec"><h3>인터랙션</h3><div class="md">${renderMd(itemSpecs.interaction)}</div></div>` : '';
+              const page = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${escapeHtml(p.name)} 핸드오프</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#111;color:#e0e0e0;font-family:-apple-system,sans-serif;display:flex;height:100vh}.left{flex:1;overflow:hidden;display:flex;flex-direction:column;border-right:1px solid #333}.sbar{display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;border-bottom:1px solid #333;background:#1a1a1a}.sbtn{font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid #444;background:transparent;color:#aaa;cursor:pointer}.sbtn.active{background:#6366f1;color:#fff;border-color:#6366f1}iframe{flex:1;border:none;width:100%}.right{width:300px;overflow-y:auto;background:#1a1a1a;padding:16px;font-size:12px}.s-sec{margin-bottom:20px}.s-sec h3{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}.md{color:#ccc;line-height:1.6}table{width:100%;font-size:11px;border-collapse:collapse}th,td{text-align:left;padding:4px 6px;border-bottom:1px solid #333}th{color:#888}</style></head><body>
+<div class="left"><div class="sbar" id="sbar"></div><iframe id="pf" sandbox="allow-scripts allow-same-origin"></iframe></div>
+<div class="right">${specHtml}</div>
+<script>
+const S=${JSON.stringify(itemScreens)};
+const sbar=document.getElementById('sbar'),pf=document.getElementById('pf');
+function sw(id){S.forEach(s=>{const b=document.querySelector('[data-id="'+s.id+'"]');if(b)b.className='sbtn'+(s.id===id?' active':'');});const s=S.find(x=>x.id===id);if(s){const blob=new Blob([s.html],{type:'text/html;charset=utf-8'});pf.src=URL.createObjectURL(blob);}}
+S.forEach(sc=>{const b=document.createElement('button');b.className='sbtn';b.dataset.id=sc.id;b.textContent=sc.name;b.onclick=()=>sw(sc.id);sbar.appendChild(b);});
+if(S.length)sw(S[0].id);
+<\/script></body></html>`;
+              window.open(URL.createObjectURL(new Blob([page], { type: 'text/html;charset=utf-8' })));
+            } else {
+              window.open(URL.createObjectURL(new Blob([item.content], { type: 'text/html;charset=utf-8' })));
+            }
           };
           const delBtn = document.createElement("button");
           delBtn.textContent = "삭제"; delBtn.className = "btn-sm";
@@ -3709,6 +3784,7 @@ if(S.length)sw(S[0].id);
       if (sk.id === 'p3' && projectId) {
         const proj = state.projects.find(x => x.id === projectId);
         const phase2Content = proj?.deliverables?.phase2?.content;
+        const dsExists = !!(proj?.designSystem?.content?.trim() || proj?.designSystem?.files?.length);
         if (phase2Content) {
           const btn = document.createElement("button");
           btn.type = "button"; btn.className = "btn-sm";
@@ -3721,10 +3797,25 @@ if(S.length)sw(S[0].id);
             a.click(); URL.revokeObjectURL(a.href);
           };
           dlBtns.appendChild(btn);
-          dlWrap.style.display = "block";
-        } else {
-          dlWrap.style.display = "none";
         }
+        if (dsExists) {
+          const dsParts = [];
+          if (proj.designSystem.content?.trim()) dsParts.push(proj.designSystem.content.trim());
+          if (proj.designSystem.files?.length) proj.designSystem.files.forEach(f => dsParts.push(`--- ${f.name} ---\n${f.content}`));
+          const dsText = dsParts.join('\n\n');
+          const btn2 = document.createElement("button");
+          btn2.type = "button"; btn2.className = "btn-sm";
+          btn2.textContent = "↓ 디자인 시스템 내려받기";
+          btn2.style.cssText = "margin-right:4px;margin-top:2px;font-size:11px;";
+          btn2.onclick = () => {
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(new Blob([dsText], { type: 'text/plain;charset=utf-8' }));
+            a.download = "design-system.md";
+            a.click(); URL.revokeObjectURL(a.href);
+          };
+          dlBtns.appendChild(btn2);
+        }
+        dlWrap.style.display = (phase2Content || dsExists) ? "block" : "none";
       } else {
         dlWrap.style.display = "none";
       }

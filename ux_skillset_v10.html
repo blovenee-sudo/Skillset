@@ -1118,7 +1118,7 @@
       const outputContent = outputKey ? p.deliverables?.[outputKey]?.content : null;
       const logContent    = outputKey ? p.deliverables?.[outputKey]?.changeLog?.trim() || null : null;
       let dsContent = null;
-      if (skillId === 'p2' && (p.designSystem?.content?.trim() || p.designSystem?.files?.length)) {
+      if (['p2', 'p3'].includes(skillId) && (p.designSystem?.content?.trim() || p.designSystem?.files?.length)) {
         const parts = [];
         if (p.designSystem.content?.trim()) parts.push(p.designSystem.content.trim());
         if (p.designSystem.files?.length) {
@@ -3784,7 +3784,6 @@ if(S.length)sw(S[0].id);
       if (sk.id === 'p3' && projectId) {
         const proj = state.projects.find(x => x.id === projectId);
         const phase2Content = proj?.deliverables?.phase2?.content;
-        const dsExists = !!(proj?.designSystem?.content?.trim() || proj?.designSystem?.files?.length);
         if (phase2Content) {
           const btn = document.createElement("button");
           btn.type = "button"; btn.className = "btn-sm";
@@ -3797,25 +3796,10 @@ if(S.length)sw(S[0].id);
             a.click(); URL.revokeObjectURL(a.href);
           };
           dlBtns.appendChild(btn);
+          dlWrap.style.display = "block";
+        } else {
+          dlWrap.style.display = "none";
         }
-        if (dsExists) {
-          const dsParts = [];
-          if (proj.designSystem.content?.trim()) dsParts.push(proj.designSystem.content.trim());
-          if (proj.designSystem.files?.length) proj.designSystem.files.forEach(f => dsParts.push(`--- ${f.name} ---\n${f.content}`));
-          const dsText = dsParts.join('\n\n');
-          const btn2 = document.createElement("button");
-          btn2.type = "button"; btn2.className = "btn-sm";
-          btn2.textContent = "↓ 디자인 시스템 내려받기";
-          btn2.style.cssText = "margin-right:4px;margin-top:2px;font-size:11px;";
-          btn2.onclick = () => {
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(new Blob([dsText], { type: 'text/plain;charset=utf-8' }));
-            a.download = "design-system.md";
-            a.click(); URL.revokeObjectURL(a.href);
-          };
-          dlBtns.appendChild(btn2);
-        }
-        dlWrap.style.display = (phase2Content || dsExists) ? "block" : "none";
       } else {
         dlWrap.style.display = "none";
       }

@@ -1493,7 +1493,15 @@
       if (!p) return;
       _delivEditState = { projectId, phase };
       $("delivEditTitle").textContent = `${PHASE_META[phase].label} 스킬 결과 저장`;
-      $("delivEditGuide").style.display = phase === 'phase3' ? '' : 'none';
+      if (phase === 'phase3') {
+        $("delivEditGuide").innerHTML = 'LLM이 출력한 HTML 코드 전체(<code style="font-size:11px">&lt;!DOCTYPE html&gt;</code> 부터 <code style="font-size:11px">&lt;/html&gt;</code> 까지)를 복사해 붙여넣으세요.';
+        $("delivEditGuide").style.display = '';
+      } else if (phase === 'phase4') {
+        $("delivEditGuide").innerHTML = 'Claude.ai가 <strong>첨부 파일</strong>로 생성한 <code style="font-size:11px">handoff_report.md</code>를 다운로드 후 <strong>파일 첨부</strong> 버튼으로 불러오세요.';
+        $("delivEditGuide").style.display = '';
+      } else {
+        $("delivEditGuide").style.display = 'none';
+      }
       $("btnDelivEditMulti").style.display = phase === 'phase3' ? '' : 'none';
       $("btnDelivEditFile").style.display = phase === 'phase3' ? 'none' : '';
 

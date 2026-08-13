@@ -3162,9 +3162,37 @@ if(S.length)sw(S[0].id);
         }, 50);
       });
 
+      // 파일 첨부 버튼
+      const handoffFileInput = document.createElement("input");
+      handoffFileInput.type = "file";
+      handoffFileInput.accept = ".html,.md,.txt";
+      handoffFileInput.style.display = "none";
+      handoffFileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const content = ev.target.result.trim();
+          if (!content) return;
+          _h4Add(content);
+          renderH4List();
+          toast("파일에서 핸드오프 리포트를 추가했습니다");
+        };
+        reader.readAsText(file, "UTF-8");
+        e.target.value = "";
+      });
+      const handoffFileBtn = document.createElement("button");
+      handoffFileBtn.type = "button";
+      handoffFileBtn.className = "btn-sm";
+      handoffFileBtn.textContent = "파일 첨부 (.html / .md)";
+      handoffFileBtn.style.cssText = "margin-bottom:6px;font-size:11px;";
+      handoffFileBtn.addEventListener("click", () => handoffFileInput.click());
+
       handoffBody.appendChild(handoffInfoP);
       handoffBody.appendChild(handoffCopyBtn);
       handoffBody.appendChild(h4ListDiv);
+      handoffBody.appendChild(handoffFileInput);
+      handoffBody.appendChild(handoffFileBtn);
       handoffBody.appendChild(handoffPasteTa);
 
       } // end phase3-only sections

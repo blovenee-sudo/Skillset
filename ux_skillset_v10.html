@@ -3311,7 +3311,46 @@ if(S.length)sw(S[0].id);
       quickViewBtn.addEventListener("click", () => {
         const mockupHtml = (opts.length > 0 && opts[_activeOptIdx]) ? opts[_activeOptIdx].html : deliv.content;
         if (!mockupHtml) { toast("목업 콘텐츠가 없습니다"); return; }
-        const safeContent = mockupHtml.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+
+        // DOMParser로 부모 창에서 직접 파싱 — iframe 통신 불필요
+        const dom = new DOMParser().parseFromString(mockupHtml, 'text/html');
+        const headHtml = dom.head.innerHTML;
+        // 화면 전환 함수를 no-op으로 덮어써서 개별 화면 로드 시 충돌 방지
+        const navPatch = `<script>['showScreen','showPage','switchTab','navigate','goTo','showView','showSection'].forEach(fn=>{window[fn]=()=>{};});<\/script>`;
+
+        // 화면 요소 탐색 (id="screen-*" / "page-*" / "section-*" / "view-*")
+        const screenEls = [...dom.querySelectorAll('[id^="screen-"],[id^="page-"],[id^="section-"],[id^="view-"]')]
+          .filter(el => el.id && !/^(pageWrapper|viewPort)$/i.test(el.id)); // 불필요한 wrapper 제외
+
+        const screenMap = {}; // { label: htmlString }
+
+        if (screenEls.length > 0) {
+          const prefix = /^(screen|page|section|view)-/;
+          screenEls.forEach(el => {
+            const label = el.getAttribute('data-name') || el.getAttribute('aria-label') || el.id.replace(prefix, '');
+            // body 복제 후 해당 화면만 표시, 나머지 숨김
+            const bodyClone = dom.body.cloneNode(true);
+            bodyClone.querySelectorAll('[id^="screen-"],[id^="page-"],[id^="section-"],[id^="view-"]').forEach(s => {
+              if (s.id === el.id) { s.style.removeProperty('display'); s.style.removeProperty('visibility'); }
+              else { s.style.cssText += ';display:none!important'; }
+            });
+            screenMap[label] = `<!DOCTYPE html><html lang="ko"><head>${navPatch}${headHtml}</head><body>${bodyClone.innerHTML}</body></html>`;
+          });
+        } else {
+          // 단일 화면: 전체 HTML을 그대로 사용
+          const title = dom.querySelector('title')?.textContent?.trim() || '메인';
+          screenMap[title] = mockupHtml;
+        }
+
+        // 화면별 blob URL 생성 (부모 창에서 처리 → SW 캐시 무관)
+        const blobUrls = {};
+        Object.entries(screenMap).forEach(([label, html]) => {
+          blobUrls[label] = URL.createObjectURL(new Blob([html], {type:'text/html;charset=utf-8'}));
+        });
+        const labels = Object.keys(screenMap);
+        const safeLabels = JSON.stringify(labels).replace(/<\/script>/gi,'<\\/script>');
+        const safeBlobUrls = JSON.stringify(blobUrls).replace(/<\/script>/gi,'<\\/script>');
+
         const viewerPage = `<!DOCTYPE html><html lang="ko"><head>
 <meta charset="UTF-8"><title>${escapeHtml(p.name)} — 핸드오프 뷰어</title>
 <style>
@@ -3325,37 +3364,16 @@ body{background:#111;color:#e0e0e0;font-family:-apple-system,sans-serif;display:
 .sbtn.active{background:#6366f1;color:#fff}
 .main{flex:1;overflow:hidden}
 iframe{width:100%;height:100%;border:none;display:block}
-.hint{color:#555;font-size:11px;padding:10px;line-height:1.5}
+.hint{color:#666;font-size:11px;padding:10px;line-height:1.5;text-align:center;margin-top:8px}
 </style></head><body>
-<div class="sidebar"><div class="sidebar-title">화면 목록</div><div class="sidebar-list" id="sbar"><div class="hint">로드 중...</div></div></div>
-<div class="main"><iframe id="pf" srcdoc="${safeContent}" sandbox="allow-scripts allow-same-origin"></iframe></div>
+<div class="sidebar"><div class="sidebar-title">화면 목록</div><div class="sidebar-list" id="sbar"></div></div>
+<div class="main"><iframe id="pf" sandbox="allow-scripts allow-same-origin allow-forms" allow=""></iframe></div>
 <script>
+const LABELS=${safeLabels},URLS=${safeBlobUrls};
 const pf=document.getElementById('pf'),sbar=document.getElementById('sbar');
-function activate(id,fn){sbar.querySelectorAll('.sbtn').forEach(b=>b.classList.toggle('active',b.dataset.id===id));fn(id);}
-pf.addEventListener('load',()=>{
-  try{
-    const win=pf.contentWindow,doc=pf.contentDocument;
-    let names=[],showFn;
-    if(win.SCREENS&&!Array.isArray(win.SCREENS)){
-      names=Object.keys(win.SCREENS);
-      showFn=id=>{if(typeof win.showScreen==='function')win.showScreen(id);};
-    } else if(Array.isArray(win.__AX_SCREENS__)){
-      names=win.__AX_SCREENS__;
-      showFn=id=>{if(typeof win.__AX_SHOW_SCREEN__==='function')win.__AX_SHOW_SCREEN__(id);};
-    } else if(typeof win.showScreen==='function'){
-      const els=doc.querySelectorAll('[id^="screen-"]');
-      if(els.length>0){names=[...els].map(e=>e.id.replace(/^screen-/,''));showFn=id=>win.showScreen(id);}
-      else{const ds=doc.querySelectorAll('[data-screen]');names=[...new Set([...ds].map(e=>e.dataset.screen))];showFn=id=>win.showScreen(id);}
-    }
-    if(!names.length){sbar.innerHTML='<div class="hint">화면 목록을 찾을 수 없습니다.<br>(showScreen 또는 window.SCREENS 필요)</div>';return;}
-    sbar.innerHTML='';
-    names.forEach(name=>{
-      const b=document.createElement('button');b.className='sbtn';b.dataset.id=name;b.textContent=name;
-      b.onclick=()=>activate(name,showFn);sbar.appendChild(b);
-    });
-    activate(names[0],showFn);
-  }catch(e){sbar.innerHTML='<div class="hint">오류: '+e.message+'</div>';}
-});
+function activate(label){sbar.querySelectorAll('.sbtn').forEach(b=>b.classList.toggle('active',b.dataset.id===label));pf.src=URLS[label];}
+LABELS.forEach(label=>{const b=document.createElement('button');b.className='sbtn';b.dataset.id=label;b.textContent=label;b.onclick=()=>activate(label);sbar.appendChild(b);});
+if(LABELS.length){activate(LABELS[0]);}else{sbar.innerHTML='<div class="hint">화면 없음</div>';}
 <\/script></body></html>`;
         window.open(URL.createObjectURL(new Blob([viewerPage],{type:'text/html;charset=utf-8'})));
       });
@@ -4636,6 +4654,10 @@ pf.addEventListener('load',()=>{
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
+        // 새 SW가 활성화되면 자동으로 재로드해서 새 코드 적용
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
+        });
       });
     }
   </script>

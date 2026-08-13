@@ -2019,6 +2019,10 @@ if(S.length)sw(S[0].id);
         });
         _setVp(null);
         iframeWrap.appendChild(_viewIframe);
+        // 번호 오버레이 (디스크립션 핀 배치용)
+        const _pinOverlay = document.createElement("div");
+        _pinOverlay.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:10;overflow:visible;";
+        iframeWrap.appendChild(_pinOverlay);
         leftBody.appendChild(vpBar);
         // 화면 드롭박스 (산출물 팝업) — 주석 섹션에서 _getScreens() 로 채워짐
         const _htmlScreenDrop = document.createElement("div");
@@ -2646,24 +2650,108 @@ if(S.length)sw(S[0].id);
         };
         _descPopulateRef = _descPopulate;
 
+        // 핀(번호) 상태
+        let _reloadPins = () => {};
+        const _pinKey2 = (page) => `pins|opt${_activeOptIdx}|${page}`;
+        const _loadPins2 = (page) => {
+          const base = p.annotations?.[phase];
+          if (!base || Array.isArray(base)) return [];
+          try { return JSON.parse(base[_pinKey2(page)] || '[]'); } catch { return []; }
+        };
+        const _savePins2 = (page, pins) => {
+          if (!p.annotations) p.annotations = {};
+          if (!p.annotations[phase] || Array.isArray(p.annotations[phase])) p.annotations[phase] = {};
+          p.annotations[phase][_pinKey2(page)] = JSON.stringify(pins);
+          saveState();
+        };
+        let _curPins = [];
+
+        const renderPins = () => {
+          _pinOverlay.innerHTML = '';
+          _curPins.forEach((pin, idx) => {
+            const dot = document.createElement("div");
+            dot.style.cssText = `position:absolute;left:${pin.x}%;top:${pin.y}%;width:22px;height:22px;border-radius:50%;background:#f43f5e;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35);z-index:20;pointer-events:auto;user-select:none;`;
+            dot.textContent = pin.num;
+            dot.title = "클릭하여 삭제";
+            dot.addEventListener("click", (e) => {
+              e.stopPropagation();
+              _curPins.splice(idx, 1);
+              _curPins.forEach((p, i) => { p.num = i + 1; });
+              _savePins2(_descCurPage, _curPins);
+              renderPins();
+            });
+            _pinOverlay.appendChild(dot);
+          });
+        };
+
+        _reloadPins = () => {
+          _curPins = _loadPins2(_descCurPage);
+          renderPins();
+        };
+
         descPageSel.addEventListener("change", () => {
           _descCurPage = descPageSel.value;
           descTa.value = _loadDesc(_descCurPage);
           _iframeShowScreenD(_descCurPage);
           const lSel = screenDropRow.querySelector("select");
           if (lSel) lSel.value = _descCurPage;
+          _reloadPins();
         });
         descSaveBtn.addEventListener("click", () => {
           _saveDesc(_descCurPage || descPageSel.value, descTa.value);
           toast("저장됐습니다");
         });
 
+        // 번호 추가 버튼
+        let _pinMode = false;
+        const pinAddBtn = document.createElement("button");
+        pinAddBtn.type = "button"; pinAddBtn.className = "btn-sm";
+        pinAddBtn.textContent = "번호 추가";
+        pinAddBtn.style.cssText = "font-size:11px;flex:1;";
+        const pinClearBtn = document.createElement("button");
+        pinClearBtn.type = "button"; pinClearBtn.className = "btn-sm";
+        pinClearBtn.textContent = "전체 삭제";
+        pinClearBtn.style.cssText = "font-size:11px;";
+        const pinRow = document.createElement("div");
+        pinRow.style.cssText = "display:flex;gap:6px;";
+        pinRow.appendChild(pinAddBtn);
+        pinRow.appendChild(pinClearBtn);
+
+        pinAddBtn.addEventListener("click", () => {
+          _pinMode = !_pinMode;
+          pinAddBtn.textContent = _pinMode ? "배치 완료 ✓" : "번호 추가";
+          pinAddBtn.style.background = _pinMode ? "var(--accent)" : "";
+          pinAddBtn.style.color = _pinMode ? "#fff" : "";
+          _pinOverlay.style.pointerEvents = _pinMode ? "auto" : "none";
+          _pinOverlay.style.cursor = _pinMode ? "crosshair" : "";
+        });
+
+        pinClearBtn.addEventListener("click", () => {
+          if (!_curPins.length) return;
+          if (!confirm("모든 번호를 삭제하시겠습니까?")) return;
+          _curPins = [];
+          _savePins2(_descCurPage, _curPins);
+          renderPins();
+        });
+
+        _pinOverlay.addEventListener("click", (e) => {
+          if (!_pinMode) return;
+          const overlayRect = _pinOverlay.getBoundingClientRect();
+          const x = ((e.clientX - overlayRect.left) / overlayRect.width) * 100;
+          const y = ((e.clientY - overlayRect.top) / overlayRect.height) * 100;
+          _curPins.push({ x, y, num: _curPins.length + 1 });
+          _savePins2(_descCurPage, _curPins);
+          renderPins();
+        });
+
         _viewIframe.addEventListener('load', () => setTimeout(() => {
           const pages = _detectScreensD();
           _descPopulate(pages);
+          _reloadPins();
         }, 150));
 
         descBody.appendChild(descPageSel);
+        descBody.appendChild(pinRow);
         descBody.appendChild(descTa);
         descBody.appendChild(descSaveBtn);
       }
@@ -3121,10 +3209,30 @@ if(S.length)sw(S[0].id);
             if (itemScreens.length > 0) {
               const itemSpecs = parseHandoffSpecs(item.content);
               const specHtml = itemSpecs ? `<div class="s-sec"><h3>컴포넌트</h3><div class="md">${renderMd(itemSpecs.components)}</div></div><div class="s-sec"><h3>디자인 토큰</h3><div class="md">${renderMd(itemSpecs.tokens)}</div></div><div class="s-sec"><h3>인터랙션</h3><div class="md">${renderMd(itemSpecs.interaction)}</div></div>` : '';
+              const hasSpec = itemSpecs && (itemSpecs.components || itemSpecs.tokens || itemSpecs.interaction);
               const page = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${escapeHtml(p.name)} 핸드오프</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#111;color:#e0e0e0;font-family:-apple-system,sans-serif;display:flex;height:100vh}.left{flex:1;overflow:hidden;display:flex;flex-direction:column;border-right:1px solid #333}.sbar{display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;border-bottom:1px solid #333;background:#1a1a1a}.sbtn{font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid #444;background:transparent;color:#aaa;cursor:pointer}.sbtn.active{background:#6366f1;color:#fff;border-color:#6366f1}iframe{flex:1;border:none;width:100%}.right{width:300px;overflow-y:auto;background:#1a1a1a;padding:16px;font-size:12px}.s-sec{margin-bottom:20px}.s-sec h3{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}.md{color:#ccc;line-height:1.6}table{width:100%;font-size:11px;border-collapse:collapse}th,td{text-align:left;padding:4px 6px;border-bottom:1px solid #333}th{color:#888}</style></head><body>
-<div class="left"><div class="sbar" id="sbar"></div><iframe id="pf" sandbox="allow-scripts allow-same-origin"></iframe></div>
-<div class="right">${specHtml}</div>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#111;color:#e0e0e0;font-family:-apple-system,sans-serif;display:flex;height:100vh;overflow:hidden;}
+.sidebar{width:200px;flex-shrink:0;background:#1a1a1a;border-right:1px solid #2a2a2a;display:flex;flex-direction:column;overflow:hidden;}
+.sidebar-title{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.08em;padding:14px 14px 8px;font-weight:600;}
+.sidebar-list{flex:1;overflow-y:auto;padding:6px 8px;}
+.sbtn{display:block;width:100%;text-align:left;font-size:12px;padding:8px 10px;border-radius:6px;border:none;background:transparent;color:#888;cursor:pointer;margin-bottom:2px;transition:background .15s,color .15s;line-height:1.4;}
+.sbtn:hover{background:#252525;color:#ccc;}
+.sbtn.active{background:#6366f1;color:#fff;}
+.main{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+iframe{flex:1;border:none;width:100%;}
+.right{width:280px;flex-shrink:0;overflow-y:auto;background:#1a1a1a;padding:16px;font-size:12px;border-left:1px solid #2a2a2a;}
+.s-sec{margin-bottom:20px;}
+.s-sec h3{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:600;}
+.md{color:#bbb;line-height:1.7;}
+table{width:100%;font-size:11px;border-collapse:collapse;}
+th,td{text-align:left;padding:5px 6px;border-bottom:1px solid #252525;}
+th{color:#666;}
+</style></head><body>
+<div class="sidebar"><div class="sidebar-title">화면 목록</div><div class="sidebar-list" id="sbar"></div></div>
+<div class="main"><iframe id="pf" sandbox="allow-scripts allow-same-origin"></iframe></div>
+${hasSpec ? `<div class="right">${specHtml}</div>` : ''}
 <script>
 const S=${JSON.stringify(itemScreens).replace(/<\/script>/gi, '<\\/script>')};
 const sbar=document.getElementById('sbar'),pf=document.getElementById('pf');

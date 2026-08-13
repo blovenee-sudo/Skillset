@@ -706,7 +706,7 @@
     <div class="modal modal-wide">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-shrink:0">
         <h4 id="delivViewTitle" style="margin:0;flex:1;font-size:14px"></h4>
-        <button type="button" class="btn-sm" id="btnDelivViewOpen">새 탭에서 열기</button>
+        <button type="button" class="btn-sm" id="btnDelivViewOpen" style="display:none">새 탭에서 열기</button>
         <button type="button" class="btn-sm" id="btnDelivViewDownload">다운로드</button>
         <button type="button" class="btn-sm" id="btnDelivViewReview" style="display:none">리뷰 & 핸드오프 ↗</button>
         <button type="button" class="btn-sm" id="btnDelivViewEdit">수정</button>
@@ -1588,7 +1588,7 @@
       let _preSetActiveHook = null, _postSetActiveHook = null;
       let _iframeWrap = null;
       let _screenNavEl = null; // 산출물 팝업 좌측 화면 드롭박스 (공유 ref)
-      let _descPopulateRef = null; // 디스크립션 섹션 페이지 재갱신 함수 (주석 섹션에서 호출)
+
 
       // 분할 레이아웃: 좌(뷰어) + 수직핸들 + 우(QA 패널)
       const split = document.createElement("div");
@@ -2568,201 +2568,6 @@ if(S.length)sw(S[0].id);
         setTimeout(injectInspector, 100);
       }
 
-      // ── 2-B. 디스크립션 (목업 뷰어 - 3뎁스 화면 선택 + 페이지별 메모) ──
-      if (opts.length > 0 && _viewIframe) {
-        const { hd: descHd, body: descBody } = mkAccSection("디스크립션");
-        descBody.style.gap = '6px';
-
-        const descPageSel = document.createElement("select");
-        descPageSel.style.cssText = "font-size:12px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);width:100%;display:none;";
-        const descTa = document.createElement("textarea");
-        descTa.placeholder = "이 화면에 대한 디자이너 메모, 인터랙션 가이드...";
-        descTa.style.minHeight = "80px";
-        const descSaveBtn = document.createElement("button");
-        descSaveBtn.type = "button"; descSaveBtn.textContent = "저장";
-        descSaveBtn.className = "btn-sm"; descSaveBtn.style.width = "100%";
-
-        const _descKey = (page) => `pdesc|opt${_activeOptIdx}|${page}`;
-        const _loadDesc = (page) => {
-          const base = p.annotations?.[phase];
-          if (!base || Array.isArray(base)) return '';
-          return base[_descKey(page)] || '';
-        };
-        const _saveDesc = (page, text) => {
-          if (!p.annotations) p.annotations = {};
-          if (!p.annotations[phase] || Array.isArray(p.annotations[phase])) p.annotations[phase] = {};
-          p.annotations[phase][_descKey(page)] = text;
-          saveState();
-        };
-        let _descCurPage = '';
-
-        const _detectScreensD = () => {
-          try {
-            const win = _viewIframe.contentWindow, doc = _viewIframe.contentDocument;
-            if (win.SCREENS && typeof win.SCREENS === 'object' && !Array.isArray(win.SCREENS)) return Object.keys(win.SCREENS);
-            if (Array.isArray(win.__AX_SCREENS__) && win.__AX_SCREENS__.length > 0) return win.__AX_SCREENS__;
-            const de = doc.querySelectorAll('[data-screen]');
-            if (de.length > 1) return [...new Set([...de].map(e => e.dataset.screen))].filter(Boolean);
-            const se = doc.querySelectorAll('.screen[id], .page[id], [class*="screen"][id]');
-            if (se.length > 1) return [...new Set([...se].map(e => e.id))].filter(Boolean);
-          } catch {}
-          return null;
-        };
-        const _iframeShowScreenD = (name) => {
-          try {
-            const win = _viewIframe.contentWindow;
-            if (typeof win.showScreen === 'function') { win.showScreen(name); return; }
-            if (typeof win.__AX_SHOW_SCREEN__ === 'function') { win.__AX_SHOW_SCREEN__(name); return; }
-            const el = _viewIframe.contentDocument.querySelector(`[data-screen="${name}"], #${CSS.escape(name)}`);
-            if (el) el.scrollIntoView({ behavior: 'smooth' });
-          } catch {}
-        };
-
-        const _descPopulate = (pages) => {
-          descPageSel.innerHTML = '';
-          if (!pages || pages.length === 0) { descPageSel.style.display = 'none'; screenDropRow.style.display = 'none'; return; }
-          descPageSel.style.display = '';
-          pages.forEach((name, idx) => {
-            const o = document.createElement("option");
-            o.value = name; o.textContent = `${idx + 1}. ${name}`;
-            if (name === _descCurPage) o.selected = true;
-            descPageSel.appendChild(o);
-          });
-          if (!_descCurPage || !pages.includes(_descCurPage)) {
-            _descCurPage = pages[0];
-          }
-          descPageSel.value = _descCurPage;
-          descTa.value = _loadDesc(_descCurPage);
-          // 좌측 screenDropRow도 채우기
-          screenDropRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 10px;border-bottom:1px solid var(--border);flex-shrink:0;font-size:12px;";
-          screenDropRow.innerHTML = '';
-          const lbl = document.createElement("span");
-          lbl.textContent = "화면"; lbl.style.cssText = "color:var(--muted);white-space:nowrap;";
-          const lSel = document.createElement("select");
-          lSel.style.cssText = "flex:1;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;";
-          pages.forEach((name, idx) => {
-            const o = document.createElement("option");
-            o.value = name; o.textContent = `${idx + 1}. ${name}`;
-            if (name === _descCurPage) o.selected = true;
-            lSel.appendChild(o);
-          });
-          lSel.addEventListener("change", () => {
-            _descCurPage = lSel.value;
-            descPageSel.value = lSel.value;
-            descTa.value = _loadDesc(lSel.value);
-            _iframeShowScreenD(lSel.value);
-          });
-          screenDropRow.appendChild(lbl);
-          screenDropRow.appendChild(lSel);
-        };
-        _descPopulateRef = _descPopulate;
-
-        // 핀(번호) 상태
-        let _reloadPins = () => {};
-        const _pinKey2 = (page) => `pins|opt${_activeOptIdx}|${page}`;
-        const _loadPins2 = (page) => {
-          const base = p.annotations?.[phase];
-          if (!base || Array.isArray(base)) return [];
-          try { return JSON.parse(base[_pinKey2(page)] || '[]'); } catch { return []; }
-        };
-        const _savePins2 = (page, pins) => {
-          if (!p.annotations) p.annotations = {};
-          if (!p.annotations[phase] || Array.isArray(p.annotations[phase])) p.annotations[phase] = {};
-          p.annotations[phase][_pinKey2(page)] = JSON.stringify(pins);
-          saveState();
-        };
-        let _curPins = [];
-
-        const renderPins = () => {
-          _pinOverlay.innerHTML = '';
-          _curPins.forEach((pin, idx) => {
-            const dot = document.createElement("div");
-            dot.style.cssText = `position:absolute;left:${pin.x}%;top:${pin.y}%;width:22px;height:22px;border-radius:50%;background:#f43f5e;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35);z-index:20;pointer-events:auto;user-select:none;`;
-            dot.textContent = pin.num;
-            dot.title = "클릭하여 삭제";
-            dot.addEventListener("click", (e) => {
-              e.stopPropagation();
-              _curPins.splice(idx, 1);
-              _curPins.forEach((p, i) => { p.num = i + 1; });
-              _savePins2(_descCurPage, _curPins);
-              renderPins();
-            });
-            _pinOverlay.appendChild(dot);
-          });
-        };
-
-        _reloadPins = () => {
-          _curPins = _loadPins2(_descCurPage);
-          renderPins();
-        };
-
-        descPageSel.addEventListener("change", () => {
-          _descCurPage = descPageSel.value;
-          descTa.value = _loadDesc(_descCurPage);
-          _iframeShowScreenD(_descCurPage);
-          const lSel = screenDropRow.querySelector("select");
-          if (lSel) lSel.value = _descCurPage;
-          _reloadPins();
-        });
-        descSaveBtn.addEventListener("click", () => {
-          _saveDesc(_descCurPage || descPageSel.value, descTa.value);
-          toast("저장됐습니다");
-        });
-
-        // 번호 추가 버튼
-        let _pinMode = false;
-        const pinAddBtn = document.createElement("button");
-        pinAddBtn.type = "button"; pinAddBtn.className = "btn-sm";
-        pinAddBtn.textContent = "번호 추가";
-        pinAddBtn.style.cssText = "font-size:11px;flex:1;";
-        const pinClearBtn = document.createElement("button");
-        pinClearBtn.type = "button"; pinClearBtn.className = "btn-sm";
-        pinClearBtn.textContent = "전체 삭제";
-        pinClearBtn.style.cssText = "font-size:11px;";
-        const pinRow = document.createElement("div");
-        pinRow.style.cssText = "display:flex;gap:6px;";
-        pinRow.appendChild(pinAddBtn);
-        pinRow.appendChild(pinClearBtn);
-
-        pinAddBtn.addEventListener("click", () => {
-          _pinMode = !_pinMode;
-          pinAddBtn.textContent = _pinMode ? "배치 완료 ✓" : "번호 추가";
-          pinAddBtn.style.background = _pinMode ? "var(--accent)" : "";
-          pinAddBtn.style.color = _pinMode ? "#fff" : "";
-          _pinOverlay.style.pointerEvents = _pinMode ? "auto" : "none";
-          _pinOverlay.style.cursor = _pinMode ? "crosshair" : "";
-        });
-
-        pinClearBtn.addEventListener("click", () => {
-          if (!_curPins.length) return;
-          if (!confirm("모든 번호를 삭제하시겠습니까?")) return;
-          _curPins = [];
-          _savePins2(_descCurPage, _curPins);
-          renderPins();
-        });
-
-        _pinOverlay.addEventListener("click", (e) => {
-          if (!_pinMode) return;
-          const overlayRect = _pinOverlay.getBoundingClientRect();
-          const x = ((e.clientX - overlayRect.left) / overlayRect.width) * 100;
-          const y = ((e.clientY - overlayRect.top) / overlayRect.height) * 100;
-          _curPins.push({ x, y, num: _curPins.length + 1 });
-          _savePins2(_descCurPage, _curPins);
-          renderPins();
-        });
-
-        _viewIframe.addEventListener('load', () => setTimeout(() => {
-          const pages = _detectScreensD();
-          _descPopulate(pages);
-          _reloadPins();
-        }, 150));
-
-        descBody.appendChild(descPageSel);
-        descBody.appendChild(pinRow);
-        descBody.appendChild(descTa);
-        descBody.appendChild(descSaveBtn);
-      }
-
       // ── 3. 주석 ── (HTML 산출물인 경우만)
       let renderAnnPinsLate = null; // viewport 리사이즈 후 재렌더용
 
@@ -3107,8 +2912,6 @@ if(S.length)sw(S[0].id);
           _screenNavEl.appendChild(lbl); _screenNavEl.appendChild(sel); _screenNavEl.appendChild(addBtn);
         };
         _uscreenNav();
-        // 디스크립션 섹션 페이지 목록도 동기화 (AX_OPTION 형식 산출물용)
-        if (_descPopulateRef) _descPopulateRef(_getScreens());
       }
 
       // ── 4. 검수 메모 ──
@@ -3141,84 +2944,78 @@ if(S.length)sw(S[0].id);
       quickViewBtn.textContent = "↗ 목업 핸드오프 뷰어 바로 보기";
       quickViewBtn.style.cssText = "width:100%;flex-shrink:0;font-size:11px;";
       quickViewBtn.addEventListener("click", () => {
-        const mockupHtml = (opts.length > 0 && opts[_activeOptIdx]) ? opts[_activeOptIdx].html : deliv.content;
-        if (!mockupHtml) { toast("목업 콘텐츠가 없습니다"); return; }
+        // 모든 안(opt)을 처리, 없으면 deliv.content 단일 소스로
+        const srcList = opts.length > 0
+          ? opts.map(o => ({ label: o.title, html: o.html }))
+          : [{ label: p.name, html: deliv.content }];
+        if (!srcList[0].html) { toast("목업 콘텐츠가 없습니다"); return; }
 
-        // DOMParser로 부모 창에서 직접 파싱 — iframe 통신 불필요
-        const dom = new DOMParser().parseFromString(mockupHtml, 'text/html');
-
-        // Phase 3 HTML에서 스펙 자동 추출 (우측 패널용)
-        const _styleText = [...dom.querySelectorAll('style')].map(s => s.textContent).join('\n');
-        // 컴포넌트: <!-- Component: Name --> 주석
-        const _comps = [...new Set([...mockupHtml.matchAll(/<!--\s*Component:\s*([^-\n]{1,40}?)\s*-->/g)].map(m => m[1].trim()))];
-        // 디자인 토큰: :root { --var: value }
+        // 스펙 추출 — 현재 활성 안 기준
+        const specHtml = (opts.length > 0 && opts[_activeOptIdx]) ? opts[_activeOptIdx].html : deliv.content;
+        const dom0 = new DOMParser().parseFromString(specHtml, 'text/html');
+        const _styleText = [...dom0.querySelectorAll('style')].map(s => s.textContent).join('\n');
+        const _comps = [...new Set([...specHtml.matchAll(/<!--\s*Component:\s*([^-\n]{1,40}?)\s*-->/g)].map(m => m[1].trim()))];
         const _rootM = _styleText.match(/:root\s*\{([^}]+)\}/);
-        const _tokens = _rootM ? [..._rootM[1].matchAll(/(--[\w-]+)\s*:\s*([^;\/\n]{1,60});/g)]
-          .map(m => ({ n: m[1].trim(), v: m[2].trim() })) : [];
-        // 인터랙션: function 선언 + onclick 핸들러
-        const _fns = [...new Set([...mockupHtml.matchAll(/function\s+([\w]+)\s*\([^)]*\)\s*\{/g)].map(m => m[1])
-          .filter(f => !/^(DOMContentLoaded|load|init|render|update|set|get|format|parse|escape|clamp)$/i.test(f)))];
-        const _clicks = [...dom.querySelectorAll('[onclick]')].slice(0, 12).map(el => ({
+        const _tokens = _rootM ? [..._rootM[1].matchAll(/(--[\w-]+)\s*:\s*([^;\/\n]{1,60});/g)].map(m => ({ n: m[1].trim(), v: m[2].trim() })) : [];
+        const _fns = [...new Set([...specHtml.matchAll(/function\s+([\w]+)\s*\([^)]*\)\s*\{/g)].map(m => m[1]).filter(f => !/^(DOMContentLoaded|load|init|render|update|set|get|format|parse|escape|clamp)$/i.test(f)))];
+        const _clicks = [...dom0.querySelectorAll('[onclick]')].slice(0, 12).map(el => ({
           label: (el.textContent.trim() || el.tagName).slice(0, 20),
           fn: el.getAttribute('onclick').replace(/\([\s\S]*?\)/g,'()').slice(0,40)
         }));
-
         const _specMd = {
           components: _comps.length ? '| 컴포넌트 |\n|---|\n' + _comps.map(c=>`| ${c} |`).join('\n') : '',
           tokens: _tokens.length ? '| 변수 | 값 |\n|---|---|\n' + _tokens.map(t=>`| \`${t.n}\` | ${t.v} |`).join('\n') : '',
           interaction: _fns.length || _clicks.length
-            ? '| 트리거 | 함수 |\n|---|---|\n'
-              + _clicks.map(c=>`| ${c.label} 클릭 | \`${c.fn}\` |`).join('\n')
+            ? '| 트리거 | 함수 |\n|---|---|\n' + _clicks.map(c=>`| ${c.label} 클릭 | \`${c.fn}\` |`).join('\n')
               + (_fns.length ? '\n\n**정의된 함수:** ' + _fns.map(f=>`\`${f}()\``).join(' · ') : '')
             : ''
         };
-        const hasRightPanel = _specMd.components || _specMd.tokens || _specMd.interaction;
-        const specHtmlRight = hasRightPanel ? `
-          ${_specMd.components ? `<div class="s-sec"><h3>컴포넌트</h3><div class="md">${renderMd(_specMd.components)}</div></div>` : ''}
-          ${_specMd.tokens ? `<div class="s-sec"><h3>디자인 토큰</h3><div class="md">${renderMd(_specMd.tokens)}</div></div>` : ''}
-          ${_specMd.interaction ? `<div class="s-sec"><h3>인터랙션</h3><div class="md">${renderMd(_specMd.interaction)}</div></div>` : ''}` : '';
-        const headHtml = dom.head.innerHTML;
-        // 화면 전환 함수를 no-op으로 덮어써서 개별 화면 로드 시 충돌 방지
-        const navPatch = `<script>['showScreen','showPage','switchTab','navigate','goTo','showView','showSection'].forEach(fn=>{window[fn]=()=>{};});<\/script>`;
-
-        // 화면 요소 탐색 (id="screen-*" / "page-*" / "section-*" / "view-*")
-        const screenEls = [...dom.querySelectorAll('[id^="screen-"],[id^="page-"],[id^="section-"],[id^="view-"]')]
-          .filter(el => el.id && !/^(pageWrapper|viewPort)$/i.test(el.id)); // 불필요한 wrapper 제외
-
-        const screenMap = {}; // { label: htmlString }
-
-        if (screenEls.length > 0) {
-          const prefix = /^(screen|page|section|view)-/;
-          screenEls.forEach(el => {
-            const label = el.getAttribute('data-name') || el.getAttribute('aria-label') || el.id.replace(prefix, '');
-            // body 복제 후 해당 화면만 표시, 나머지 숨김
-            const bodyClone = dom.body.cloneNode(true);
-            bodyClone.querySelectorAll('[id^="screen-"],[id^="page-"],[id^="section-"],[id^="view-"]').forEach(s => {
-              if (s.id === el.id) { s.style.removeProperty('display'); s.style.removeProperty('visibility'); }
-              else { s.style.cssText += ';display:none!important'; }
-            });
-            screenMap[label] = `<!DOCTYPE html><html lang="ko"><head>${navPatch}${headHtml}</head><body>${bodyClone.innerHTML}</body></html>`;
-          });
-        } else {
-          // 단일 화면: 전체 HTML을 그대로 사용
-          const title = dom.querySelector('title')?.textContent?.trim() || '메인';
-          screenMap[title] = mockupHtml;
-        }
-
-        // 화면별 blob URL 생성 (부모 창에서 처리 → SW 캐시 무관)
-        const blobUrls = {};
-        Object.entries(screenMap).forEach(([label, html]) => {
-          blobUrls[label] = URL.createObjectURL(new Blob([html], {type:'text/html;charset=utf-8'}));
-        });
-        const labels = Object.keys(screenMap);
-        const safeLabels = JSON.stringify(labels).replace(/<\/script>/gi,'<\\/script>');
-        const safeBlobUrls = JSON.stringify(blobUrls).replace(/<\/script>/gi,'<\\/script>');
-
-        // 탭별 콘텐츠 HTML (부모 창에서 renderMd 처리)
         const _tabComp = _specMd.components ? renderMd(_specMd.components) : '<p class="empty">정보 없음</p>';
         const _tabTok  = _specMd.tokens     ? renderMd(_specMd.tokens)     : '<p class="empty">정보 없음</p>';
         const _tabIact = _specMd.interaction ? renderMd(_specMd.interaction) : '<p class="empty">정보 없음</p>';
-        const _pjKey   = JSON.stringify(p.name).replace(/<\/script>/gi,'<\\/script>');
+
+        // QA 이력 탭 콘텐츠
+        const _changelog = (deliv.changeLog || '').trim();
+        const _revNote   = (p.reviewNotes   || '').trim();
+        const _histParts = [
+          _changelog ? `**변경이력**\n${_changelog}` : '',
+          _revNote   ? `**검수 메모**\n${_revNote}`   : ''
+        ].filter(Boolean);
+        const _tabHist = _histParts.length ? renderMd(_histParts.join('\n\n')) : '<p class="empty">기록 없음</p>';
+
+        // 안별 화면 추출 + blob URL 생성
+        const navPatch = `<script>['showScreen','showPage','switchTab','navigate','goTo','showView','showSection'].forEach(fn=>{window[fn]=()=>{};});<\/script>`;
+        const optsData = srcList.map(src => {
+          const dom = new DOMParser().parseFromString(src.html, 'text/html');
+          const headHtml = dom.head.innerHTML;
+          const prefix = /^(screen|page|section|view)-/;
+          const screenEls = [...dom.querySelectorAll('[id^="screen-"],[id^="page-"],[id^="section-"],[id^="view-"]')]
+            .filter(el => el.id && !/^(pageWrapper|viewPort)$/i.test(el.id));
+          const screenMap = {};
+          if (screenEls.length > 0) {
+            screenEls.forEach(el => {
+              const label = el.getAttribute('data-name') || el.getAttribute('aria-label') || el.id.replace(prefix, '');
+              const bodyClone = dom.body.cloneNode(true);
+              bodyClone.querySelectorAll('[id^="screen-"],[id^="page-"],[id^="section-"],[id^="view-"]').forEach(s => {
+                if (s.id === el.id) { s.style.removeProperty('display'); s.style.removeProperty('visibility'); }
+                else { s.style.cssText += ';display:none!important'; }
+              });
+              screenMap[label] = `<!DOCTYPE html><html lang="ko"><head>${navPatch}${headHtml}</head><body>${bodyClone.innerHTML}</body></html>`;
+            });
+          } else {
+            const title = dom.querySelector('title')?.textContent?.trim() || '메인';
+            screenMap[title] = src.html;
+          }
+          const urls = {};
+          Object.entries(screenMap).forEach(([lbl, html]) => {
+            urls[lbl] = URL.createObjectURL(new Blob([html], {type:'text/html;charset=utf-8'}));
+          });
+          const dlUrl = URL.createObjectURL(new Blob([src.html], {type:'text/html;charset=utf-8'}));
+          return { label: src.label, labels: Object.keys(screenMap), urls, dlUrl };
+        });
+
+        const _pjKey      = JSON.stringify(p.name).replace(/<\/script>/gi,'<\\/script>');
+        const safeOptsData = JSON.stringify(optsData).replace(/<\/script>/gi,'<\\/script>');
 
         const viewerPage = `<!DOCTYPE html><html lang="ko"><head>
 <meta charset="UTF-8"><title>${escapeHtml(p.name)} — 핸드오프 뷰어</title>
@@ -3226,24 +3023,32 @@ if(S.length)sw(S[0].id);
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#111;color:#e0e0e0;font-family:-apple-system,sans-serif;display:flex;height:100vh;overflow:hidden}
 .sidebar{width:200px;flex-shrink:0;background:#1a1a1a;border-right:1px solid #2a2a2a;display:flex;flex-direction:column;overflow:hidden}
-.sidebar-title{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.08em;padding:14px 14px 8px;font-weight:600}
-.sidebar-list{flex:1;overflow-y:auto;padding:6px 8px}
-.sbtn{display:block;width:100%;text-align:left;font-size:12px;padding:8px 10px;border-radius:6px;border:none;background:transparent;color:#888;cursor:pointer;margin-bottom:2px;transition:background .15s,color .15s;line-height:1.4}
+.sidebar-title{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.08em;padding:12px 14px 5px;font-weight:600;flex-shrink:0}
+.opt-list{padding:4px 8px;flex-shrink:0}
+.obtn{display:block;width:100%;text-align:left;font-size:12px;padding:7px 10px;border-radius:6px;border:1px solid #2a2a2a;background:transparent;color:#888;cursor:pointer;margin-bottom:4px;font-weight:600;transition:all .15s}
+.obtn:hover{background:#252525;color:#ccc}
+.obtn.active{background:#252525;border-color:#6366f1;color:#e0e0e0}
+.scr-div{height:1px;background:#2a2a2a;margin:4px 0;flex-shrink:0}
+.scr-list{flex:1;overflow-y:auto;padding:4px 8px}
+.sbtn{display:block;width:100%;text-align:left;font-size:11px;padding:7px 10px;border-radius:6px;border:none;background:transparent;color:#888;cursor:pointer;margin-bottom:2px;transition:background .15s,color .15s;line-height:1.4}
 .sbtn:hover{background:#252525;color:#ccc}
 .sbtn.active{background:#6366f1;color:#fff}
+.sidebar-footer{border-top:1px solid #2a2a2a;padding:8px;flex-shrink:0}
+.dl-btn{display:block;width:100%;text-align:center;font-size:11px;padding:7px;border-radius:6px;background:transparent;border:1px solid #333;color:#888;cursor:pointer;font-weight:600;transition:all .15s}
+.dl-btn:hover{border-color:#6366f1;color:#6366f1}
 .main{flex:1;overflow:hidden;position:relative}
 iframe{width:100%;height:100%;border:none;display:block}
 #pin-overlay{position:absolute;inset:0;pointer-events:none;z-index:10;overflow:visible}
 #pin-overlay.active{pointer-events:auto;cursor:crosshair}
 .right{width:260px;flex-shrink:0;background:#1a1a1a;border-left:1px solid #2a2a2a;display:flex;flex-direction:column;overflow:hidden}
 .tabs{display:flex;border-bottom:1px solid #2a2a2a;flex-shrink:0}
-.tab{flex:1;background:transparent;border:none;color:#555;font-size:10px;padding:10px 4px;cursor:pointer;font-weight:600;letter-spacing:.04em;transition:color .15s;border-bottom:2px solid transparent}
+.tab{flex:1;background:transparent;border:none;color:#555;font-size:9px;padding:10px 2px;cursor:pointer;font-weight:600;transition:color .15s;border-bottom:2px solid transparent;white-space:nowrap}
 .tab:hover{color:#aaa}
 .tab.active{color:#e0e0e0;border-bottom-color:#6366f1}
 .tab-body{flex:1;overflow-y:auto;padding:12px}
-.tab-pane{display:none}
-.tab-pane.active{display:block}
+.tab-pane{display:none}.tab-pane.active{display:block}
 .md{color:#bbb;line-height:1.7;font-size:12px}
+.md strong{color:#ccc}
 table{width:100%;font-size:11px;border-collapse:collapse}
 th,td{text-align:left;padding:5px 6px;border-bottom:1px solid #252525}
 th{color:#555}
@@ -3254,24 +3059,33 @@ code{background:#252525;padding:1px 4px;border-radius:3px;font-size:10px}
 .pin-btn{flex:1;border:1px solid #333;border-radius:6px;background:transparent;color:#888;font-size:11px;padding:6px 4px;cursor:pointer;font-weight:600;transition:all .15s}
 .pin-btn:hover{background:#252525;color:#ccc}
 .pin-btn.on{background:#f43f5e;border-color:#f43f5e;color:#fff}
-#desc-ta{width:100%;min-height:140px;background:#252525;border:1px solid #333;border-radius:6px;color:#ccc;font-size:12px;padding:8px;resize:vertical;font-family:inherit;line-height:1.6}
+#desc-ta{width:100%;min-height:120px;background:#252525;border:1px solid #333;border-radius:6px;color:#ccc;font-size:12px;padding:8px;resize:vertical;font-family:inherit;line-height:1.6}
 #desc-ta:focus{outline:none;border-color:#6366f1}
 #desc-save{margin-top:8px;background:#6366f1;color:#fff;border:none;border-radius:6px;padding:7px 0;font-size:11px;font-weight:600;cursor:pointer;width:100%}
 #desc-save:hover{opacity:.85}
 </style></head><body>
-<div class="sidebar"><div class="sidebar-title">화면 목록</div><div class="sidebar-list" id="sbar"></div></div>
+<div class="sidebar">
+  <div class="sidebar-title" id="opt-hd">디자인 안</div>
+  <div class="opt-list" id="opt-list"></div>
+  <div class="scr-div" id="scr-div"></div>
+  <div class="sidebar-title">화면 목록</div>
+  <div class="scr-list" id="sbar"></div>
+  <div class="sidebar-footer"><button class="dl-btn" id="dl-btn">↓ HTML 다운로드</button></div>
+</div>
 <div class="main"><iframe id="pf" sandbox="allow-scripts allow-same-origin allow-forms" allow=""></iframe><div id="pin-overlay"></div></div>
 <div class="right">
   <div class="tabs">
-    <button class="tab active" data-t="comp">컴포넌트</button>
+    <button class="tab active" data-t="comp">컴포</button>
     <button class="tab" data-t="tok">토큰</button>
     <button class="tab" data-t="iact">인터랙션</button>
-    <button class="tab" data-t="desc">디스크립션</button>
+    <button class="tab" data-t="hist">이력</button>
+    <button class="tab" data-t="desc">메모</button>
   </div>
   <div class="tab-body">
     <div class="tab-pane active" id="tp-comp"><div class="md">${_tabComp}</div></div>
     <div class="tab-pane" id="tp-tok"><div class="md">${_tabTok}</div></div>
     <div class="tab-pane" id="tp-iact"><div class="md">${_tabIact}</div></div>
+    <div class="tab-pane" id="tp-hist"><div class="md">${_tabHist}</div></div>
     <div class="tab-pane" id="tp-desc">
       <div class="desc-label" id="desc-screen"></div>
       <div class="pin-row">
@@ -3284,14 +3098,19 @@ code{background:#252525;padding:1px 4px;border-radius:3px;font-size:10px}
   </div>
 </div>
 <script>
-const LABELS=${safeLabels},URLS=${safeBlobUrls},PJ=${_pjKey};
-const pf=document.getElementById('pf'),sbar=document.getElementById('sbar');
+const OPTS=${safeOptsData},PJ=${_pjKey};
+let _curOpt=0,_curPins=[],_pinMode=false,_curLabel='';
+const pf=document.getElementById('pf'),sbar=document.getElementById('scr-list')||document.getElementById('sbar');
 const overlay=document.getElementById('pin-overlay');
 const pinAddBtn=document.getElementById('pin-add'),pinClearBtn=document.getElementById('pin-clear');
-const descKey=l=>'qv-desc|'+PJ+'|'+l, pinsKey=l=>'qv-pins|'+PJ+'|'+l;
+const dlBtn=document.getElementById('dl-btn');
+const descKey=l=>'qv-desc|'+PJ+'|'+l,pinsKey=l=>'qv-pins|'+PJ+'|'+l;
 const loadPins=l=>{try{return JSON.parse(localStorage.getItem(pinsKey(l))||'[]');}catch{return[];}};
 const savePins=(l,pins)=>localStorage.setItem(pinsKey(l),JSON.stringify(pins));
-let _curPins=[],_pinMode=false,_curLabel='';
+const sbarEl=document.getElementById('sbar');
+
+const multiOpt=OPTS.length>1;
+if(!multiOpt){document.getElementById('opt-hd').style.display='none';document.getElementById('opt-list').style.display='none';document.getElementById('scr-div').style.display='none';}
 
 const renderPins=()=>{
   overlay.innerHTML='';
@@ -3303,21 +3122,14 @@ const renderPins=()=>{
     overlay.appendChild(d);
   });
 };
-
-pinAddBtn.addEventListener('click',()=>{
-  _pinMode=!_pinMode;
-  pinAddBtn.classList.toggle('on',_pinMode);
-  overlay.classList.toggle('active',_pinMode);
-});
+pinAddBtn.addEventListener('click',()=>{_pinMode=!_pinMode;pinAddBtn.classList.toggle('on',_pinMode);overlay.classList.toggle('active',_pinMode);});
 pinClearBtn.addEventListener('click',()=>{_curPins=[];savePins(_curLabel,_curPins);renderPins();});
 overlay.addEventListener('click',e=>{
   if(!_pinMode)return;
   const r=overlay.getBoundingClientRect();
-  const x=((e.clientX-r.left)/r.width)*100,y=((e.clientY-r.top)/r.height)*100;
-  _curPins.push({x,y,num:_curPins.length+1});
+  _curPins.push({x:((e.clientX-r.left)/r.width)*100,y:((e.clientY-r.top)/r.height)*100,num:_curPins.length+1});
   savePins(_curLabel,_curPins);renderPins();
 });
-
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.tab-pane').forEach(x=>x.classList.remove('active'));
@@ -3328,16 +3140,42 @@ document.getElementById('desc-save').addEventListener('click',()=>{
   const s=document.getElementById('desc-save');s.textContent='저장됨 ✓';setTimeout(()=>s.textContent='저장',1200);
 });
 
+function buildScreenList(optIdx){
+  sbarEl.innerHTML='';
+  OPTS[optIdx].labels.forEach(label=>{
+    const b=document.createElement('button');
+    b.className='sbtn';b.dataset.id=label;b.textContent=label;
+    b.onclick=()=>activate(label);sbarEl.appendChild(b);
+  });
+  dlBtn.onclick=()=>{const a=document.createElement('a');a.href=OPTS[optIdx].dlUrl;a.download=(OPTS[optIdx].label||'mockup')+'.html';a.click();};
+}
 function activate(label){
-  sbar.querySelectorAll('.sbtn').forEach(b=>b.classList.toggle('active',b.dataset.id===label));
-  pf.src=URLS[label];_curLabel=label;
+  sbarEl.querySelectorAll('.sbtn').forEach(b=>b.classList.toggle('active',b.dataset.id===label));
+  pf.src=OPTS[_curOpt].urls[label];_curLabel=label;
   document.getElementById('desc-screen').textContent=label;
   document.getElementById('desc-ta').value=localStorage.getItem(descKey(label))||'';
   _curPins=loadPins(label);renderPins();
   _pinMode=false;pinAddBtn.classList.remove('on');overlay.classList.remove('active');
 }
-LABELS.forEach(label=>{const b=document.createElement('button');b.className='sbtn';b.dataset.id=label;b.textContent=label;b.onclick=()=>activate(label);sbar.appendChild(b);});
-if(LABELS.length){activate(LABELS[0]);}else{sbar.innerHTML='<div style="color:#444;font-size:11px;padding:10px">화면 없음</div>';}
+function activateOpt(i){
+  _curOpt=i;
+  document.querySelectorAll('.obtn').forEach((b,j)=>b.classList.toggle('active',j===i));
+  buildScreenList(i);
+  const first=OPTS[i].labels[0];
+  if(first)activate(first);
+  else sbarEl.innerHTML='<div style="color:#444;font-size:11px;padding:10px">화면 없음</div>';
+}
+if(multiOpt){
+  OPTS.forEach((opt,i)=>{
+    const b=document.createElement('button');
+    b.className='obtn'+(i===0?' active':'');b.textContent=opt.label;
+    b.onclick=()=>activateOpt(i);document.getElementById('opt-list').appendChild(b);
+  });
+}
+buildScreenList(0);
+const _first=OPTS[0].labels[0];
+if(_first)activate(_first);
+else sbarEl.innerHTML='<div style="color:#444;font-size:11px;padding:10px">화면 없음</div>';
 <\/script></body></html>`;
         window.open(URL.createObjectURL(new Blob([viewerPage],{type:'text/html;charset=utf-8'})));
       });

@@ -3126,7 +3126,7 @@ if(S.length)sw(S[0].id);
 <div class="left"><div class="sbar" id="sbar"></div><iframe id="pf" sandbox="allow-scripts allow-same-origin"></iframe></div>
 <div class="right">${specHtml}</div>
 <script>
-const S=${JSON.stringify(itemScreens)};
+const S=${JSON.stringify(itemScreens).replace(/<\/script>/gi, '<\\/script>')};
 const sbar=document.getElementById('sbar'),pf=document.getElementById('pf');
 function sw(id){S.forEach(s=>{const b=document.querySelector('[data-id="'+s.id+'"]');if(b)b.className='sbtn'+(s.id===id?' active':'');});const s=S.find(x=>x.id===id);if(s){const blob=new Blob([s.html],{type:'text/html;charset=utf-8'});pf.src=URL.createObjectURL(blob);}}
 S.forEach(sc=>{const b=document.createElement('button');b.className='sbtn';b.dataset.id=sc.id;b.textContent=sc.name;b.onclick=()=>sw(sc.id);sbar.appendChild(b);});

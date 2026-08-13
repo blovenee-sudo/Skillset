@@ -3022,15 +3022,18 @@ if(S.length)sw(S[0].id);
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#111;color:#e0e0e0;font-family:-apple-system,sans-serif;display:flex;height:100vh;overflow:hidden}
-.sidebar{width:200px;flex-shrink:0;background:#1a1a1a;border-right:1px solid #2a2a2a;display:flex;flex-direction:column;overflow:hidden}
+.sidebar{width:210px;flex-shrink:0;background:#1a1a1a;border-right:1px solid #2a2a2a;display:flex;flex-direction:column;overflow:hidden}
 .sidebar-title{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.08em;padding:12px 14px 5px;font-weight:600;flex-shrink:0}
-.opt-list{padding:4px 8px;flex-shrink:0}
-.obtn{display:block;width:100%;text-align:left;font-size:12px;padding:7px 10px;border-radius:6px;border:1px solid #2a2a2a;background:transparent;color:#888;cursor:pointer;margin-bottom:4px;font-weight:600;transition:all .15s}
+.sidebar-tree{flex:1;overflow-y:auto;padding:4px 8px}
+.opt-group{margin-bottom:2px}
+.obtn{display:flex;align-items:center;width:100%;text-align:left;font-size:12px;padding:7px 10px;border-radius:6px;border:1px solid #2a2a2a;background:transparent;color:#888;cursor:pointer;font-weight:600;transition:all .15s;gap:6px}
 .obtn:hover{background:#252525;color:#ccc}
 .obtn.active{background:#252525;border-color:#6366f1;color:#e0e0e0}
-.scr-div{height:1px;background:#2a2a2a;margin:4px 0;flex-shrink:0}
-.scr-list{flex:1;overflow-y:auto;padding:4px 8px}
-.sbtn{display:block;width:100%;text-align:left;font-size:11px;padding:7px 10px;border-radius:6px;border:none;background:transparent;color:#888;cursor:pointer;margin-bottom:2px;transition:background .15s,color .15s;line-height:1.4}
+.obtn-arrow{font-size:9px;margin-left:auto;transition:transform .15s;opacity:.5}
+.obtn.active .obtn-arrow{transform:rotate(90deg);opacity:1}
+.screen-sublist{padding:2px 0 4px 10px;display:none}
+.screen-sublist.open{display:block}
+.sbtn{display:block;width:100%;text-align:left;font-size:11px;padding:6px 10px;border-radius:6px;border:none;background:transparent;color:#888;cursor:pointer;margin-bottom:1px;transition:background .15s,color .15s;line-height:1.4}
 .sbtn:hover{background:#252525;color:#ccc}
 .sbtn.active{background:#6366f1;color:#fff}
 .sidebar-footer{border-top:1px solid #2a2a2a;padding:8px;flex-shrink:0}
@@ -3065,11 +3068,8 @@ code{background:#252525;padding:1px 4px;border-radius:3px;font-size:10px}
 #desc-save:hover{opacity:.85}
 </style></head><body>
 <div class="sidebar">
-  <div class="sidebar-title" id="opt-hd">디자인 안</div>
-  <div class="opt-list" id="opt-list"></div>
-  <div class="scr-div" id="scr-div"></div>
-  <div class="sidebar-title">화면 목록</div>
-  <div class="scr-list" id="sbar"></div>
+  <div class="sidebar-title" id="sbar-title">화면 목록</div>
+  <div class="sidebar-tree" id="sbar"></div>
   <div class="sidebar-footer"><button class="dl-btn" id="dl-btn">↓ HTML 다운로드</button></div>
 </div>
 <div class="main"><iframe id="pf" sandbox="allow-scripts allow-same-origin allow-forms" allow=""></iframe><div id="pin-overlay"></div></div>
@@ -3100,17 +3100,17 @@ code{background:#252525;padding:1px 4px;border-radius:3px;font-size:10px}
 <script>
 const OPTS=${safeOptsData},PJ=${_pjKey};
 let _curOpt=0,_curPins=[],_pinMode=false,_curLabel='';
-const pf=document.getElementById('pf'),sbar=document.getElementById('scr-list')||document.getElementById('sbar');
+const pf=document.getElementById('pf');
 const overlay=document.getElementById('pin-overlay');
 const pinAddBtn=document.getElementById('pin-add'),pinClearBtn=document.getElementById('pin-clear');
 const dlBtn=document.getElementById('dl-btn');
+const sbarEl=document.getElementById('sbar');
 const descKey=l=>'qv-desc|'+PJ+'|'+l,pinsKey=l=>'qv-pins|'+PJ+'|'+l;
 const loadPins=l=>{try{return JSON.parse(localStorage.getItem(pinsKey(l))||'[]');}catch{return[];}};
 const savePins=(l,pins)=>localStorage.setItem(pinsKey(l),JSON.stringify(pins));
-const sbarEl=document.getElementById('sbar');
-
 const multiOpt=OPTS.length>1;
-if(!multiOpt){document.getElementById('opt-hd').style.display='none';document.getElementById('opt-list').style.display='none';document.getElementById('scr-div').style.display='none';}
+
+if(multiOpt) document.getElementById('sbar-title').textContent='디자인 안';
 
 const renderPins=()=>{
   overlay.innerHTML='';
@@ -3140,17 +3140,42 @@ document.getElementById('desc-save').addEventListener('click',()=>{
   const s=document.getElementById('desc-save');s.textContent='저장됨 ✓';setTimeout(()=>s.textContent='저장',1200);
 });
 
-function buildScreenList(optIdx){
-  sbarEl.innerHTML='';
-  OPTS[optIdx].labels.forEach(label=>{
-    const b=document.createElement('button');
-    b.className='sbtn';b.dataset.id=label;b.textContent=label;
-    b.onclick=()=>activate(label);sbarEl.appendChild(b);
-  });
-  dlBtn.onclick=()=>{const a=document.createElement('a');a.href=OPTS[optIdx].dlUrl;a.download=(OPTS[optIdx].label||'mockup')+'.html';a.click();};
-}
+const setDl=(i)=>{dlBtn.onclick=()=>{const a=document.createElement('a');a.href=OPTS[i].dlUrl;a.download=(OPTS[i].label||'mockup')+'.html';a.click();};};
+
+// 사이드바 트리 구성
+OPTS.forEach((opt,i)=>{
+  if(multiOpt){
+    const group=document.createElement('div');
+    group.className='opt-group';
+    const obtn=document.createElement('button');
+    obtn.className='obtn'+(i===0?' active':'');
+    obtn.innerHTML='<span>'+opt.label+'</span><span class="obtn-arrow">▶</span>';
+    obtn.onclick=()=>activateOpt(i);
+    group.appendChild(obtn);
+    const sublist=document.createElement('div');
+    sublist.className='screen-sublist'+(i===0?' open':'');
+    opt.labels.forEach(label=>{
+      const b=document.createElement('button');
+      b.className='sbtn';b.dataset.id=label;b.textContent=label;
+      b.onclick=()=>activate(label);sublist.appendChild(b);
+    });
+    group.appendChild(sublist);
+    sbarEl.appendChild(group);
+  }else{
+    opt.labels.forEach(label=>{
+      const b=document.createElement('button');
+      b.className='sbtn';b.dataset.id=label;b.textContent=label;
+      b.onclick=()=>activate(label);sbarEl.appendChild(b);
+    });
+  }
+});
+setDl(0);
+
+function getSublist(i){return sbarEl.querySelectorAll('.screen-sublist')[i];}
 function activate(label){
-  sbarEl.querySelectorAll('.sbtn').forEach(b=>b.classList.toggle('active',b.dataset.id===label));
+  sbarEl.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('active'));
+  const container=multiOpt?getSublist(_curOpt):sbarEl;
+  container?.querySelectorAll('.sbtn').forEach(b=>{if(b.dataset.id===label)b.classList.add('active');});
   pf.src=OPTS[_curOpt].urls[label];_curLabel=label;
   document.getElementById('desc-screen').textContent=label;
   document.getElementById('desc-ta').value=localStorage.getItem(descKey(label))||'';
@@ -3159,23 +3184,14 @@ function activate(label){
 }
 function activateOpt(i){
   _curOpt=i;
-  document.querySelectorAll('.obtn').forEach((b,j)=>b.classList.toggle('active',j===i));
-  buildScreenList(i);
+  sbarEl.querySelectorAll('.obtn').forEach((b,j)=>b.classList.toggle('active',j===i));
+  sbarEl.querySelectorAll('.screen-sublist').forEach((sl,j)=>sl.classList.toggle('open',j===i));
+  setDl(i);
   const first=OPTS[i].labels[0];
   if(first)activate(first);
-  else sbarEl.innerHTML='<div style="color:#444;font-size:11px;padding:10px">화면 없음</div>';
 }
-if(multiOpt){
-  OPTS.forEach((opt,i)=>{
-    const b=document.createElement('button');
-    b.className='obtn'+(i===0?' active':'');b.textContent=opt.label;
-    b.onclick=()=>activateOpt(i);document.getElementById('opt-list').appendChild(b);
-  });
-}
-buildScreenList(0);
 const _first=OPTS[0].labels[0];
 if(_first)activate(_first);
-else sbarEl.innerHTML='<div style="color:#444;font-size:11px;padding:10px">화면 없음</div>';
 <\/script></body></html>`;
         window.open(URL.createObjectURL(new Blob([viewerPage],{type:'text/html;charset=utf-8'})));
       });

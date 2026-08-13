@@ -3303,7 +3303,65 @@ if(S.length)sw(S[0].id);
       handoffFileBtn.style.cssText = "margin-bottom:6px;font-size:11px;";
       handoffFileBtn.addEventListener("click", () => handoffFileInput.click());
 
+      // 목업 핸드오프 뷰어 바로 열기
+      const quickViewBtn = document.createElement("button");
+      quickViewBtn.type = "button"; quickViewBtn.className = "btn-sm";
+      quickViewBtn.textContent = "↗ 목업 핸드오프 뷰어 바로 보기";
+      quickViewBtn.style.cssText = "width:100%;flex-shrink:0;font-size:11px;";
+      quickViewBtn.addEventListener("click", () => {
+        const mockupHtml = (opts.length > 0 && opts[_activeOptIdx]) ? opts[_activeOptIdx].html : deliv.content;
+        if (!mockupHtml) { toast("목업 콘텐츠가 없습니다"); return; }
+        const safeContent = mockupHtml.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+        const viewerPage = `<!DOCTYPE html><html lang="ko"><head>
+<meta charset="UTF-8"><title>${escapeHtml(p.name)} — 핸드오프 뷰어</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#111;color:#e0e0e0;font-family:-apple-system,sans-serif;display:flex;height:100vh;overflow:hidden}
+.sidebar{width:200px;flex-shrink:0;background:#1a1a1a;border-right:1px solid #2a2a2a;display:flex;flex-direction:column;overflow:hidden}
+.sidebar-title{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.08em;padding:14px 14px 8px;font-weight:600}
+.sidebar-list{flex:1;overflow-y:auto;padding:6px 8px}
+.sbtn{display:block;width:100%;text-align:left;font-size:12px;padding:8px 10px;border-radius:6px;border:none;background:transparent;color:#888;cursor:pointer;margin-bottom:2px;transition:background .15s,color .15s;line-height:1.4}
+.sbtn:hover{background:#252525;color:#ccc}
+.sbtn.active{background:#6366f1;color:#fff}
+.main{flex:1;overflow:hidden}
+iframe{width:100%;height:100%;border:none;display:block}
+.hint{color:#555;font-size:11px;padding:10px;line-height:1.5}
+</style></head><body>
+<div class="sidebar"><div class="sidebar-title">화면 목록</div><div class="sidebar-list" id="sbar"><div class="hint">로드 중...</div></div></div>
+<div class="main"><iframe id="pf" srcdoc="${safeContent}" sandbox="allow-scripts allow-same-origin"></iframe></div>
+<script>
+const pf=document.getElementById('pf'),sbar=document.getElementById('sbar');
+function activate(id,fn){sbar.querySelectorAll('.sbtn').forEach(b=>b.classList.toggle('active',b.dataset.id===id));fn(id);}
+pf.addEventListener('load',()=>{
+  try{
+    const win=pf.contentWindow,doc=pf.contentDocument;
+    let names=[],showFn;
+    if(win.SCREENS&&!Array.isArray(win.SCREENS)){
+      names=Object.keys(win.SCREENS);
+      showFn=id=>{if(typeof win.showScreen==='function')win.showScreen(id);};
+    } else if(Array.isArray(win.__AX_SCREENS__)){
+      names=win.__AX_SCREENS__;
+      showFn=id=>{if(typeof win.__AX_SHOW_SCREEN__==='function')win.__AX_SHOW_SCREEN__(id);};
+    } else if(typeof win.showScreen==='function'){
+      const els=doc.querySelectorAll('[id^="screen-"]');
+      if(els.length>0){names=[...els].map(e=>e.id.replace(/^screen-/,''));showFn=id=>win.showScreen(id);}
+      else{const ds=doc.querySelectorAll('[data-screen]');names=[...new Set([...ds].map(e=>e.dataset.screen))];showFn=id=>win.showScreen(id);}
+    }
+    if(!names.length){sbar.innerHTML='<div class="hint">화면 목록을 찾을 수 없습니다.<br>(showScreen 또는 window.SCREENS 필요)</div>';return;}
+    sbar.innerHTML='';
+    names.forEach(name=>{
+      const b=document.createElement('button');b.className='sbtn';b.dataset.id=name;b.textContent=name;
+      b.onclick=()=>activate(name,showFn);sbar.appendChild(b);
+    });
+    activate(names[0],showFn);
+  }catch(e){sbar.innerHTML='<div class="hint">오류: '+e.message+'</div>';}
+});
+<\/script></body></html>`;
+        window.open(URL.createObjectURL(new Blob([viewerPage],{type:'text/html;charset=utf-8'})));
+      });
+
       handoffBody.appendChild(handoffInfoP);
+      handoffBody.appendChild(quickViewBtn);
       handoffBody.appendChild(handoffCopyBtn);
       handoffBody.appendChild(h4ListDiv);
       handoffBody.appendChild(handoffFileInput);

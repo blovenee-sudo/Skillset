@@ -1582,7 +1582,7 @@
       const hSpecs  = hScreens.length > 0 ? parseHandoffSpecs(_h4Content) : null;
       let _isHVwr = hScreens.length > 0;
       const _isHtml = opts.length > 0 || _isHVwr || /^\s*<!DOCTYPE html/i.test(_h4Content ?? deliv.content) || /^\s*<html/i.test(_h4Content ?? deliv.content);
-      let _viewIframe = null, _annOverlay = null, _annLayer = null;
+      let _viewIframe = null, _annOverlay = null, _annLayer = null, _pinOverlay = null;
       let _localAnn = []; // 현재 페이지 주석 (새 탭 열기에서도 접근)
       let _activeOptIdx = 0;
       let _preSetActiveHook = null, _postSetActiveHook = null;
@@ -1686,6 +1686,9 @@ ${bodyHtml}
         });
         _setVp(null);
         iframeWrap.appendChild(_viewIframe);
+        _pinOverlay = document.createElement("div");
+        _pinOverlay.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:10;overflow:visible;";
+        iframeWrap.appendChild(_pinOverlay);
         leftBody.appendChild(iframeWrap);
         _iframeWrap = iframeWrap;
         _activeOptIdx = 0;
@@ -2020,7 +2023,7 @@ if(S.length)sw(S[0].id);
         _setVp(null);
         iframeWrap.appendChild(_viewIframe);
         // 번호 오버레이 (디스크립션 핀 배치용)
-        const _pinOverlay = document.createElement("div");
+        _pinOverlay = document.createElement("div");
         _pinOverlay.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:10;overflow:visible;";
         iframeWrap.appendChild(_pinOverlay);
         leftBody.appendChild(vpBar);
@@ -2048,7 +2051,11 @@ if(S.length)sw(S[0].id);
         leftBody.appendChild(div);
         loadMermaidAndRender(div);
         $("btnDelivViewOpen").onclick = () => {
-          window.open(URL.createObjectURL(new Blob([deliv.content], { type: 'text/plain;charset=utf-8' })));
+          const dk = !document.documentElement.classList.contains('theme-light');
+          const bodyHtml = renderMd(deliv.content, true);
+          const page = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(p.name)} — 스펙</title>
+<style>*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:960px;margin:40px auto;padding:0 24px;line-height:1.65;color:${dk?'#e0e0e0':'#1a1a1a'};background:${dk?'#1e1e1e':'#fff'}}h1{font-size:1.75em;padding-bottom:8px;border-bottom:2px solid ${dk?'#333':'#eee'}}h2{font-size:1.35em;padding-bottom:6px;border-bottom:1px solid ${dk?'#333':'#eee'};margin-top:32px}h3{font-size:1.15em;margin-top:24px}h4{font-size:1em;margin-top:20px;color:${dk?'#bbb':'#555'}}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.9em}th,td{border:1px solid ${dk?'#444':'#ddd'};padding:8px 12px;text-align:left}th{background:${dk?'#2a2a2a':'#f5f5f5'};font-weight:600}tr:nth-child(even) td{background:${dk?'#252525':'#fafafa'}}code{background:${dk?'#2d2d2d':'#f0f0f0'};padding:2px 5px;border-radius:3px;font-size:.88em;font-family:monospace}pre{background:${dk?'#2d2d2d':'#f6f6f6'};padding:14px;border-radius:6px;overflow-x:auto}hr{border:none;border-top:1px solid ${dk?'#333':'#eee'};margin:24px 0}li{margin:4px 0}</style></head><body>${bodyHtml}</body></html>`;
+          window.open(URL.createObjectURL(new Blob([page], { type: 'text/html;charset=utf-8' })));
         };
         $("btnDelivViewDownload").onclick = () => {
           const a = document.createElement("a");

@@ -3312,6 +3312,15 @@ if(S.length)sw(S[0].id);
         const mockupHtml = (opts.length > 0 && opts[_activeOptIdx]) ? opts[_activeOptIdx].html : deliv.content;
         if (!mockupHtml) { toast("목업 콘텐츠가 없습니다"); return; }
 
+        // 저장된 핸드오프 리포트에서 AX_SPEC 읽기 (우측 패널용)
+        const h4Items = _h4GetItems();
+        const latestSpec = h4Items.length > 0 ? parseHandoffSpecs(h4Items[h4Items.length - 1].content) : null;
+        const hasRightPanel = latestSpec && (latestSpec.components || latestSpec.tokens || latestSpec.interaction);
+        const specHtmlRight = hasRightPanel ? `
+          <div class="s-sec"><h3>컴포넌트</h3><div class="md">${renderMd(latestSpec.components)}</div></div>
+          <div class="s-sec"><h3>디자인 토큰</h3><div class="md">${renderMd(latestSpec.tokens)}</div></div>
+          <div class="s-sec"><h3>인터랙션</h3><div class="md">${renderMd(latestSpec.interaction)}</div></div>` : '';
+
         // DOMParser로 부모 창에서 직접 파싱 — iframe 통신 불필요
         const dom = new DOMParser().parseFromString(mockupHtml, 'text/html');
         const headHtml = dom.head.innerHTML;
@@ -3365,9 +3374,17 @@ body{background:#111;color:#e0e0e0;font-family:-apple-system,sans-serif;display:
 .main{flex:1;overflow:hidden}
 iframe{width:100%;height:100%;border:none;display:block}
 .hint{color:#666;font-size:11px;padding:10px;line-height:1.5;text-align:center;margin-top:8px}
+.right{width:280px;flex-shrink:0;overflow-y:auto;background:#1a1a1a;padding:16px;font-size:12px;border-left:1px solid #2a2a2a}
+.s-sec{margin-bottom:20px}
+.s-sec h3{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:600}
+.md{color:#bbb;line-height:1.7}
+table{width:100%;font-size:11px;border-collapse:collapse}
+th,td{text-align:left;padding:5px 6px;border-bottom:1px solid #252525}
+th{color:#666}
 </style></head><body>
 <div class="sidebar"><div class="sidebar-title">화면 목록</div><div class="sidebar-list" id="sbar"></div></div>
 <div class="main"><iframe id="pf" sandbox="allow-scripts allow-same-origin allow-forms" allow=""></iframe></div>
+${hasRightPanel ? `<div class="right">${specHtmlRight}</div>` : ''}
 <script>
 const LABELS=${safeLabels},URLS=${safeBlobUrls};
 const pf=document.getElementById('pf'),sbar=document.getElementById('sbar');

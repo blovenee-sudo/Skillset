@@ -3214,6 +3214,12 @@ if(S.length)sw(S[0].id);
         const safeLabels = JSON.stringify(labels).replace(/<\/script>/gi,'<\\/script>');
         const safeBlobUrls = JSON.stringify(blobUrls).replace(/<\/script>/gi,'<\\/script>');
 
+        // 탭별 콘텐츠 HTML (부모 창에서 renderMd 처리)
+        const _tabComp = _specMd.components ? renderMd(_specMd.components) : '<p class="empty">정보 없음</p>';
+        const _tabTok  = _specMd.tokens     ? renderMd(_specMd.tokens)     : '<p class="empty">정보 없음</p>';
+        const _tabIact = _specMd.interaction ? renderMd(_specMd.interaction) : '<p class="empty">정보 없음</p>';
+        const _pjKey   = JSON.stringify(p.name).replace(/<\/script>/gi,'<\\/script>');
+
         const viewerPage = `<!DOCTYPE html><html lang="ko"><head>
 <meta charset="UTF-8"><title>${escapeHtml(p.name)} — 핸드오프 뷰어</title>
 <style>
@@ -3227,24 +3233,70 @@ body{background:#111;color:#e0e0e0;font-family:-apple-system,sans-serif;display:
 .sbtn.active{background:#6366f1;color:#fff}
 .main{flex:1;overflow:hidden}
 iframe{width:100%;height:100%;border:none;display:block}
-.hint{color:#666;font-size:11px;padding:10px;line-height:1.5;text-align:center;margin-top:8px}
-.right{width:280px;flex-shrink:0;overflow-y:auto;background:#1a1a1a;padding:16px;font-size:12px;border-left:1px solid #2a2a2a}
-.s-sec{margin-bottom:20px}
-.s-sec h3{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:600}
-.md{color:#bbb;line-height:1.7}
+.right{width:260px;flex-shrink:0;background:#1a1a1a;border-left:1px solid #2a2a2a;display:flex;flex-direction:column;overflow:hidden}
+.tabs{display:flex;border-bottom:1px solid #2a2a2a;flex-shrink:0}
+.tab{flex:1;background:transparent;border:none;color:#555;font-size:10px;padding:10px 4px;cursor:pointer;font-weight:600;letter-spacing:.04em;transition:color .15s,border-color .15s;border-bottom:2px solid transparent}
+.tab:hover{color:#aaa}
+.tab.active{color:#e0e0e0;border-bottom-color:#6366f1}
+.tab-body{flex:1;overflow-y:auto;padding:12px}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+.md{color:#bbb;line-height:1.7;font-size:12px}
 table{width:100%;font-size:11px;border-collapse:collapse}
 th,td{text-align:left;padding:5px 6px;border-bottom:1px solid #252525}
-th{color:#666}
+th{color:#555}
+code{background:#252525;padding:1px 4px;border-radius:3px;font-size:10px}
+.empty{color:#444;font-size:11px;text-align:center;padding:20px 0}
+#desc-ta{width:100%;min-height:160px;background:#252525;border:1px solid #333;border-radius:6px;color:#ccc;font-size:12px;padding:8px;resize:vertical;font-family:inherit;line-height:1.6}
+#desc-ta:focus{outline:none;border-color:#6366f1}
+#desc-save{margin-top:8px;background:#6366f1;color:#fff;border:none;border-radius:6px;padding:7px 0;font-size:11px;font-weight:600;cursor:pointer;width:100%;transition:opacity .15s}
+#desc-save:hover{opacity:.85}
+.desc-label{font-size:10px;color:#555;margin-bottom:6px;font-weight:600;letter-spacing:.04em}
 </style></head><body>
 <div class="sidebar"><div class="sidebar-title">화면 목록</div><div class="sidebar-list" id="sbar"></div></div>
 <div class="main"><iframe id="pf" sandbox="allow-scripts allow-same-origin allow-forms" allow=""></iframe></div>
-${hasRightPanel ? `<div class="right">${specHtmlRight}</div>` : ''}
+<div class="right">
+  <div class="tabs">
+    <button class="tab active" data-t="comp">컴포넌트</button>
+    <button class="tab" data-t="tok">토큰</button>
+    <button class="tab" data-t="iact">인터랙션</button>
+    <button class="tab" data-t="desc">디스크립션</button>
+  </div>
+  <div class="tab-body">
+    <div class="tab-pane active" id="tp-comp"><div class="md">${_tabComp}</div></div>
+    <div class="tab-pane" id="tp-tok"><div class="md">${_tabTok}</div></div>
+    <div class="tab-pane" id="tp-iact"><div class="md">${_tabIact}</div></div>
+    <div class="tab-pane" id="tp-desc">
+      <div class="desc-label" id="desc-screen"></div>
+      <textarea id="desc-ta" placeholder="화면 디스크립션을 입력하세요..."></textarea>
+      <button id="desc-save">저장</button>
+    </div>
+  </div>
+</div>
 <script>
-const LABELS=${safeLabels},URLS=${safeBlobUrls};
+const LABELS=${safeLabels},URLS=${safeBlobUrls},PJ=${_pjKey};
 const pf=document.getElementById('pf'),sbar=document.getElementById('sbar');
-function activate(label){sbar.querySelectorAll('.sbtn').forEach(b=>b.classList.toggle('active',b.dataset.id===label));pf.src=URLS[label];}
+const descKey=label=>'qv-desc|'+PJ+'|'+label;
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById('tp-'+t.dataset.t).classList.add('active');
+}));
+document.getElementById('desc-save').addEventListener('click',()=>{
+  const active=sbar.querySelector('.sbtn.active');
+  if(active)localStorage.setItem(descKey(active.dataset.id),document.getElementById('desc-ta').value);
+  document.getElementById('desc-save').textContent='저장됨 ✓';
+  setTimeout(()=>document.getElementById('desc-save').textContent='저장',1200);
+});
+function activate(label){
+  sbar.querySelectorAll('.sbtn').forEach(b=>b.classList.toggle('active',b.dataset.id===label));
+  pf.src=URLS[label];
+  document.getElementById('desc-screen').textContent=label;
+  document.getElementById('desc-ta').value=localStorage.getItem(descKey(label))||'';
+}
 LABELS.forEach(label=>{const b=document.createElement('button');b.className='sbtn';b.dataset.id=label;b.textContent=label;b.onclick=()=>activate(label);sbar.appendChild(b);});
-if(LABELS.length){activate(LABELS[0]);}else{sbar.innerHTML='<div class="hint">화면 없음</div>';}
+if(LABELS.length){activate(LABELS[0]);}else{sbar.innerHTML='<div style="color:#444;font-size:11px;padding:10px">화면 없음</div>';}
 <\/script></body></html>`;
         window.open(URL.createObjectURL(new Blob([viewerPage],{type:'text/html;charset=utf-8'})));
       });

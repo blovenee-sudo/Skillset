@@ -2955,6 +2955,34 @@ if(S.length)sw(S[0].id);
         const dom0 = new DOMParser().parseFromString(specHtml, 'text/html');
         const _styleText = [...dom0.querySelectorAll('style')].map(s => s.textContent).join('\n');
         const _comps = [...new Set([...specHtml.matchAll(/<!--\s*Component:\s*([^-\n]{1,40}?)\s*-->/g)].map(m => m[1].trim()))];
+
+        // 컴포넌트별 HTML 추출 → blob URL
+        const _compItems = [];
+        const _compSeen = new Set();
+        try {
+          const cw = dom0.createTreeWalker(dom0.body, NodeFilter.SHOW_COMMENT);
+          let cn;
+          while ((cn = cw.nextNode())) {
+            const cm = cn.nodeValue.match(/^\s*Component:\s*(.+?)\s*$/);
+            if (!cm) continue;
+            const cname = cm[1].trim();
+            if (_compSeen.has(cname)) continue;
+            _compSeen.add(cname);
+            let nx = cn.nextSibling;
+            while (nx && nx.nodeType === 3 && !nx.textContent.trim()) nx = nx.nextSibling;
+            _compItems.push({ name: cname, html: (nx && nx.nodeType === 1) ? nx.outerHTML : '' });
+          }
+        } catch(e) {}
+        if (_compItems.length === 0) _comps.forEach(n => _compItems.push({ name: n, html: '' }));
+        const _compUrls = {};
+        _compItems.forEach(({ name, html }) => {
+          if (!html) return;
+          const ch = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>*{box-sizing:border-box}body{margin:16px;font-family:-apple-system,sans-serif}${_styleText}</style></head><body>${html}</body></html>`;
+          _compUrls[name] = URL.createObjectURL(new Blob([ch], { type: 'text/html;charset=utf-8' }));
+        });
+        const safeCompUrls  = JSON.stringify(_compUrls).replace(/<\/script>/gi,'<\\/script>');
+        const safeCompNames = JSON.stringify(_compItems.map(c => c.name)).replace(/<\/script>/gi,'<\\/script>');
+
         const _rootM = _styleText.match(/:root\s*\{([^}]+)\}/);
         const _tokens = _rootM ? [..._rootM[1].matchAll(/(--[\w-]+)\s*:\s*([^;\/\n]{1,60});/g)].map(m => ({ n: m[1].trim(), v: m[2].trim() })) : [];
         const _fns = [...new Set([...specHtml.matchAll(/function\s+([\w]+)\s*\([^)]*\)\s*\{/g)].map(m => m[1]).filter(f => !/^(DOMContentLoaded|load|init|render|update|set|get|format|parse|escape|clamp)$/i.test(f)))];
@@ -3073,6 +3101,16 @@ th,td{text-align:left;padding:5px 6px;border-bottom:1px solid #252525}
 th{color:#555}
 code{background:#252525;padding:1px 4px;border-radius:3px;font-size:10px}
 .empty{color:#444;font-size:11px;text-align:center;padding:20px 0}
+.comp-label{font-size:10px;color:#555;font-weight:600;letter-spacing:.04em;padding:8px 0 6px;text-transform:uppercase}
+.comp-item{margin-bottom:2px}
+.comp-hd{width:100%;text-align:left;font-size:12px;padding:8px 10px;border:1px solid #252525;border-radius:6px;background:transparent;color:#aaa;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:space-between}
+.comp-hd:hover{border-color:#333;color:#ccc}
+.comp-hd::after{content:'▼';font-size:8px;opacity:.35;transition:transform .15s}
+.comp-item.open .comp-hd{border-color:#444;color:#e0e0e0;border-radius:6px 6px 0 0}
+.comp-item.open .comp-hd::after{transform:rotate(180deg);opacity:1}
+.comp-body{display:none;border:1px solid #444;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;background:#fff}
+.comp-item.open .comp-body{display:block}
+.comp-frame{width:100%;min-height:120px;height:180px;border:none;display:block;cursor:zoom-in}
 .desc-label{font-size:10px;color:#555;margin-bottom:8px;font-weight:600;letter-spacing:.04em}
 .pin-row{display:flex;gap:6px;margin-bottom:10px}
 .pin-btn{flex:1;border:1px solid #333;border-radius:6px;background:transparent;color:#888;font-size:11px;padding:6px 4px;cursor:pointer;font-weight:600;transition:all .15s}
@@ -3098,7 +3136,7 @@ code{background:#252525;padding:1px 4px;border-radius:3px;font-size:10px}
     <button class="tab" data-t="desc">메모</button>
   </div>
   <div class="tab-body">
-    <div class="tab-pane active" id="tp-comp"><div class="md">${_tabComp}</div></div>
+    <div class="tab-pane active" id="tp-comp"></div>
     <div class="tab-pane" id="tp-tok"><div class="md">${_tabTok}</div></div>
     <div class="tab-pane" id="tp-iact"><div class="md">${_tabIact}</div></div>
     <div class="tab-pane" id="tp-hist"><div class="md">${_tabHist}</div></div>
@@ -3232,7 +3270,40 @@ function activateOpt(i){
 }
 const _first=OPTS[0].labels[0];
 if(_first)activate(_first);
-<\/script></body></html>`;
+
+// 컴포넌트 탭 아코디언 빌드
+const COMP_URLS=${safeCompUrls};
+const COMP_NAMES=${safeCompNames};
+const compEl=document.getElementById('tp-comp');
+if(!COMP_NAMES.length){compEl.innerHTML='<p class="empty">정보 없음</p>';}
+else{
+  const lbl=document.createElement('div');lbl.className='comp-label';lbl.textContent='컴포넌트';compEl.appendChild(lbl);
+  COMP_NAMES.forEach(name=>{
+    const item=document.createElement('div');item.className='comp-item';
+    const hd=document.createElement('button');hd.className='comp-hd';hd.textContent=name;
+    hd.onclick=()=>{
+      const wasOpen=item.classList.contains('open');
+      compEl.querySelectorAll('.comp-item.open').forEach(el=>el.classList.remove('open'));
+      if(!wasOpen&&COMP_URLS[name])item.classList.add('open');
+    };
+    item.appendChild(hd);
+    if(COMP_URLS[name]){
+      const bd=document.createElement('div');bd.className='comp-body';
+      const fr=document.createElement('iframe');
+      fr.className='comp-frame';fr.sandbox='allow-scripts allow-same-origin';fr.src=COMP_URLS[name];
+      fr.addEventListener('load',()=>{try{const h=fr.contentDocument.body.scrollHeight;if(h>30&&h<500)fr.style.height=(h+24)+'px';}catch(e){}});
+      fr.addEventListener('click',e=>{e.stopPropagation();const lb=document.getElementById('comp-lb');document.getElementById('comp-lb-fr').src=COMP_URLS[name];lb.style.display='flex';});
+      bd.appendChild(fr);item.appendChild(bd);
+    }
+    compEl.appendChild(item);
+  });
+}
+<\/script>
+<div id="comp-lb" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:200;align-items:center;justify-content:center" onclick="this.style.display='none'">
+  <iframe id="comp-lb-fr" sandbox="allow-scripts allow-same-origin" style="width:88%;height:88%;border:none;border-radius:10px;background:#fff;pointer-events:none"></iframe>
+  <div style="position:absolute;top:16px;right:20px;color:#888;font-size:13px;cursor:pointer">✕</div>
+</div>
+</body></html>`;
         window.open(URL.createObjectURL(new Blob([viewerPage],{type:'text/html;charset=utf-8'})));
       });
 

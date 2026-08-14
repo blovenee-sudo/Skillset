@@ -3045,16 +3045,13 @@ body{background:#111;color:#e0e0e0;font-family:-apple-system,sans-serif;display:
 .obtn.active .obtn-arrow{transform:rotate(90deg);opacity:1}
 .screen-sublist{padding:2px 0 4px 10px;display:none}
 .screen-sublist.open{display:block}
-.scr-group{margin-bottom:1px}
-.sbtn{display:flex;align-items:center;width:100%;text-align:left;font-size:11px;padding:6px 10px;border-radius:6px;border:none;background:transparent;color:#888;cursor:pointer;margin-bottom:0;transition:background .15s,color .15s;line-height:1.4}
+.sbtn{display:block;width:100%;text-align:left;font-size:11px;padding:6px 10px;border-radius:6px;border:none;background:transparent;color:#888;cursor:pointer;margin-bottom:1px;transition:background .15s,color .15s;line-height:1.4}
 .sbtn:hover{background:#252525;color:#ccc}
 .sbtn.active{background:#6366f1;color:#fff}
-.sbtn-arrow{font-size:8px;margin-left:auto;opacity:.35;flex-shrink:0}
-.state-sublist{padding:2px 0 4px 10px;display:none}
-.state-sublist.open{display:block}
-.stbtn{display:block;width:100%;text-align:left;font-size:10px;padding:4px 8px;border-radius:5px;border:none;background:transparent;color:#555;cursor:pointer;margin-bottom:1px;transition:all .15s;line-height:1.4}
-.stbtn:hover{background:#1e1e1e;color:#999}
-.stbtn.active{color:#a5b4fc;background:#1e1e2e;font-weight:600}
+.stbtn-flat{display:block;width:100%;text-align:left;font-size:10px;padding:4px 10px 4px 20px;border-radius:5px;border:none;background:transparent;color:#555;cursor:pointer;margin-bottom:1px;transition:all .15s;line-height:1.4}
+.stbtn-flat::before{content:'·';margin-right:5px;opacity:.6}
+.stbtn-flat:hover{background:#1e1e1e;color:#999}
+.stbtn-flat.active{color:#a5b4fc;background:#1e1e2e;font-weight:600}
 .sidebar-footer{border-top:1px solid #2a2a2a;padding:8px;flex-shrink:0}
 .dl-btn{display:block;width:100%;text-align:center;font-size:11px;padding:7px;border-radius:6px;background:transparent;border:1px solid #333;color:#888;cursor:pointer;font-weight:600;transition:all .15s}
 .dl-btn:hover{border-color:#6366f1;color:#6366f1}
@@ -3161,33 +3158,26 @@ document.getElementById('desc-save').addEventListener('click',()=>{
 
 const setDl=(i)=>{dlBtn.onclick=()=>{const a=document.createElement('a');a.href=OPTS[i].dlUrl;a.download=(OPTS[i].label||'mockup')+'.html';a.click();};};
 
-// 화면 + 상태 서브리스트를 포함한 scr-group 빌더
-function buildScrGroup(optIdx, label, container) {
-  const sg = document.createElement('div');
-  sg.className = 'scr-group';
-  const b = document.createElement('button');
-  b.className = 'sbtn'; b.dataset.id = label;
-  const states = (OPTS[optIdx].statesData || {})[label];
-  if (states && states.length) {
-    b.innerHTML = '<span>' + label + '</span><span class="sbtn-arrow">▶</span>';
-  } else {
-    b.innerHTML = '<span>' + label + '</span>';
-  }
-  b.onclick = () => activate(label);
-  sg.appendChild(b);
-  if (states && states.length) {
-    const sl = document.createElement('div');
-    sl.className = 'state-sublist';
-    states.forEach(st => {
-      const sb = document.createElement('button');
-      sb.className = 'stbtn'; sb.dataset.arg = st.arg; sb.dataset.fn = st.fn;
-      sb.textContent = st.label;
-      sb.onclick = () => activateState(label, st);
-      sl.appendChild(sb);
-    });
-    sg.appendChild(sl);
-  }
-  container.appendChild(sg);
+// 화면 버튼 + 상태 버튼(같은 뎁스) 추가
+function buildScrItems(optIdx, labels, container) {
+  labels.forEach(label => {
+    const b = document.createElement('button');
+    b.className = 'sbtn'; b.dataset.id = label;
+    b.textContent = label;
+    b.onclick = () => activate(label);
+    container.appendChild(b);
+    const states = (OPTS[optIdx].statesData || {})[label];
+    if (states && states.length) {
+      states.forEach(st => {
+        const sb = document.createElement('button');
+        sb.className = 'stbtn-flat';
+        sb.dataset.screenId = label; sb.dataset.arg = st.arg; sb.dataset.fn = st.fn;
+        sb.textContent = st.label;
+        sb.onclick = () => activateState(label, st);
+        container.appendChild(sb);
+      });
+    }
+  });
 }
 
 // 사이드바 트리 구성
@@ -3202,11 +3192,11 @@ OPTS.forEach((opt,i)=>{
     group.appendChild(obtn);
     const sublist=document.createElement('div');
     sublist.className='screen-sublist'+(i===0?' open':'');
-    opt.labels.forEach(label=>buildScrGroup(i, label, sublist));
+    buildScrItems(i, opt.labels, sublist);
     group.appendChild(sublist);
     sbarEl.appendChild(group);
   }else{
-    opt.labels.forEach(label=>buildScrGroup(0, label, sbarEl));
+    buildScrItems(0, opt.labels, sbarEl);
   }
 });
 setDl(0);
@@ -3214,14 +3204,9 @@ setDl(0);
 function getSublist(i){return sbarEl.querySelectorAll('.screen-sublist')[i];}
 function activate(label, afterLoad){
   sbarEl.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('active'));
-  sbarEl.querySelectorAll('.stbtn').forEach(b=>b.classList.remove('active'));
+  sbarEl.querySelectorAll('.stbtn-flat').forEach(b=>b.classList.remove('active'));
   const container=multiOpt?getSublist(_curOpt):sbarEl;
   container?.querySelectorAll('.sbtn').forEach(b=>{if(b.dataset.id===label)b.classList.add('active');});
-  // 해당 화면의 state-sublist 열기, 나머지 닫기
-  container?.querySelectorAll('.scr-group').forEach(g=>{
-    const sl=g.querySelector('.state-sublist');
-    if(sl) sl.classList.toggle('open', g.querySelector('.sbtn')?.dataset.id===label);
-  });
   pf.src=OPTS[_curOpt].urls[label];_curLabel=label;
   document.getElementById('desc-screen').textContent=label;
   document.getElementById('desc-ta').value=localStorage.getItem(descKey(label))||'';
@@ -3232,7 +3217,7 @@ function activate(label, afterLoad){
 function activateState(screenLabel, st){
   const doCall=()=>{
     try{pf.contentWindow.postMessage({type:'AX_STATE',fn:st.fn,arg:st.arg},'*');}catch(e){}
-    sbarEl.querySelectorAll('.stbtn').forEach(b=>b.classList.toggle('active', b.dataset.fn===st.fn&&b.dataset.arg===st.arg));
+    sbarEl.querySelectorAll('.stbtn-flat').forEach(b=>b.classList.toggle('active', b.dataset.screenId===screenLabel&&b.dataset.arg===st.arg));
   };
   if(_curLabel===screenLabel){doCall();}
   else{activate(screenLabel, doCall);}

@@ -70,6 +70,12 @@ artifact 미지원 환경: 각 파일을 별도 코드블록(```html … ```)으
 - `:root`에 Phase 2 CSS 변수 원문 그대로 복사 (임의 변경·생략 금지)
 - 색상·타이포·간격 전부 `var(--*)` 직접 참조 (하드코딩 `#hex`·`px` 금지)
 
+## [CRITICAL] HTML 렌더링 규칙 — 위반 시 코드 노출 버그 발생
+
+- **템플릿 리터럴 HTML 본문 금지**: `${...}` 또는 JS 템플릿 리터럴 구문을 HTML 마크업 영역(태그 내부 텍스트)에 직접 작성 절대 금지. 브라우저는 이를 JS로 평가하지 않고 텍스트로 출력함.
+- **허용 패턴 ①**: 완전히 렌더링된 정적 HTML로 작성 — `<div class="item">Google</div>` 형태
+- **허용 패턴 ②**: `<script>` 태그 안에서 `document.getElementById('x').innerHTML = ['a','b'].map(i => '<div>'+i+'</div>').join('');` 형태 (백틱 리터럴 사용 가능하나 JS 내부에서만)
+
 ## 품질 기준
 
 - **Zero Dependency** — 외부 CDN 없이 단독 HTML 완결

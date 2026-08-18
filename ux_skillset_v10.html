@@ -3012,7 +3012,7 @@ if(S.length)sw(S[0].id);
         const _tabHist = _histParts.length ? renderMd(_histParts.join('\n\n')) : '<p class="empty">기록 없음</p>';
 
         // 안별 화면 추출 + blob URL 생성
-        const navPatch = `<script>['showScreen','showPage','switchTab','navigate','goTo','showView','showSection'].forEach(fn=>{window[fn]=()=>{};});window.addEventListener('scroll',()=>{window.parent.postMessage({type:'AX_SCROLL',y:window.scrollY},'*');},{passive:true});function __axRP(pins){document.querySelectorAll('.__ax-pin').forEach(el=>el.remove());if(document.body&&!document.body.style.position)document.body.style.position='relative';(pins||[]).forEach(pin=>{const d=document.createElement('div');d.className='__ax-pin';d.style.cssText='position:absolute;left:'+pin.x+'%;top:'+pin.cy+'px;width:22px;height:22px;border-radius:50%;background:#f43f5e;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5);z-index:99999;pointer-events:auto;user-select:none;';d.textContent=pin.num;d.addEventListener('click',ev=>{ev.stopPropagation();window.parent.postMessage({type:'AX_PIN_REMOVE',num:pin.num},'*');});document.body.appendChild(d);});}window.addEventListener('message',e=>{if(!e.data)return;if(e.data.type==='AX_STATE'&&typeof window[e.data.fn]==='function'){try{window[e.data.fn](e.data.arg);}catch(err){}}if(e.data.type==='AX_SCROLL_REQ'){window.parent.postMessage({type:'AX_SCROLL',y:window.scrollY},'*');}if(e.data.type==='AX_PIN_RENDER'){__axRP(e.data.pins);}});<\/script>`;
+        const navPatch = `<script>['showScreen','showPage','switchTab','navigate','goTo','showView','showSection'].forEach(fn=>{window[fn]=()=>{};});window.addEventListener('scroll',()=>{window.parent.postMessage({type:'AX_SCROLL',y:window.scrollY},'*');},{passive:true});window.addEventListener('message',e=>{if(!e.data)return;if(e.data.type==='AX_STATE'&&typeof window[e.data.fn]==='function'){try{window[e.data.fn](e.data.arg);}catch(err){}}if(e.data.type==='AX_SCROLL_REQ'){window.parent.postMessage({type:'AX_SCROLL',y:window.scrollY},'*');}});<\/script>`;
         const optsData = srcList.map(src => {
           const dom = new DOMParser().parseFromString(src.html, 'text/html');
           const headHtml = dom.head.innerHTML;
@@ -3166,19 +3166,28 @@ const multiOpt=OPTS.length>1;
 
 if(multiOpt) document.getElementById('sbar-title').textContent='디자인 안';
 
-// iframe scroll 추적 + 핀 제거 수신
+// iframe scroll 추적 — 스크롤시 핀 위치 재계산
 window.addEventListener('message',e=>{
   if(!e.data)return;
-  if(e.data.type==='AX_SCROLL'){_iScrollY=e.data.y;}
-  if(e.data.type==='AX_PIN_REMOVE'){
-    const idx=_curPins.findIndex(p=>p.num===e.data.num);
-    if(idx!==-1){_curPins.splice(idx,1);_curPins.forEach((p,i)=>p.num=i+1);savePins(_curLabel,_curPins);renderPins();}
-  }
+  if(e.data.type==='AX_SCROLL'){_iScrollY=e.data.y;renderPins();}
 });
 
-// 핀을 iframe 내부 DOM에 직접 심음 (스크롤 자동 추적)
+// 오버레이 div에 핀 배지 직접 렌더링 (스크롤 오프셋 반영)
 const renderPins=()=>{
-  try{pf.contentWindow.postMessage({type:'AX_PIN_RENDER',pins:_curPins},'*');}catch(e){}
+  overlay.querySelectorAll('.__ax-pin-ov').forEach(el=>el.remove());
+  _curPins.forEach(pin=>{
+    const visY=pin.cy-_iScrollY;
+    const d=document.createElement('div');
+    d.className='__ax-pin-ov';
+    d.style.cssText='position:absolute;left:'+pin.x+'%;top:'+visY+'px;width:22px;height:22px;border-radius:50%;background:#f43f5e;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5);z-index:99999;pointer-events:auto;user-select:none;';
+    d.textContent=pin.num;
+    d.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      const idx=_curPins.findIndex(p=>p.num===pin.num);
+      if(idx!==-1){_curPins.splice(idx,1);_curPins.forEach((p,i)=>p.num=i+1);savePins(_curLabel,_curPins);renderPins();}
+    });
+    overlay.appendChild(d);
+  });
 };
 pinAddBtn.addEventListener('click',()=>{_pinMode=!_pinMode;pinAddBtn.classList.toggle('on',_pinMode);overlay.classList.toggle('active',_pinMode);});
 pinClearBtn.addEventListener('click',()=>{_curPins=[];savePins(_curLabel,_curPins);renderPins();});
@@ -3250,16 +3259,16 @@ function activate(label, afterLoad){
   sbarEl.querySelectorAll('.stbtn-flat').forEach(b=>b.classList.remove('active'));
   const container=multiOpt?getSublist(_curOpt):sbarEl;
   container?.querySelectorAll('.sbtn').forEach(b=>{if(b.dataset.id===label)b.classList.add('active');});
-  _iScrollY=0;
   pf.src=OPTS[_curOpt].urls[label];_curLabel=label;
   document.getElementById('desc-screen').textContent=label;
   document.getElementById('desc-ta').value=localStorage.getItem(descKey(label))||'';
+  _iScrollY=0;
   _curPins=loadPins(label);
   _pinMode=false;pinAddBtn.classList.remove('on');overlay.classList.remove('active');
-  // iframe 로드 후 핀 주입 + scrollY 요청
+  renderPins(); // 저장된 핀 즉시 표시 (scroll=0 기준)
+  // iframe 로드 후 scrollY 요청 → AX_SCROLL 수신 시 renderPins() 자동 갱신
   pf.addEventListener('load',()=>{
     try{pf.contentWindow.postMessage({type:'AX_SCROLL_REQ'},'*');}catch(e){}
-    renderPins(); // 새 iframe 문서에 핀 배지 삽입
     if(afterLoad)afterLoad();
   },{once:true});
 }

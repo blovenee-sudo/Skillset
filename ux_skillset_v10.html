@@ -3112,7 +3112,7 @@ if(S.length)sw(S[0].id);
         const _tabHist = _histParts.length ? renderMd(_histParts.join('\n\n')) : '<p class="empty">기록 없음</p>';
 
         // 안별 화면 추출 + blob URL 생성
-        const navPatch = `<script>['showScreen','showPage','switchTab','navigate','goTo','showView','showSection'].forEach(fn=>{window[fn]=()=>{};});window.addEventListener('scroll',()=>{window.parent.postMessage({type:'AX_SCROLL',y:window.scrollY},'*');},{passive:true});window.addEventListener('message',e=>{if(!e.data)return;if(e.data.type==='AX_STATE'&&typeof window[e.data.fn]==='function'){try{window[e.data.fn](e.data.arg);}catch(err){}}if(e.data.type==='AX_SCROLL_REQ'){window.parent.postMessage({type:'AX_SCROLL',y:window.scrollY},'*');}});<\/script>`;
+        const navPatch = `<script>['showScreen','showPage','switchTab','navigate','goTo','showView','showSection'].forEach(fn=>{window[fn]=()=>{};});function _axS(y){window.parent.postMessage({type:'AX_SCROLL',y:y},'*');}document.addEventListener('scroll',function(e){var t=e.target;var y=(t===document||t===document.documentElement||t===document.body)?window.scrollY:(t.scrollTop||0);_axS(y);},{passive:true,capture:true});window.addEventListener('message',e=>{if(!e.data)return;if(e.data.type==='AX_STATE'&&typeof window[e.data.fn]==='function'){try{window[e.data.fn](e.data.arg);}catch(err){}}if(e.data.type==='AX_SCROLL_REQ'){var y=window.scrollY;try{document.querySelectorAll('*').forEach(function(el){if(el.scrollTop>0)y=Math.max(y,el.scrollTop);});}catch(ex){}window.parent.postMessage({type:'AX_SCROLL',y:y},'*');}});<\/script>`;
         const optsData = srcList.map(src => {
           const dom = new DOMParser().parseFromString(src.html, 'text/html');
           const headHtml = dom.head.innerHTML;

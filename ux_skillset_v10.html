@@ -690,7 +690,11 @@
   <div class="modal-backdrop" id="modalDSSave" style="display:none">
     <div class="modal" style="max-width:520px">
       <h4>디자인 시스템 저장</h4>
-      <p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.5">/design-system 출력 결과의 <code style="font-size:11px">DS_EXPORT</code> 블록 전체를 붙여넣으세요.</p>
+      <div class="row" style="margin-bottom:8px;align-items:center">
+        <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.5;flex:1">/design-system 출력의 <code style="font-size:11px">DS_EXPORT</code> 블록을 붙여넣거나 .md 파일을 첨부하세요.</p>
+        <button type="button" class="btn-sm" id="btnDSFile">파일 첨부</button>
+        <input type="file" id="dsFileInput" accept=".md,.txt,.css" style="display:none">
+      </div>
       <textarea class="prompt-area" id="dsExportInput" style="min-height:160px;font-family:monospace;font-size:12px" placeholder="<!-- DS_EXPORT&#10;name: Finance Minimal UI&#10;style: Minimal&#10;platform: Web&#10;industry: Finance&#10;summary: 토스 기반 금융 앱 스타일&#10;-->&#10;:root { ... }&#10;<!-- DS_EXPORT_END -->"></textarea>
       <div class="row" style="margin-top:12px;justify-content:flex-end;gap:8px">
         <button type="button" class="btn-sm" id="btnDSSaveCancel">취소</button>
@@ -4543,6 +4547,15 @@ else{
 
       // DS 저장 모달
       $("btnDSSaveCancel").addEventListener("click", () => { $("modalDSSave").style.display = "none"; });
+      $("btnDSFile").addEventListener("click", () => $("dsFileInput").click());
+      $("dsFileInput").addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => { $("dsExportInput").value = ev.target.result; };
+        reader.readAsText(file, "UTF-8");
+        e.target.value = "";
+      });
       $("modalDSSave").addEventListener("click", e => { if (e.target === $("modalDSSave")) $("modalDSSave").style.display = "none"; });
       $("btnDSSaveConfirm").addEventListener("click", () => {
         const text = $("dsExportInput").value.trim();

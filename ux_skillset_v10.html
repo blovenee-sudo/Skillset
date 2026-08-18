@@ -3012,7 +3012,7 @@ if(S.length)sw(S[0].id);
         const _tabHist = _histParts.length ? renderMd(_histParts.join('\n\n')) : '<p class="empty">기록 없음</p>';
 
         // 안별 화면 추출 + blob URL 생성
-        const navPatch = `<script>['showScreen','showPage','switchTab','navigate','goTo','showView','showSection'].forEach(fn=>{window[fn]=()=>{};});window.addEventListener('message',e=>{if(e.data&&e.data.type==='AX_STATE'&&typeof window[e.data.fn]==='function'){try{window[e.data.fn](e.data.arg);}catch(err){}}});<\/script>`;
+        const navPatch = `<script>['showScreen','showPage','switchTab','navigate','goTo','showView','showSection'].forEach(fn=>{window[fn]=()=>{};});window.addEventListener('scroll',()=>{window.parent.postMessage({type:'AX_SCROLL',y:window.scrollY},'*');},{passive:true});window.addEventListener('message',e=>{if(!e.data)return;if(e.data.type==='AX_STATE'&&typeof window[e.data.fn]==='function'){try{window[e.data.fn](e.data.arg);}catch(err){}}if(e.data.type==='AX_SCROLL_REQ'){window.parent.postMessage({type:'AX_SCROLL',y:window.scrollY},'*');}});<\/script>`;
         const optsData = srcList.map(src => {
           const dom = new DOMParser().parseFromString(src.html, 'text/html');
           const headHtml = dom.head.innerHTML;
@@ -3153,7 +3153,7 @@ code{background:#252525;padding:1px 4px;border-radius:3px;font-size:10px}
 </div>
 <script>
 const OPTS=${safeOptsData},PJ=${_pjKey};
-let _curOpt=0,_curPins=[],_pinMode=false,_curLabel='';
+let _curOpt=0,_curPins=[],_pinMode=false,_curLabel='',_iScrollY=0;
 const pf=document.getElementById('pf');
 const overlay=document.getElementById('pin-overlay');
 const pinAddBtn=document.getElementById('pin-add'),pinClearBtn=document.getElementById('pin-clear');
@@ -3166,11 +3166,20 @@ const multiOpt=OPTS.length>1;
 
 if(multiOpt) document.getElementById('sbar-title').textContent='디자인 안';
 
+// iframe scroll → 핀 위치 재계산
+window.addEventListener('message',e=>{
+  if(e.data&&e.data.type==='AX_SCROLL'){_iScrollY=e.data.y;renderPins();}
+});
+
 const renderPins=()=>{
   overlay.innerHTML='';
+  const h=overlay.getBoundingClientRect().height;
   _curPins.forEach((pin,idx)=>{
+    // cy: 콘텐츠 절대 픽셀 좌표 (스크롤 무관). 구버전 pin.y(%) 호환
+    const visY = pin.cy!==undefined ? pin.cy-_iScrollY : pin.y*h/100;
+    if(visY<-30||visY>h+30)return; // 뷰포트 밖이면 숨김
     const d=document.createElement('div');
-    d.style.cssText='position:absolute;left:'+pin.x+'%;top:'+pin.y+'%;width:22px;height:22px;border-radius:50%;background:#f43f5e;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.4);z-index:20;pointer-events:auto;user-select:none;';
+    d.style.cssText='position:absolute;left:'+pin.x+'%;top:'+visY+'px;width:22px;height:22px;border-radius:50%;background:#f43f5e;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.4);z-index:20;pointer-events:auto;user-select:none;';
     d.textContent=pin.num;
     d.addEventListener('click',e=>{e.stopPropagation();_curPins.splice(idx,1);_curPins.forEach((p,i)=>p.num=i+1);savePins(_curLabel,_curPins);renderPins();});
     overlay.appendChild(d);
@@ -3181,7 +3190,8 @@ pinClearBtn.addEventListener('click',()=>{_curPins=[];savePins(_curLabel,_curPin
 overlay.addEventListener('click',e=>{
   if(!_pinMode)return;
   const r=overlay.getBoundingClientRect();
-  _curPins.push({x:((e.clientX-r.left)/r.width)*100,y:((e.clientY-r.top)/r.height)*100,num:_curPins.length+1});
+  // cy: 클릭 뷰포트 y + 현재 스크롤 = 콘텐츠 절대 y
+  _curPins.push({x:((e.clientX-r.left)/r.width)*100,cy:(e.clientY-r.top)+_iScrollY,num:_curPins.length+1});
   savePins(_curLabel,_curPins);renderPins();
 });
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
@@ -3245,12 +3255,17 @@ function activate(label, afterLoad){
   sbarEl.querySelectorAll('.stbtn-flat').forEach(b=>b.classList.remove('active'));
   const container=multiOpt?getSublist(_curOpt):sbarEl;
   container?.querySelectorAll('.sbtn').forEach(b=>{if(b.dataset.id===label)b.classList.add('active');});
+  _iScrollY=0; // 화면 전환 시 스크롤 초기화
   pf.src=OPTS[_curOpt].urls[label];_curLabel=label;
   document.getElementById('desc-screen').textContent=label;
   document.getElementById('desc-ta').value=localStorage.getItem(descKey(label))||'';
   _curPins=loadPins(label);renderPins();
   _pinMode=false;pinAddBtn.classList.remove('on');overlay.classList.remove('active');
-  if(afterLoad) pf.addEventListener('load', afterLoad, {once:true});
+  // 로드 후 iframe scrollY 요청 (이전 화면 스크롤 상태 정합)
+  pf.addEventListener('load',()=>{
+    try{pf.contentWindow.postMessage({type:'AX_SCROLL_REQ'},'*');}catch(e){}
+    if(afterLoad)afterLoad();
+  },{once:true});
 }
 function activateState(screenLabel, st){
   const doCall=()=>{

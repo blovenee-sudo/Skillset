@@ -3112,7 +3112,7 @@ if(S.length)sw(S[0].id);
         const _tabHist = _histParts.length ? renderMd(_histParts.join('\n\n')) : '<p class="empty">기록 없음</p>';
 
         // 안별 화면 추출 + blob URL 생성
-        const navPatch = `<script>['showScreen','showPage','switchTab','navigate','goTo','showView','showSection'].forEach(fn=>{window[fn]=()=>{};});function _axS(y){window.parent.postMessage({type:'AX_SCROLL',y:y},'*');}document.addEventListener('scroll',function(e){var t=e.target;var y=(t===document||t===document.documentElement||t===document.body)?window.scrollY:(t.scrollTop||0);_axS(y);},{passive:true,capture:true});window.addEventListener('message',e=>{if(!e.data)return;if(e.data.type==='AX_STATE'&&typeof window[e.data.fn]==='function'){try{window[e.data.fn](e.data.arg);}catch(err){}}if(e.data.type==='AX_SCROLL_REQ'){var y=window.scrollY;try{document.querySelectorAll('*').forEach(function(el){if(el.scrollTop>0)y=Math.max(y,el.scrollTop);});}catch(ex){}window.parent.postMessage({type:'AX_SCROLL',y:y},'*');}});<\/script>`;
+        const navPatch = `<script>['showScreen','showPage','switchTab','navigate','goTo','showView','showSection'].forEach(fn=>{window[fn]=()=>{};});window.addEventListener('message',e=>{if(!e.data)return;if(e.data.type==='AX_STATE'&&typeof window[e.data.fn]==='function'){try{window[e.data.fn](e.data.arg);}catch(err){}}});<\/script>`;
         const optsData = srcList.map(src => {
           const dom = new DOMParser().parseFromString(src.html, 'text/html');
           const headHtml = dom.head.innerHTML;
@@ -3253,7 +3253,7 @@ code{background:#252525;padding:1px 4px;border-radius:3px;font-size:10px}
 </div>
 <script>
 const OPTS=${safeOptsData},PJ=${_pjKey};
-let _curOpt=0,_curPins=[],_pinMode=false,_curLabel='',_iScrollY=0;
+let _curOpt=0,_curPins=[],_pinMode=false,_curLabel='',_scrollCon=null;
 const pf=document.getElementById('pf');
 const overlay=document.getElementById('pin-overlay');
 const pinAddBtn=document.getElementById('pin-add'),pinClearBtn=document.getElementById('pin-clear');
@@ -3266,38 +3266,53 @@ const multiOpt=OPTS.length>1;
 
 if(multiOpt) document.getElementById('sbar-title').textContent='디자인 안';
 
-// iframe scroll 추적 — 스크롤시 핀 위치 재계산
-window.addEventListener('message',e=>{
-  if(!e.data)return;
-  if(e.data.type==='AX_SCROLL'){_iScrollY=e.data.y;renderPins();}
-});
+// iframe 스크롤 컨테이너 탐색 — scrollHeight가 가장 큰 요소
+function findScrollCon(doc){
+  let best=doc.body,bestD=0;
+  try{doc.querySelectorAll('*').forEach(el=>{
+    const oy=doc.defaultView.getComputedStyle(el).overflowY;
+    if(oy==='auto'||oy==='scroll'){const d=el.scrollHeight-el.clientHeight;if(d>bestD){bestD=d;best=el;}}
+  });}catch(e){}
+  return best;
+}
 
-// position:fixed 로 body에 직접 렌더링 — overflow:hidden 클리핑 우회
+// iframe DOM에 직접 핀 심기 — 스크롤 컨테이너 내부 position:absolute
 const renderPins=()=>{
-  document.querySelectorAll('.__ax-pin-fp').forEach(el=>el.remove());
-  const r=pf.getBoundingClientRect();
-  _curPins.forEach(pin=>{
-    const absL=r.left+(pin.x/100)*r.width;
-    const absT=r.top+(pin.cy-_iScrollY);
-    const d=document.createElement('div');
-    d.className='__ax-pin-fp';
-    d.style.cssText='position:fixed;left:'+absL+'px;top:'+absT+'px;width:22px;height:22px;border-radius:50%;background:#f43f5e;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5);z-index:99999;pointer-events:auto;user-select:none;';
-    d.textContent=pin.num;
-    d.addEventListener('click',ev=>{
-      ev.stopPropagation();
-      const idx=_curPins.findIndex(p=>p.num===pin.num);
-      if(idx!==-1){_curPins.splice(idx,1);_curPins.forEach((p,i)=>p.num=i+1);savePins(_curLabel,_curPins);renderPins();}
+  try{
+    const doc=pf.contentWindow.document;
+    doc.querySelectorAll('.__ax-pin').forEach(el=>el.remove());
+    if(!_scrollCon||!doc.contains(_scrollCon))_scrollCon=findScrollCon(doc);
+    const cs=doc.defaultView.getComputedStyle(_scrollCon);
+    if(cs.position==='static')_scrollCon.style.position='relative';
+    _curPins.forEach(pin=>{
+      const d=doc.createElement('div');
+      d.className='__ax-pin';
+      d.style.cssText='position:absolute;left:'+pin.x+'%;top:'+pin.cy+'px;width:22px;height:22px;border-radius:50%;background:#f43f5e;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5);z-index:99999;pointer-events:auto;user-select:none;';
+      d.textContent=pin.num;
+      d.addEventListener('click',ev=>{
+        ev.stopPropagation();
+        const idx=_curPins.findIndex(p=>p.num===pin.num);
+        if(idx!==-1){_curPins.splice(idx,1);_curPins.forEach((p,i)=>p.num=i+1);savePins(_curLabel,_curPins);renderPins();}
+      });
+      _scrollCon.appendChild(d);
     });
-    document.body.appendChild(d);
-  });
+  }catch(e){}
 };
 pinAddBtn.addEventListener('click',()=>{_pinMode=!_pinMode;pinAddBtn.classList.toggle('on',_pinMode);overlay.classList.toggle('active',_pinMode);});
 pinClearBtn.addEventListener('click',()=>{_curPins=[];savePins(_curLabel,_curPins);renderPins();});
 overlay.addEventListener('click',e=>{
   if(!_pinMode)return;
-  const r=overlay.getBoundingClientRect();
-  // cy: 클릭 뷰포트 y + 현재 스크롤 = 콘텐츠 절대 y
-  _curPins.push({x:((e.clientX-r.left)/r.width)*100,cy:(e.clientY-r.top)+_iScrollY,num:_curPins.length+1});
+  const r=pf.getBoundingClientRect();
+  const ix=e.clientX-r.left, iy=e.clientY-r.top;
+  const xPct=ix/r.width*100;
+  let cy=iy;
+  try{
+    const doc=pf.contentWindow.document;
+    if(!_scrollCon||!doc.contains(_scrollCon))_scrollCon=findScrollCon(doc);
+    const cr=_scrollCon.getBoundingClientRect();
+    cy=iy-cr.top+_scrollCon.scrollTop; // 콘텐츠 절대 위치
+  }catch(e){}
+  _curPins.push({x:xPct,cy,num:_curPins.length+1});
   savePins(_curLabel,_curPins);renderPins();
 });
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
@@ -3364,13 +3379,12 @@ function activate(label, afterLoad){
   pf.src=OPTS[_curOpt].urls[label];_curLabel=label;
   document.getElementById('desc-screen').textContent=label;
   document.getElementById('desc-ta').value=localStorage.getItem(descKey(label))||'';
-  _iScrollY=0;
+  _scrollCon=null; // 화면 전환시 스크롤 컨테이너 초기화
   _curPins=loadPins(label);
   _pinMode=false;pinAddBtn.classList.remove('on');overlay.classList.remove('active');
-  renderPins(); // 저장된 핀 즉시 표시 (scroll=0 기준)
-  // iframe 로드 후 scrollY 요청 → AX_SCROLL 수신 시 renderPins() 자동 갱신
+  // iframe 로드 완료 후 핀 심기
   pf.addEventListener('load',()=>{
-    try{pf.contentWindow.postMessage({type:'AX_SCROLL_REQ'},'*');}catch(e){}
+    renderPins();
     if(afterLoad)afterLoad();
   },{once:true});
 }

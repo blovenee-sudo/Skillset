@@ -1346,15 +1346,9 @@
                 ${ds.summary ? `<div class="ds-card-summary">${escapeHtml(ds.summary)}</div>` : ''}
               </div>
               <div class="ds-card-actions">
-                <button class="btn-sm ds-action-btn ds-prompt-btn" data-id="${ds.id}">프롬프트용 복사</button>
                 <button class="btn-sm ds-action-btn ds-copy-btn" data-id="${ds.id}">토큰 복사</button>
                 <button class="btn-sm ds-action-btn ds-del-btn" data-id="${ds.id}" style="border-color:#7f1d1d;color:#fca5a5">삭제</button>
               </div>`;
-            card.querySelector('.ds-prompt-btn').addEventListener('click', () => {
-              navigator.clipboard.writeText(`[${ds.name}]\n${ds.tokens}`).then(() =>
-                toast("프롬프트용 복사됨 — /design-system 저장된 DS 입력에 붙여넣으세요")
-              );
-            });
             card.querySelector('.ds-copy-btn').addEventListener('click', () => {
               navigator.clipboard.writeText(ds.tokens).then(() =>
                 toast("CSS 토큰 복사됨 — /mockup 또는 /token 프롬프트에 붙여넣으세요")
@@ -4251,6 +4245,22 @@ else{
               if (body) promptText = body;
             }
           } catch {}
+        }
+
+        // /design-system 스킬: 저장된 DS 자동 주입
+        if (sk.id === 'ds1') {
+          const dsRepo = getDSRepo();
+          if (dsRepo.length > 0) {
+            const dsBlock = dsRepo.map(ds => `[${ds.name}]\n${ds.tokens}`).join('\n\n');
+            const si = promptText.indexOf('저장된 DS 입력 (선택');
+            const ei = promptText.indexOf('<!-- AI INSTRUCTIONS -->');
+            if (si !== -1 && ei !== -1) {
+              const sepBefore = promptText.lastIndexOf('---', ei);
+              promptText = promptText.slice(0, si) +
+                `저장된 DS 데이터 (자동 포함 — 총 ${dsRepo.length}개):\n\n${dsBlock}\n\n` +
+                promptText.slice(sepBefore);
+            }
+          }
         }
 
         const injection = buildInjection(selectedProjectId, sk.id);

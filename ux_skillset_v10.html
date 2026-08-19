@@ -141,6 +141,8 @@
 
     /* ── DS Repository cards ── */
     .ds-card { display:flex;align-items:flex-start;gap:8px;padding:10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);margin-bottom:8px; }
+    .ds-card-active { border-color:var(--accent);background:var(--hover); }
+    .ds-active-badge { font-size:10px;font-weight:600;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:3px;padding:1px 5px;vertical-align:middle; }
     .ds-card-meta { flex:1;min-width:0; }
     .ds-card-name { font-size:13px;font-weight:600; }
     .ds-card-tags { font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4; }
@@ -814,10 +816,16 @@
 
     // ── DS Repository ──────────────────────────────────────────────
     const DS_REPO_KEY = "ax_ds_repo";
+    const DS_ACTIVE_KEY = "ax_active_ds";
     function getDSRepo() {
       try { return JSON.parse(localStorage.getItem(DS_REPO_KEY) || "[]"); } catch { return []; }
     }
     function saveDSRepo(repo) { localStorage.setItem(DS_REPO_KEY, JSON.stringify(repo)); }
+    function getActiveDsId() { return localStorage.getItem(DS_ACTIVE_KEY) || null; }
+    function setActiveDsId(id) {
+      if (id) localStorage.setItem(DS_ACTIVE_KEY, id);
+      else localStorage.removeItem(DS_ACTIVE_KEY);
+    }
     function parseDSExport(text) {
       const m = text.match(/<!--\s*DS_EXPORT\s*([\s\S]*?)-->([\s\S]*?)<!--\s*DS_EXPORT_END\s*-->/);
       if (!m) return null;
@@ -1172,13 +1180,12 @@
       const outputContent = outputKey ? p.deliverables?.[outputKey]?.content : null;
       const logContent    = outputKey ? p.deliverables?.[outputKey]?.changeLog?.trim() || null : null;
       let dsContent = null;
-      if (['p2', 'p3'].includes(skillId) && (p.designSystem?.content?.trim() || p.designSystem?.files?.length)) {
-        const parts = [];
-        if (p.designSystem.content?.trim()) parts.push(p.designSystem.content.trim());
-        if (p.designSystem.files?.length) {
-          p.designSystem.files.forEach(f => parts.push(`--- ${f.name} ---\n${f.content}`));
+      if (['p2', 'p3'].includes(skillId)) {
+        const activeDsId = getActiveDsId();
+        if (activeDsId) {
+          const activeDs = getDSRepo().find(d => d.id === activeDsId);
+          if (activeDs?.tokens) dsContent = activeDs.tokens;
         }
-        if (parts.length) dsContent = parts.join('\n\n');
       }
       if (!outputContent && !logContent && !dsContent) return "";
       const phaseLabel = { phase1: 'Phase 1 (/spec)', phase2: 'Phase 2 (/token)', phase3: 'Phase 3 (/mockup)', phase4: 'Phase 4 (/handoff)' };
@@ -1335,27 +1342,30 @@
         if (!repo.length) {
           el.innerHTML = `<div class="empty-state">${q ? "검색 결과가 없습니다." : "저장된 디자인 시스템이 없습니다.<br><span style='font-size:11px'>/design-system 스킬로 생성 후 저장하세요.</span>"}</div>`;
         } else {
-          repo.forEach(ds => {
+          const activeDsId = getActiveDsId();
+        repo.forEach(ds => {
+            const isActive = ds.id === activeDsId;
             const card = document.createElement("div");
-            card.className = "ds-card";
+            card.className = "ds-card" + (isActive ? " ds-card-active" : "");
             const tags = [ds.style, ds.platform, ds.industry].filter(Boolean).join(' · ');
             card.innerHTML = `
               <div class="ds-card-meta">
-                <div class="ds-card-name">${escapeHtml(ds.name)}</div>
+                <div class="ds-card-name">${escapeHtml(ds.name)}${isActive ? ' <span class="ds-active-badge">활성</span>' : ''}</div>
                 ${tags ? `<div class="ds-card-tags">${escapeHtml(tags)}</div>` : ''}
                 ${ds.summary ? `<div class="ds-card-summary">${escapeHtml(ds.summary)}</div>` : ''}
               </div>
               <div class="ds-card-actions">
-                <button class="btn-sm ds-action-btn ds-copy-btn" data-id="${ds.id}">토큰 복사</button>
+                <button class="btn-sm ds-action-btn ds-activate-btn" data-id="${ds.id}">${isActive ? '비활성화' : '활성화'}</button>
                 <button class="btn-sm ds-action-btn ds-del-btn" data-id="${ds.id}" style="border-color:#7f1d1d;color:#fca5a5">삭제</button>
               </div>`;
-            card.querySelector('.ds-copy-btn').addEventListener('click', () => {
-              navigator.clipboard.writeText(ds.tokens).then(() =>
-                toast("CSS 토큰 복사됨 — /mockup 또는 /token 프롬프트에 붙여넣으세요")
-              );
+            card.querySelector('.ds-activate-btn').addEventListener('click', () => {
+              setActiveDsId(isActive ? null : ds.id);
+              renderSidebar();
+              toast(isActive ? `"${ds.name}" 비활성화됨` : `"${ds.name}" 활성화됨 — /token · /mockup 복사 시 자동 포함`);
             });
             card.querySelector('.ds-del-btn').addEventListener('click', () => {
               if (!confirm(`"${ds.name}" 삭제하시겠습니까?`)) return;
+              if (getActiveDsId() === ds.id) setActiveDsId(null);
               saveDSRepo(getDSRepo().filter(d => d.id !== ds.id));
               renderSidebar();
             });
@@ -2380,12 +2390,13 @@ if(S.length)sw(S[0].id);
 
       // DS 적용 여부 표시 (phase3)
       if (phase === 'phase3') {
+        const activeDsId = getActiveDsId();
+        const activeDs = activeDsId ? getDSRepo().find(d => d.id === activeDsId) : null;
         const dsRow = document.createElement("div");
         dsRow.style.cssText = "display:flex;align-items:center;gap:5px;font-size:11px;padding:4px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px;";
-        const dsApplied = !!(p.designSystem?.content?.trim() || p.designSystem?.files?.length);
-        dsRow.innerHTML = dsApplied
-          ? `<span style="color:var(--accent)">✓</span><span>디자인 시스템 적용됨</span>`
-          : `<span style="color:var(--muted)">○</span><span style="color:var(--muted)">디자인 시스템 미적용 — phase2 산출물에서 설정 가능</span>`;
+        dsRow.innerHTML = activeDs
+          ? `<span style="color:var(--accent)">✓</span><span>디자인 시스템 적용됨 — <b>${escapeHtml(activeDs.name)}</b></span>`
+          : `<span style="color:var(--muted)">○</span><span style="color:var(--muted)">디자인 시스템 미적용 — DS 탭에서 활성화하세요</span>`;
         qaBody.appendChild(dsRow);
       }
 
@@ -2484,137 +2495,6 @@ if(S.length)sw(S[0].id);
         qaBody.appendChild(noQaP);
       }
 
-      // ── DS: phase2 전용 디자인 시스템 섹션 ──
-      if (phase === 'phase2') {
-        const ds = p.designSystem || {};
-        const { hd: dsHd, body: dsBody, badgeEl: dsBadge } = mkAccSection("디자인 시스템");
-
-        // 배지 초기값
-        const _dsBadgeVal = () => ((ds.content?.trim() ? 1 : 0) + (ds.files?.length || 0)) > 0 ? "●" : "";
-        dsBadge.textContent = _dsBadgeVal();
-
-        // 첨부 UI (항상 표시)
-        const dsInner = document.createElement("div");
-        dsInner.style.cssText = "display:flex;flex-direction:column;gap:6px;";
-
-        // 텍스트 입력
-        const dsTa = document.createElement("textarea");
-        dsTa.style.height = "80px";
-        dsTa.placeholder = "CSS 변수, 토큰 JSON, 컴포넌트 목록 등 붙여넣기...";
-        dsTa.value = ds.content || "";
-        dsInner.appendChild(dsTa);
-
-        // 힌트
-        const dsHint = document.createElement("div");
-        dsHint.style.cssText = "font-size:10px;color:var(--muted);";
-        dsHint.textContent = "/token · /mockup 복사 시 자동 포함됩니다";
-        dsInner.appendChild(dsHint);
-
-        // 파일 목록
-        const dsFileList = document.createElement("div");
-        dsFileList.className = "ds-file-list";
-        const renderDsFiles = () => {
-          dsFileList.innerHTML = "";
-          (p.designSystem?.files || []).forEach((f, i) => {
-            const item = document.createElement("div");
-            item.className = "ds-file-item";
-            const nameEl = document.createElement("span");
-            nameEl.className = "ds-file-name";
-            nameEl.textContent = f.name;
-            const delBtn = document.createElement("span");
-            delBtn.className = "ds-file-del";
-            delBtn.textContent = "✕";
-            delBtn.onclick = () => {
-              if (!p.designSystem) p.designSystem = {};
-              p.designSystem.files = (p.designSystem.files || []).filter((_, idx) => idx !== i);
-              saveState();
-              renderDsFiles();
-              dsBadge.textContent = _dsBadgeVal();
-            };
-            item.appendChild(nameEl);
-            item.appendChild(delBtn);
-            dsFileList.appendChild(item);
-          });
-        };
-        renderDsFiles();
-        dsInner.appendChild(dsFileList);
-
-        // 파일/폴더 첨부 버튼 행
-        const dsAttachRow = document.createElement("div");
-        dsAttachRow.className = "ds-attach-row";
-
-        const dsFileInput = document.createElement("input");
-        dsFileInput.type = "file";
-        dsFileInput.multiple = true;
-        dsFileInput.accept = ".css,.json,.md,.txt,.html,.js,.ts,.xml,.yaml,.yml";
-        dsFileInput.style.display = "none";
-
-        const dsFolderInput = document.createElement("input");
-        dsFolderInput.type = "file";
-        dsFolderInput.multiple = true;
-        dsFolderInput.setAttribute("webkitdirectory", "");
-        dsFolderInput.style.display = "none";
-
-        const dsFileBtn = document.createElement("button");
-        dsFileBtn.type = "button";
-        dsFileBtn.className = "btn-sm";
-        dsFileBtn.textContent = "+ 파일";
-
-        const dsFolderBtn = document.createElement("button");
-        dsFolderBtn.type = "button";
-        dsFolderBtn.className = "btn-sm";
-        dsFolderBtn.textContent = "+ 폴더";
-
-        const dsSaveBtn = document.createElement("button");
-        dsSaveBtn.type = "button";
-        dsSaveBtn.className = "btn-sm";
-        dsSaveBtn.style.marginLeft = "auto";
-        dsSaveBtn.textContent = "저장";
-
-        dsAttachRow.appendChild(dsFileInput);
-        dsAttachRow.appendChild(dsFolderInput);
-        dsAttachRow.appendChild(dsFileBtn);
-        dsAttachRow.appendChild(dsFolderBtn);
-        dsAttachRow.appendChild(dsSaveBtn);
-        dsInner.appendChild(dsAttachRow);
-        dsBody.appendChild(dsInner);
-
-        const _readFiles = (files) => {
-          const promises = Array.from(files).map(file => new Promise(resolve => {
-            const reader = new FileReader();
-            reader.onload = ev => resolve({ name: file.webkitRelativePath || file.name, content: ev.target.result });
-            reader.onerror = () => resolve(null);
-            reader.readAsText(file, "UTF-8");
-          }));
-          Promise.all(promises).then(results => {
-            if (!p.designSystem) p.designSystem = {};
-            if (!p.designSystem.files) p.designSystem.files = [];
-            results.filter(Boolean).forEach(r => {
-              const exists = p.designSystem.files.find(f => f.name === r.name);
-              if (exists) exists.content = r.content;
-              else p.designSystem.files.push(r);
-            });
-            saveState();
-            renderDsFiles();
-            dsBadge.textContent = _dsBadgeVal();
-            toast(`${results.filter(Boolean).length}개 파일 추가됨`);
-          });
-        };
-
-        dsFileBtn.onclick = () => dsFileInput.click();
-        dsFolderBtn.onclick = () => dsFolderInput.click();
-        dsFileInput.onchange = e => { _readFiles(e.target.files); e.target.value = ""; };
-        dsFolderInput.onchange = e => { _readFiles(e.target.files); e.target.value = ""; };
-
-        dsSaveBtn.onclick = () => {
-          if (!p.designSystem) p.designSystem = {};
-          p.designSystem.content = dsTa.value.trim();
-          p.designSystem.exists = !!(p.designSystem.content || p.designSystem.files?.length);
-          saveState();
-          dsBadge.textContent = _dsBadgeVal();
-          toast("디자인 시스템 저장됨");
-        };
-      } // end phase2 DS section
 
       if (phase === 'phase3') {
 
@@ -4067,32 +3947,7 @@ else{
       selectedProjectId = projectId;
       $("copyHint").style.display = "none";
 
-      // /mockup 스킬 전용: 저장된 Phase 2 결과 다운로드 버튼
-      const dlWrap = $("skillDownloads");
-      const dlBtns = $("skillDownloadBtns");
-      dlBtns.innerHTML = "";
-      if (sk.id === 'p3' && projectId) {
-        const proj = state.projects.find(x => x.id === projectId);
-        const phase2Content = proj?.deliverables?.phase2?.content;
-        if (phase2Content) {
-          const btn = document.createElement("button");
-          btn.type = "button"; btn.className = "btn-sm";
-          btn.textContent = "↓ 디자인 토큰 내려받기";
-          btn.style.cssText = "margin-right:4px;margin-top:2px;font-size:11px;";
-          btn.onclick = () => {
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(new Blob([phase2Content], { type: 'text/markdown;charset=utf-8' }));
-            a.download = "design-tokens.md";
-            a.click(); URL.revokeObjectURL(a.href);
-          };
-          dlBtns.appendChild(btn);
-          dlWrap.style.display = "block";
-        } else {
-          dlWrap.style.display = "none";
-        }
-      } else {
-        dlWrap.style.display = "none";
-      }
+      $("skillDownloads").style.display = "none";
 
       $("detailSlash").textContent = sk.slash;
       $("detailSlashBadge").textContent = sk.slash || sk.name;

@@ -1346,9 +1346,15 @@
                 ${ds.summary ? `<div class="ds-card-summary">${escapeHtml(ds.summary)}</div>` : ''}
               </div>
               <div class="ds-card-actions">
+                <button class="btn-sm ds-action-btn ds-prompt-btn" data-id="${ds.id}">프롬프트용 복사</button>
                 <button class="btn-sm ds-action-btn ds-copy-btn" data-id="${ds.id}">토큰 복사</button>
                 <button class="btn-sm ds-action-btn ds-del-btn" data-id="${ds.id}" style="border-color:#7f1d1d;color:#fca5a5">삭제</button>
               </div>`;
+            card.querySelector('.ds-prompt-btn').addEventListener('click', () => {
+              navigator.clipboard.writeText(`[${ds.name}]\n${ds.tokens}`).then(() =>
+                toast("프롬프트용 복사됨 — /design-system 저장된 DS 입력에 붙여넣으세요")
+              );
+            });
             card.querySelector('.ds-copy-btn').addEventListener('click', () => {
               navigator.clipboard.writeText(ds.tokens).then(() =>
                 toast("CSS 토큰 복사됨 — /mockup 또는 /token 프롬프트에 붙여넣으세요")

@@ -723,12 +723,12 @@
         <p style="font-size:11px;color:var(--muted);margin:6px 0 4px;line-height:1.5">AI가 제안한 QA 체크리스트를 붙여넣으세요. 줄 단위로 파싱되며 고정 항목 아래에 표시됩니다.</p>
         <textarea id="delivCustomQaArea" style="width:100%;height:90px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit;color:var(--text)" placeholder="- [ ] 검토 항목 1&#10;- [ ] 검토 항목 2&#10;..."></textarea>
       </details>
-      <div id="delivEditDsInfo" style="display:none;margin-top:10px;padding:8px 12px;border-radius:6px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);font-size:12px;gap:8px">
-        <div style="font-size:10px;color:var(--accent);font-weight:600;margin-bottom:4px">활성화된 디자인 시스템</div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span id="delivEditDsName" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500"></span>
-          <button type="button" class="btn-sm" id="btnDelivEditDsCopy" style="flex-shrink:0;font-size:11px">토큰 복사</button>
+      <div id="delivEditDsInfo" style="display:none;margin-top:10px;padding:10px 12px;border-radius:6px;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);display:flex;align-items:center;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:10px;color:var(--accent);font-weight:600;margin-bottom:2px;letter-spacing:0.3px">활성화된 디자인 시스템</div>
+          <div id="delivEditDsName" style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
         </div>
+        <button type="button" class="btn-sm" id="btnDelivEditDsCopy" style="flex-shrink:0">토큰 복사</button>
       </div>
       <div class="row" style="margin-top:10px">
         <button type="button" class="btn-sm" id="btnDelivEditCancel">취소</button>

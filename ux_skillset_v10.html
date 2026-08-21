@@ -707,9 +707,16 @@
   </div>
 
   <div class="modal-backdrop" id="modalDSEdit" style="display:none">
-    <div class="modal" style="max-width:380px">
-      <h4>DS 정보 편집</h4>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+    <div class="modal" id="dsEditModalBox" style="max-width:380px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h4 style="margin:0">DS 편집</h4>
+        <div style="display:flex;gap:4px">
+          <button type="button" class="btn-sm" id="dsEditTabMeta">기본 정보</button>
+          <button type="button" class="btn-sm" id="dsEditTabCode">코드</button>
+        </div>
+      </div>
+      <!-- Panel 1: 기본 정보 -->
+      <div id="dsEditPanelMeta" style="display:flex;flex-direction:column;gap:10px">
         <div>
           <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">이름 *</label>
           <input type="text" id="dsEditName" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--fg);font-size:13px;outline:none">
@@ -731,6 +738,29 @@
             <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">업종</label>
             <input type="text" id="dsEditIndustry" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--fg);font-size:13px;outline:none">
           </div>
+        </div>
+      </div>
+      <!-- Panel 2: 코드 -->
+      <div id="dsEditPanelCode" style="display:none;flex-direction:column;gap:12px;max-height:65vh;overflow-y:auto;padding-right:2px">
+        <div>
+          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Foundation Tokens (CSS)</label>
+          <textarea id="dsEditTokens" rows="10" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--fg);font-size:12px;font-family:'SF Mono','Fira Code',monospace;resize:vertical;outline:none;line-height:1.55"></textarea>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Component Spec</label>
+          <textarea id="dsEditComponents" rows="6" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--fg);font-size:12px;resize:vertical;outline:none;line-height:1.55"></textarea>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Interaction Rules</label>
+          <textarea id="dsEditInteractions" rows="5" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--fg);font-size:12px;resize:vertical;outline:none;line-height:1.55"></textarea>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Pattern Library</label>
+          <textarea id="dsEditPatterns" rows="5" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--fg);font-size:12px;resize:vertical;outline:none;line-height:1.55"></textarea>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Layout Rules</label>
+          <textarea id="dsEditLayout" rows="4" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--fg);font-size:12px;resize:vertical;outline:none;line-height:1.55"></textarea>
         </div>
       </div>
       <div class="row" style="margin-top:12px;justify-content:flex-end;gap:8px">
@@ -869,7 +899,9 @@
       else localStorage.removeItem(DS_ACTIVE_KEY);
     }
     function parseDSExport(text) {
-      const m = text.match(/<!--\s*DS_EXPORT\s*([\s\S]*?)-->([\s\S]*?)<!--\s*DS_EXPORT_END\s*-->/);
+      // 코드 펜스(```) 안에 있어도 파싱 가능하게 제거
+      const cleaned = text.replace(/```[^\n]*\n([\s\S]*?)```/g, '$1');
+      const m = cleaned.match(/<!--\s*DS_EXPORT\s*([\s\S]*?)-->([\s\S]*?)<!--\s*DS_EXPORT_END\s*-->/);
       if (!m) return null;
       const meta = {};
       m[1].trim().split('\n').forEach(line => {
@@ -1512,6 +1544,12 @@ pre{background:#1f2937;color:#d1d5db;padding:20px;border-radius:10px;overflow-x:
               $("dsEditStyle").value = ds.style || "";
               $("dsEditPlatform").value = ds.platform || "";
               $("dsEditIndustry").value = ds.industry || "";
+              $("dsEditTokens").value = ds.tokens || "";
+              $("dsEditComponents").value = ds.components || "";
+              $("dsEditInteractions").value = ds.interactions || "";
+              $("dsEditPatterns").value = ds.patterns || "";
+              $("dsEditLayout").value = ds.layout || "";
+              dsEditSwitchTab('meta');
               $("modalDSEdit").dataset.id = ds.id;
               $("modalDSEdit").style.display = "flex";
               setTimeout(() => $("dsEditName").focus(), 50);
@@ -4605,7 +4643,19 @@ else{
         e.target.value = "";
       });
       $("modalDSSave").addEventListener("click", e => { if (e.target === $("modalDSSave")) $("modalDSSave").style.display = "none"; });
-      // DS 편집 모달
+      // DS 편집 모달 — 탭 전환
+      function dsEditSwitchTab(tab) {
+        const isMeta = tab === 'meta';
+        $("dsEditPanelMeta").style.display = isMeta ? 'flex' : 'none';
+        $("dsEditPanelCode").style.display = isMeta ? 'none' : 'flex';
+        $("dsEditModalBox").style.maxWidth = isMeta ? '380px' : '600px';
+        const on = 'background:var(--accent);color:#fff;border-color:var(--accent)';
+        $("dsEditTabMeta").style.cssText = isMeta ? on : '';
+        $("dsEditTabCode").style.cssText = isMeta ? '' : on;
+      }
+      dsEditSwitchTab('meta');
+      $("dsEditTabMeta").addEventListener("click", () => dsEditSwitchTab('meta'));
+      $("dsEditTabCode").addEventListener("click", () => dsEditSwitchTab('code'));
       $("btnDSEditCancel").addEventListener("click", () => { $("modalDSEdit").style.display = "none"; });
       $("modalDSEdit").addEventListener("click", e => { if (e.target === $("modalDSEdit")) $("modalDSEdit").style.display = "none"; });
       $("btnDSEditConfirm").addEventListener("click", () => {
@@ -4615,7 +4665,18 @@ else{
         const repo = getDSRepo();
         const idx = repo.findIndex(d => d.id === id);
         if (idx === -1) return;
-        repo[idx] = { ...repo[idx], name, summary: $("dsEditSummary").value.trim(), style: $("dsEditStyle").value.trim(), platform: $("dsEditPlatform").value.trim(), industry: $("dsEditIndustry").value.trim() };
+        repo[idx] = {
+          ...repo[idx], name,
+          summary: $("dsEditSummary").value.trim(),
+          style: $("dsEditStyle").value.trim(),
+          platform: $("dsEditPlatform").value.trim(),
+          industry: $("dsEditIndustry").value.trim(),
+          tokens: $("dsEditTokens").value.trim(),
+          components: $("dsEditComponents").value.trim(),
+          interactions: $("dsEditInteractions").value.trim(),
+          patterns: $("dsEditPatterns").value.trim(),
+          layout: $("dsEditLayout").value.trim()
+        };
         saveDSRepo(repo);
         $("modalDSEdit").style.display = "none";
         renderSidebar();

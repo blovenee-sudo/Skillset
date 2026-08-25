@@ -2087,6 +2087,31 @@ ${bodyHtml}
           vpBar.appendChild(btn);
           return btn;
         });
+        // QA 데모 상태 버튼 (우측 정렬)
+        const demoSep = document.createElement("span");
+        demoSep.style.cssText = "width:1px;height:14px;background:var(--border);margin:0 4px;flex-shrink:0;align-self:center;margin-left:auto;";
+        vpBar.appendChild(demoSep);
+        const demoStates = [
+          { label: "기본", state: "default" },
+          { label: "로딩", state: "loading" },
+          { label: "빈결과", state: "empty" },
+          { label: "에러", state: "error" },
+        ];
+        let _activeDemoBtn = null;
+        const demoBtns = demoStates.map(ds => {
+          const btn = document.createElement("button");
+          btn.className = "vp-type-btn";
+          btn.textContent = ds.label;
+          btn.style.fontSize = "11px";
+          btn.onclick = () => {
+            demoBtns.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            _activeDemoBtn = ds.state;
+            try { _viewIframe.contentWindow.postMessage({ type: 'AX_DEMO', state: ds.state }, '*'); } catch(e) {}
+          };
+          vpBar.appendChild(btn);
+          return btn;
+        });
         _setVp(null);
         iframeWrap.appendChild(_viewIframe);
         _pinOverlay = document.createElement("div");
@@ -2095,10 +2120,14 @@ ${bodyHtml}
         leftBody.appendChild(iframeWrap);
         _iframeWrap = iframeWrap;
         _activeOptIdx = 0;
+        // AX_DEMO 리스너 주입 패치 (기존 HTML에 없을 경우 폴백)
+        const _axDemoPatch = `<script>if(!window._axDP){window._axDP=1;window.addEventListener('message',function(e){if(!e.data||e.data.type!=='AX_DEMO')return;var m={default:window.AX_showDefault,loading:window.AX_showLoading,empty:window.AX_showEmpty,error:window.AX_showError};var f=m[e.data.state];if(typeof f==='function')f();});}<\/script>`;
+        const _patchSrcdoc = (html) => html.includes('</body>') ? html.replace('</body>', _axDemoPatch + '</body>') : html + _axDemoPatch;
         const setActive = (i) => {
           _activeOptIdx = i;
-          _viewIframe.srcdoc = opts[i].html;
+          _viewIframe.srcdoc = _patchSrcdoc(opts[i].html);
           optBtns.forEach((b, j) => b.classList.toggle("active", j === i));
+          demoBtns.forEach(b => b.classList.remove("active"));
         };
         // 안 선택 버튼 (setActive 선언 후)
         const optBtns = opts.map((opt, i) => {

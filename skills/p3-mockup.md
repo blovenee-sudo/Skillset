@@ -84,6 +84,22 @@ artifact 미지원 환경: 각 파일을 별도 코드블록(```html … ```)으
   - Loading: 1~2초 스켈레톤 → 자동 데이터 전환
   - Empty: 0건 시 아이콘+안내 문구
   - Error: 스낵바·배너 인라인 표시
+- **[CRITICAL] AX 데모 API 필수 구현** — `</body>` 바로 위에 아래 스크립트를 반드시 포함:
+  ```html
+  <script>
+  function AX_showDefault(){/* 기본 데이터 상태로 복원 */}
+  function AX_showLoading(){/* 스켈레톤 로딩 상태 */}
+  function AX_showEmpty(){/* 빈 결과 상태 */}
+  function AX_showError(){/* 에러 상태 */}
+  window.addEventListener('message',function(e){
+    if(!e.data||e.data.type!=='AX_DEMO')return;
+    var fn={'default':AX_showDefault,'loading':AX_showLoading,'empty':AX_showEmpty,'error':AX_showError}[e.data.state];
+    if(fn)fn();
+  });
+  </script>
+  ```
+  - 각 함수 내부는 실제 화면 상태를 전환하는 로직으로 구현
+  - **플로팅 데모 패널(QA 컨트롤 UI) HTML 내부에 렌더링 금지** — 상태 전환은 뷰어가 제공하는 버튼으로만 작동
 - **Figma Compatible** — `flex`/`grid` 기반, `max-width:1280px; margin:0 auto`
 - **Component Comment** — `<!-- Component: 이름 -->` 주석
 

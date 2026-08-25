@@ -1896,6 +1896,22 @@ pre{background:#1f2937;color:#d1d5db;padding:20px;border-radius:10px;overflow-x:
       const content = p.deliverables?.[phase]?.content || "";
       $("delivEditArea").value = content;
 
+      // content 세팅 후 탭 버퍼 재초기화 (위 블록은 textarea가 비어있을 때 실행돼 버퍼가 빈 채로 남음)
+      if (phase === 'phase3') {
+        const existingOpts = content ? parseDesignOptions(content) : [];
+        if (existingOpts.length > 0) {
+          existingOpts.forEach((o, i) => { if (i < 3) _optBufs[i] = o.html; });
+        } else {
+          _optBufs[0] = content; _optBufs[1] = ''; _optBufs[2] = '';
+        }
+        _activeOptTab = 0;
+        $("delivEditOptTabs").querySelectorAll('.deliv-opt-tab').forEach((btn, i) => {
+          btn.classList.toggle('active', i === 0);
+          btn.classList.toggle('has-content', !!_optBufs[i].trim());
+        });
+        $("delivEditArea").value = _optBufs[0];
+      }
+
       const existingCq = p.deliverables?.[phase]?.customQa;
       const cqTa = $("delivCustomQaArea");
       cqTa.value = existingCq ? existingCq.map(i => `- [ ] ${i.text}`).join('\n') : '';

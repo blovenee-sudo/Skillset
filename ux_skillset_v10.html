@@ -1835,7 +1835,7 @@ pre{background:#1f2937;color:#d1d5db;padding:20px;border-radius:10px;overflow-x:
         const existing = $("delivEditArea").value;
         const existingOpts = existing ? parseDesignOptions(existing) : [];
         if (existingOpts.length > 0) {
-          existingOpts.forEach((o, i) => { if (i < 3) _optBufs[i] = o.html; });
+          existingOpts.forEach((o) => { const idx = o.n - 1; if (idx >= 0 && idx < 3) _optBufs[idx] = o.html; });
         }
         const updateOptTabs = () => {
           optTabsEl.querySelectorAll('.deliv-opt-tab').forEach((btn, i) => {
@@ -1866,7 +1866,6 @@ pre{background:#1f2937;color:#d1d5db;padding:20px;border-radius:10px;overflow-x:
           const uxLabels = ['리스트형, 정보 스캔 최우선', '카드 그리드형, 시각 요소 강조', '대시보드형, 핵심 지표 중심'];
           const filled = _optBufs.map((html, i) => ({ html: html.trim(), i })).filter(o => o.html);
           if (filled.length === 0) { toast("내용을 입력해주세요"); return null; }
-          if (filled.length === 1) return filled[0].html; // 단일 안: 그냥 HTML
           return filled.map(o => `<!-- AX_OPTION\nn: ${o.i+1}\ntitle: ${titles[o.i]}\nux: ${uxLabels[o.i]}\n-->\n${o.html}\n<!-- AX_OPTION_END -->`).join('\n\n');
         };
       } else {
@@ -1900,7 +1899,7 @@ pre{background:#1f2937;color:#d1d5db;padding:20px;border-radius:10px;overflow-x:
       if (phase === 'phase3') {
         const existingOpts = content ? parseDesignOptions(content) : [];
         if (existingOpts.length > 0) {
-          existingOpts.forEach((o, i) => { if (i < 3) _optBufs[i] = o.html; });
+          existingOpts.forEach((o) => { const idx = o.n - 1; if (idx >= 0 && idx < 3) _optBufs[idx] = o.html; });
         } else {
           _optBufs[0] = content; _optBufs[1] = ''; _optBufs[2] = '';
         }

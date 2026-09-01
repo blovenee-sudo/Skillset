@@ -1558,6 +1558,16 @@ pre{background:#1f2937;color:#d1d5db;padding:20px;border-radius:10px;overflow-x:
       container.appendChild(chip);
     }
 
+    function dsEditSwitchTab(tab) {
+      const isMeta = tab === 'meta';
+      $("dsEditPanelMeta").style.display = isMeta ? 'flex' : 'none';
+      $("dsEditPanelCode").style.display = isMeta ? 'none' : 'flex';
+      $("dsEditModalBox").style.maxWidth = isMeta ? '380px' : '600px';
+      const on = 'background:var(--accent);color:#fff;border-color:var(--accent)';
+      $("dsEditTabMeta").style.cssText = isMeta ? on : '';
+      $("dsEditTabCode").style.cssText = isMeta ? '' : on;
+    }
+
     function renderSidebar() {
       const el = $("sidebarList");
       el.innerHTML = "";
@@ -4794,16 +4804,7 @@ else{
         e.target.value = "";
       });
       $("modalDSSave").addEventListener("click", e => { if (e.target === $("modalDSSave")) $("modalDSSave").style.display = "none"; });
-      // DS 편집 모달 — 탭 전환
-      function dsEditSwitchTab(tab) {
-        const isMeta = tab === 'meta';
-        $("dsEditPanelMeta").style.display = isMeta ? 'flex' : 'none';
-        $("dsEditPanelCode").style.display = isMeta ? 'none' : 'flex';
-        $("dsEditModalBox").style.maxWidth = isMeta ? '380px' : '600px';
-        const on = 'background:var(--accent);color:#fff;border-color:var(--accent)';
-        $("dsEditTabMeta").style.cssText = isMeta ? on : '';
-        $("dsEditTabCode").style.cssText = isMeta ? '' : on;
-      }
+      // DS 편집 모달 — 탭 전환 (dsEditSwitchTab은 전역 스코프에 정의됨)
       dsEditSwitchTab('meta');
       $("dsEditTabMeta").addEventListener("click", () => dsEditSwitchTab('meta'));
       $("dsEditTabCode").addEventListener("click", () => dsEditSwitchTab('code'));

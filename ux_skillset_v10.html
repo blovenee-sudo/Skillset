@@ -1010,6 +1010,8 @@
       });
       const tags = [ds.style, ds.platform, ds.industry].filter(Boolean);
       const date = ds.createdAt ? new Date(ds.createdAt).toLocaleDateString('ko-KR') : '';
+      const refSlug = (ds.name || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const refUrl = `https://www.oppadu.com/tools/design-systems-site/#/${refSlug}`;
       const swatchesHtml = colorVars.length ? `
         <section>
           <h2>Color Palette</h2>
@@ -1055,6 +1057,7 @@ pre{background:#1f2937;color:#d1d5db;padding:20px;border-radius:10px;overflow-x:
   <div class="tags">${tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
   ${ds.summary ? `<p class="summary">${esc(ds.summary)}</p>` : ''}
   ${date ? `<p class="meta">저장일: ${date}</p>` : ''}
+  ${refSlug ? `<p class="meta"><a href="${refUrl}" target="_blank" rel="noopener" style="color:#6366f1;text-decoration:none">참고링크 →</a></p>` : ''}
   <hr>
   ${swatchesHtml}
   ${tableSection('Component Spec', ds.components)}

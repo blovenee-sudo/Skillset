@@ -963,8 +963,12 @@
         let cm;
         while ((cm = codeRe.exec(text)) !== null) cssBlocks.push(cm[1].trim());
         const tokens = cssBlocks.join('\n\n');
-        // 컴포넌트 섹션 (### ⑨ 또는 ### COMPONENT)
-        const compM = text.match(/###.*?컴포넌트[^\n]*\n([\s\S]*?)(?=\n###|$)/);
+        // 마크다운 섹션 추출 헬퍼 — 키워드 배열 중 하나라도 포함된 ### 헤더 뒤 내용
+        const secM = (keywords) => {
+          const pat = new RegExp(`###[^\\n]*(?:${keywords.join('|')})[^\\n]*\\n([\\s\\S]*?)(?=\\n###|$)`, 'i');
+          const m = text.match(pat);
+          return m ? m[1].trim() : '';
+        };
         return {
           id: `ds-${Date.now()}`,
           name: fm.brand || fm.brand_ko || fm.slug || "이름 없음",
@@ -973,10 +977,10 @@
           industry: fm.industry || "",
           summary: fm.signature_keyword || fm.mood || "",
           tokens: tokens || text,
-          components: compM ? compM[1].trim() : '',
-          interactions: '',
-          patterns: '',
-          layout: '',
+          components: secM(['컴포넌트', 'component', 'components']),
+          interactions: secM(['인터랙션', 'interaction', 'interactions']),
+          patterns: secM(['패턴', 'pattern', 'patterns']),
+          layout: secM(['레이아웃', 'layout']),
           createdAt: new Date().toISOString()
         };
       }
